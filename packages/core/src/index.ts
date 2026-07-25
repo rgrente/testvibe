@@ -15,3 +15,4 @@ export * from "./tree.js";
 export * from "./demo.js";
 export * from "./web-api.js";
 export * from "./admin-api.js";
+export * from "./gedcom.js";

@@ -32,6 +32,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link href="/admin/filiations" className="text-slate-600 hover:text-slate-900">
               Filiations
             </Link>
+            <Link href="/admin/gedcom" className="text-slate-600 hover:text-slate-900">
+              GEDCOM
+            </Link>
           </div>
           <form action={logoutAction}>
             <button
