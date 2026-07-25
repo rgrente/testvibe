@@ -6,8 +6,9 @@ import "reactflow/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
 import { buildReactFlowGraph } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
+import { UnionJunctionNode } from "./UnionJunctionNode";
 
-const nodeTypes: NodeTypes = { person: PersonNode };
+const nodeTypes: NodeTypes = { person: PersonNode, unionJunction: UnionJunctionNode };
 
 export interface FamilyTreeCanvasProps {
   tree: FamilyTree;

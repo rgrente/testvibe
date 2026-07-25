@@ -1,14 +1,14 @@
 import { describe, it, expect } from "vitest";
 import type { FamilyTree } from "@testvibe/core";
-import { buildReactFlowGraph, buildHierarchyRows } from "./family-tree-layout";
+import { buildReactFlowGraph, buildHierarchyRows, type PersonNodeData } from "./family-tree-layout";
 
 function makeTree(): FamilyTree {
   return {
     rootId: 2,
     nodes: [
       { person: { id: 1, firstName: "Ada", lastName: "Lovelace", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
-      { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
-      { person: { id: 3, firstName: "Anne", lastName: "Fontaine", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: "1950-05-12", deathDate: null, gender: "M" } as any, generation: 0 },
+      { person: { id: 3, firstName: "Anne", lastName: "Fontaine", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
       { person: { id: 4, firstName: "Ralph", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
     ],
     edges: [
@@ -20,44 +20,100 @@ function makeTree(): FamilyTree {
   };
 }
 
+function personData(node: ReturnType<typeof buildReactFlowGraph>["nodes"][number]): PersonNodeData {
+  return node.data as PersonNodeData;
+}
+
 describe("buildReactFlowGraph", () => {
   it("crée un noeud react-flow par Person avec sa génération et si c'est la racine", () => {
     const graph = buildReactFlowGraph(makeTree());
-    expect(graph.nodes).toHaveLength(4);
+    const personNodes = graph.nodes.filter((n) => n.type === "person");
+    expect(personNodes).toHaveLength(4);
+
     const root = graph.nodes.find((n) => n.id === "2")!;
-    expect(root.data.isRoot).toBe(true);
-    expect(root.data.generation).toBe(0);
-    expect(root.data.label).toBe("Byron King");
+    expect(personData(root).isRoot).toBe(true);
+    expect(personData(root).generation).toBe(0);
+    expect(personData(root).label).toBe("Byron King");
 
     const nonRoot = graph.nodes.find((n) => n.id === "1")!;
-    expect(nonRoot.data.isRoot).toBe(false);
+    expect(personData(nonRoot).isRoot).toBe(false);
+  });
+
+  it("propage le genre et les dates de naissance/décès dans les données du noeud", () => {
+    const graph = buildReactFlowGraph(makeTree());
+    const byron = personData(graph.nodes.find((n) => n.id === "2")!);
+    expect(byron.gender).toBe("M");
+    expect(byron.birthDate).toBe("1950-05-12");
+    expect(byron.deathDate).toBeNull();
+
+    const ada = personData(graph.nodes.find((n) => n.id === "1")!);
+    expect(ada.gender).toBeNull();
   });
 
   it("place les générations sur des lignes y distinctes et croissantes", () => {
     const graph = buildReactFlowGraph(makeTree());
-    const yByGeneration = new Map(graph.nodes.map((n) => [n.data.generation, n.position.y]));
+    const personNodes = graph.nodes.filter((n) => n.type === "person");
+    const yByGeneration = new Map(personNodes.map((n) => [personData(n).generation, n.position.y]));
     expect(yByGeneration.get(-1)!).toBeLessThan(yByGeneration.get(0)!);
     expect(yByGeneration.get(0)!).toBeLessThan(yByGeneration.get(1)!);
   });
 
   it("répartit horizontalement les noeuds d'une même génération (positions x distinctes)", () => {
     const graph = buildReactFlowGraph(makeTree());
-    const gen0 = graph.nodes.filter((n) => n.data.generation === 0);
+    const gen0 = graph.nodes.filter((n) => n.type === "person" && personData(n).generation === 0);
     expect(gen0).toHaveLength(2);
     expect(gen0[0].position.x).not.toBe(gen0[1].position.x);
   });
 
-  it("crée une arête react-flow par Filiation et par Union", () => {
+  it("place les deux partenaires d'une Union sur des colonnes adjacentes même si un tiers de la même génération les sépare par ordre d'id", () => {
+    const tree: FamilyTree = {
+      rootId: 2,
+      nodes: [
+        { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        // Id 5 s'intercale entre les deux partenaires (2 et 9) par tri naïf.
+        { person: { id: 5, firstName: "Autre", lastName: "Personne", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 9, firstName: "Anne", lastName: "Fontaine", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      ],
+      edges: [{ type: "union", unionId: 30, personIds: [2, 9] }],
+    };
+    const graph = buildReactFlowGraph(tree);
+    const byron = graph.nodes.find((n) => n.id === "2")!;
+    const anne = graph.nodes.find((n) => n.id === "9")!;
+    expect(Math.abs(anne.position.x - byron.position.x)).toBe(300);
+  });
+
+  it("crée un point de jonction pour une Union à deux partenaires, relié aux deux partenaires", () => {
     const graph = buildReactFlowGraph(makeTree());
-    expect(graph.edges).toHaveLength(4);
+    const junction = graph.nodes.find((n) => n.id === "union-20");
+    expect(junction).toBeDefined();
+    expect(junction!.type).toBe("unionJunction");
+
+    expect(graph.edges.find((e) => e.id === "union-20-link-2")).toMatchObject({
+      source: "2",
+      target: "union-20",
+    });
+    expect(graph.edges.find((e) => e.id === "union-20-link-3")).toMatchObject({
+      source: "3",
+      target: "union-20",
+    });
+  });
+
+  it("fusionne les Filiation d'un enfant commun aux deux partenaires en une seule arête depuis le point de jonction", () => {
+    const graph = buildReactFlowGraph(makeTree());
+    const merged = graph.edges.find((e) => e.id === "union-20-child-4");
+    expect(merged).toMatchObject({ source: "union-20", target: "4", label: "biologique" });
+
+    // Les arêtes de Filiation individuelles (11 et 12) ne doivent plus apparaître telles quelles.
+    expect(graph.edges.find((e) => e.id === "filiation-11")).toBeUndefined();
+    expect(graph.edges.find((e) => e.id === "filiation-12")).toBeUndefined();
+  });
+
+  it("garde une arête de Filiation directe quand le parent n'a pas d'Union commune avec un autre parent", () => {
+    const graph = buildReactFlowGraph(makeTree());
     expect(graph.edges.find((e) => e.id === "filiation-10")).toMatchObject({
       source: "1",
       target: "2",
       label: "biologique",
-    });
-    expect(graph.edges.find((e) => e.id === "union-20")).toMatchObject({
-      source: "2",
-      target: "3",
     });
   });
 });
