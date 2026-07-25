@@ -1,4 +1,5 @@
 import { getFamilyTreeForWeb, listAllPersonsForWeb } from "@testvibe/core";
+import Link from "next/link";
 import { FamilyTreeCanvas } from "../components/FamilyTreeCanvas";
 import { FamilyTreeMobileList } from "../components/FamilyTreeMobileList";
 import { RootPersonSelect } from "../components/RootPersonSelect";
@@ -55,6 +56,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       <FamilyTreeCanvas tree={tree} />
       <FamilyTreeMobileList tree={tree} />
+
+      <p className="mt-8 text-right text-xs text-slate-400">
+        <Link href="/admin" className="hover:text-slate-600">
+          Mode édition
+        </Link>
+      </p>
     </main>
   );
 }
