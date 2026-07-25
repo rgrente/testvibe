@@ -6,6 +6,8 @@
  * Filiation, en utilisant la connexion par défaut (`DATABASE_URL` ou
  * `file:./local.db`).
  *
+ * Inclut également les fonctions d'import/export GEDCOM (Phase 4, tâche #23).
+ *
  * apps/web n'appelle jamais @testvibe/db directement — toute la
  * logique métier reste dans packages/core.
  */
@@ -26,6 +28,7 @@ import {
   updateFiliation,
   deleteFiliation,
 } from "./filiation.js";
+import { importGedcom, exportGedcom } from "./gedcom.js";
 
 // ─── Person ──────────────────────────────────────────────────────────────────
 
@@ -97,4 +100,26 @@ export async function adminUpdateFiliation(
 
 export async function adminDeleteFiliation(id: number): Promise<void> {
   return deleteFiliation(defaultDb, id);
+}
+
+// ─── GEDCOM ───────────────────────────────────────────────────────────────────
+
+/**
+ * Importe un fichier GEDCOM dans la base de données par défaut.
+ * Opération atomique : aucune donnée n'est persistée en cas d'erreur.
+ *
+ * @param gedcomText  Contenu textuel du fichier .ged.
+ * @throws ValidationError si le fichier est malformé ou invalide.
+ */
+export async function adminImportGedcom(gedcomText: string): Promise<void> {
+  return importGedcom(defaultDb, gedcomText);
+}
+
+/**
+ * Exporte les données de la base par défaut vers un fichier GEDCOM 5.5.1.
+ *
+ * @returns Contenu textuel du fichier .ged généré.
+ */
+export async function adminExportGedcom(): Promise<string> {
+  return exportGedcom(defaultDb);
 }
