@@ -7,6 +7,8 @@
 
 export type FiliationRole = "biologique" | "adopte" | "beau-parent";
 
+export type EventType = "naissance" | "décès" | "mariage" | "libre";
+
 export interface Person {
   id: number;
   firstName: string;
@@ -49,4 +51,43 @@ export interface FiliationInput {
   parentId: number;
   childId: number;
   role: FiliationRole;
+}
+
+export interface Event {
+  id: number;
+  personId: number;
+  unionId: number | null;
+  type: EventType;
+  label: string | null;
+  eventDate: string | null;
+  description: string | null;
+}
+
+export interface EventInput {
+  personId: number;
+  unionId?: number | null;
+  type: EventType;
+  label?: string | null;
+  eventDate?: string | null;
+  description?: string | null;
+}
+
+export interface Media {
+  id: number;
+  personId: number | null;
+  eventId: number | null;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface MediaInput {
+  personId?: number | null;
+  eventId?: number | null;
+  filename: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
 }

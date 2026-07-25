@@ -12,7 +12,18 @@
  * logique métier reste dans packages/core.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { Person, PersonInput, Union, UnionInput, Filiation, FiliationInput } from "./types.js";
+import type {
+  Person,
+  PersonInput,
+  Union,
+  UnionInput,
+  Filiation,
+  FiliationInput,
+  Event,
+  EventInput,
+  Media,
+  MediaInput,
+} from "./types.js";
 import {
   createPerson,
   getPersonById,
@@ -28,6 +39,21 @@ import {
   updateFiliation,
   deleteFiliation,
 } from "./filiation.js";
+import {
+  createEvent,
+  getEventById,
+  listEventsByPerson,
+  listAllEvents,
+  updateEvent,
+  deleteEvent,
+} from "./event.js";
+import {
+  createMedia,
+  getMediaById,
+  listMediaByPerson,
+  listMediaByEvent,
+  deleteMedia,
+} from "./media.js";
 import { importGedcom, exportGedcom } from "./gedcom.js";
 
 // ─── Person ──────────────────────────────────────────────────────────────────
@@ -122,4 +148,52 @@ export async function adminImportGedcom(gedcomText: string): Promise<void> {
  */
 export async function adminExportGedcom(): Promise<string> {
   return exportGedcom(defaultDb);
+}
+
+// ─── Event ────────────────────────────────────────────────────────────────────
+
+export async function adminCreateEvent(input: EventInput): Promise<Event> {
+  return createEvent(defaultDb, input);
+}
+
+export async function adminGetEvent(id: number): Promise<Event> {
+  return getEventById(defaultDb, id);
+}
+
+export async function adminListEventsByPerson(personId: number): Promise<Event[]> {
+  return listEventsByPerson(defaultDb, personId);
+}
+
+export async function adminListAllEvents(): Promise<Event[]> {
+  return listAllEvents(defaultDb);
+}
+
+export async function adminUpdateEvent(id: number, input: Partial<EventInput>): Promise<Event> {
+  return updateEvent(defaultDb, id, input);
+}
+
+export async function adminDeleteEvent(id: number): Promise<void> {
+  return deleteEvent(defaultDb, id);
+}
+
+// ─── Media ────────────────────────────────────────────────────────────────────
+
+export async function adminCreateMedia(input: MediaInput): Promise<Media> {
+  return createMedia(defaultDb, input);
+}
+
+export async function adminGetMedia(id: number): Promise<Media> {
+  return getMediaById(defaultDb, id);
+}
+
+export async function adminListMediaByPerson(personId: number): Promise<Media[]> {
+  return listMediaByPerson(defaultDb, personId);
+}
+
+export async function adminListMediaByEvent(eventId: number): Promise<Media[]> {
+  return listMediaByEvent(defaultDb, eventId);
+}
+
+export async function adminDeleteMedia(id: number): Promise<void> {
+  return deleteMedia(defaultDb, id);
 }

@@ -140,6 +140,28 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
           </Link>
         </div>
       </form>
+
+      {/* Phase 5 (tâche #24) : raccourcis vers événements et médias */}
+      <div className="mt-6 flex flex-wrap gap-3">
+        <Link
+          href={`/admin/persons/${id}/events`}
+          className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+        >
+          📅 Événements
+        </Link>
+        <Link
+          href={`/admin/persons/${id}/media`}
+          className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+        >
+          🖼 Médias
+        </Link>
+        <Link
+          href={`/persons/${id}`}
+          className="rounded border border-blue-200 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+        >
+          Voir la fiche publique →
+        </Link>
+      </div>
     </main>
   );
 }

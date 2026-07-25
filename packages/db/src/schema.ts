@@ -58,3 +58,35 @@ export const filiation = sqliteTable("filiation", {
     .references(() => person.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["biologique", "adopte", "beau-parent"] }).notNull(),
 });
+
+/**
+ * Événements biographiques liés à une Person (optionnel : unionId si
+ * l'événement est un mariage ou événement familial).
+ * Types : "naissance" | "décès" | "mariage" | "libre"
+ */
+export const event = sqliteTable("event", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  personId: integer("person_id")
+    .notNull()
+    .references(() => person.id, { onDelete: "cascade" }),
+  unionId: integer("union_id").references(() => unions.id, { onDelete: "set null" }),
+  type: text("type", { enum: ["naissance", "décès", "mariage", "libre"] }).notNull(),
+  label: text("label"),
+  eventDate: text("event_date"),
+  description: text("description"),
+});
+
+/**
+ * Médias (photos, documents) associés à une Person ou un Event.
+ * Le fichier est stocké sur le système de fichiers local.
+ */
+export const media = sqliteTable("media", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  personId: integer("person_id").references(() => person.id, { onDelete: "cascade" }),
+  eventId: integer("event_id").references(() => event.id, { onDelete: "cascade" }),
+  filename: text("filename").notNull(),
+  originalName: text("original_name").notNull(),
+  mimeType: text("mime_type").notNull(),
+  size: integer("size").notNull(),
+  createdAt: text("created_at").notNull(),
+});
