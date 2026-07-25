@@ -1,0 +1,12 @@
+node_modules/
+.pnpm-store/
+dist/
+.next/
+.turbo/
+*.log
+.env
+.env.local
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
