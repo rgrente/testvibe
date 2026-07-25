@@ -8,6 +8,13 @@
       "when": 1784985314736,
       "tag": "0000_tan_angel",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1784987062281,
+      "tag": "0001_chilly_leech",
+      "breakpoints": true
     }
   ]
 }
