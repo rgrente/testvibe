@@ -11,3 +11,6 @@ export * from "./errors.js";
 export * from "./person.js";
 export * from "./union.js";
 export * from "./filiation.js";
+export * from "./tree.js";
+export * from "./demo.js";
+export * from "./web-api.js";
