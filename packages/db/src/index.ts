@@ -1,17 +1,28 @@
 /**
  * Client Drizzle ORM connecté à une base SQLite locale (libSQL).
  *
- * L'URL de la base est lue depuis DATABASE_URL, avec un chemin de
- * fichier local par défaut adapté au développement.
+ * `createDb` est une factory réutilisable : elle permet de créer des
+ * instances isolées (ex. base en mémoire `file::memory:` pour les
+ * tests unitaires de `@testvibe/core`) sans dépendre du fichier
+ * `local.db` partagé par l'application. Le client par défaut exporté
+ * (`db`/`client`) reste basé sur `DATABASE_URL` (ou `file:./local.db`)
+ * pour compatibilité avec les scripts existants (`pnpm db:migrate`).
  */
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
+import { createClient, type Client } from "@libsql/client";
+import { drizzle, type LibSQLDatabase } from "drizzle-orm/libsql";
 import * as schema from "./schema.js";
 
-const url = process.env.DATABASE_URL ?? "file:./local.db";
+export type Database = LibSQLDatabase<typeof schema>;
 
-export const client = createClient({ url });
+export function createDb(url?: string): { db: Database; client: Client } {
+  const resolvedUrl = url ?? process.env.DATABASE_URL ?? "file:./local.db";
+  const client = createClient({ url: resolvedUrl });
+  const db = drizzle(client, { schema });
+  return { db, client };
+}
+const defaultInstance = createDb();
 
-export const db = drizzle(client, { schema });
+export const client = defaultInstance.client;
+export const db = defaultInstance.db;
 
 export * from "./schema.js";
