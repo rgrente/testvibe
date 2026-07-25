@@ -9,6 +9,14 @@ const nextConfig = {
   // côté serveur pour qu'ils restent résolus via require() Node natif au
   // runtime plutôt que d'être analysés statiquement par webpack.
   serverExternalPackages: ["@testvibe/db"],
+  // Phase 5 (tâche #24) : autoriser les images servies par /api/media/[filename]
+  // (route API interne, même origine que le serveur Next.js).
+  images: {
+    remotePatterns: [],
+    localPatterns: [
+      { pathname: "/api/media/**" },
+    ],
+  },
   webpack: (config, { isServer }) => {
     if (isServer) {
       const externalPackages = [

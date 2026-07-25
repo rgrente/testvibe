@@ -14,9 +14,12 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { Person } from "./types.js";
-import { listPersons } from "./person.js";
+import type { Person, Event, Media } from "./types.js";
+import { listPersons, getPersonById } from "./person.js";
 import { getFamilyTree, type FamilyTree } from "./tree.js";
+import { listEventsByPerson } from "./event.js";
+import { listMediaByPerson } from "./media.js";
+import { searchPersons } from "./search.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
@@ -26,4 +29,36 @@ export async function listAllPersonsForWeb(): Promise<Person[]> {
 /** Construit l'arbre généalogique complet visible depuis une Person racine. */
 export async function getFamilyTreeForWeb(rootId: number): Promise<FamilyTree> {
   return getFamilyTree(defaultDb, rootId);
+}
+
+/**
+ * Recherche des personnes par nom (partielle, insensible à la casse).
+ * Phase 5 (tâche #24).
+ */
+export async function searchPersonsForWeb(query: string): Promise<Person[]> {
+  return searchPersons(defaultDb, query);
+}
+
+/**
+ * Retourne la timeline chronologique d'une personne (ses événements triés).
+ * Phase 5 (tâche #24).
+ */
+export async function getPersonTimelineForWeb(personId: number): Promise<Event[]> {
+  return listEventsByPerson(defaultDb, personId);
+}
+
+/**
+ * Retourne les médias associés à une personne.
+ * Phase 5 (tâche #24).
+ */
+export async function getPersonMediaForWeb(personId: number): Promise<Media[]> {
+  return listMediaByPerson(defaultDb, personId);
+}
+
+/**
+ * Retourne une personne par son id (pour la page de détail).
+ * Phase 5 (tâche #24).
+ */
+export async function getPersonForWeb(personId: number): Promise<Person> {
+  return getPersonById(defaultDb, personId);
 }
