@@ -80,61 +80,68 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
     }
   }
 
-  const generationOf = new Map<number, number>();
-  const includedFiliationIds = new Set<number>();
-  const includedUnionIds = new Set<number>();
+  const generationOf = new Map<number, number>([[root.id, 0]]);
 
-  generationOf.set(root.id, 0);
-
-  // BFS ascendants (générations négatives) et descendants (générations
-  // positives) en partant de la racine ; les partenaires d'union sont
-  // ajoutés à la même génération que la personne visitée.
-  const queue: number[] = [root.id];
-  while (queue.length > 0) {
-    const currentId = queue.shift()!;
+  // Les deux parcours restent strictement directionnels. Un ascendant ne
+  // devient donc jamais le point de départ d'une descente vers une branche
+  // collatérale, et réciproquement pour un descendant.
+  const ancestorQueue: number[] = [root.id];
+  for (let index = 0; index < ancestorQueue.length; index += 1) {
+    const currentId = ancestorQueue[index]!;
     const currentGeneration = generationOf.get(currentId)!;
-    if (!personById.has(currentId)) continue; // référence orpheline défensive
-
-    // Partenaires d'union : même génération.
-    for (const union of unionsOfPerson.get(currentId) ?? []) {
-      includedUnionIds.add(union.id);
-      for (const partnerId of union.personIds) {
-        if (!generationOf.has(partnerId) && personById.has(partnerId)) {
-          generationOf.set(partnerId, currentGeneration);
-          queue.push(partnerId);
-        }
-      }
-    }
-
-    // Ascendants (parents) : génération - 1.
-    for (const f of parentsOf.get(currentId) ?? []) {
-      includedFiliationIds.add(f.id);
-      if (!generationOf.has(f.parentId) && personById.has(f.parentId)) {
-        generationOf.set(f.parentId, currentGeneration - 1);
-        queue.push(f.parentId);
-      }
-    }
-
-    // Descendants (enfants) : génération + 1.
-    for (const f of childrenOf.get(currentId) ?? []) {
-      includedFiliationIds.add(f.id);
-      if (!generationOf.has(f.childId) && personById.has(f.childId)) {
-        generationOf.set(f.childId, currentGeneration + 1);
-        queue.push(f.childId);
+    for (const filiation of parentsOf.get(currentId) ?? []) {
+      if (
+        filiation.parentId !== root.id &&
+        personById.has(filiation.parentId) &&
+        !generationOf.has(filiation.parentId)
+      ) {
+        generationOf.set(filiation.parentId, currentGeneration - 1);
+        ancestorQueue.push(filiation.parentId);
       }
     }
   }
 
+  const descendantQueue: number[] = [root.id];
+  for (let index = 0; index < descendantQueue.length; index += 1) {
+    const currentId = descendantQueue[index]!;
+    const currentGeneration = generationOf.get(currentId)!;
+    for (const filiation of childrenOf.get(currentId) ?? []) {
+      if (
+        filiation.childId !== root.id &&
+        personById.has(filiation.childId) &&
+        !generationOf.has(filiation.childId)
+      ) {
+        generationOf.set(filiation.childId, currentGeneration + 1);
+        descendantQueue.push(filiation.childId);
+      }
+    }
+  }
+
+  // Les partenaires complètent les couples visibles mais ne sont jamais mis
+  // dans les files ci-dessus : leurs propres ascendants et descendants ne
+  // peuvent ainsi réintroduire une branche sans lien directionnel à la racine.
+  const directionalIds = new Set(generationOf.keys());
+  for (const personId of directionalIds) {
+    const generation = generationOf.get(personId)!;
+    for (const union of unionsOfPerson.get(personId) ?? []) {
+      for (const partnerId of union.personIds) {
+        if (personById.has(partnerId) && !generationOf.has(partnerId)) {
+          generationOf.set(partnerId, generation);
+        }
+      }
+    }
+  }
+
+  const includedPersonIds = new Set(generationOf.keys());
   const nodes: FamilyTreeNode[] = Array.from(generationOf.entries()).map(
-    ([personId, generation]) => ({
-      person: personById.get(personId)!,
-      generation,
-    }),
+    ([personId, generation]) => ({ person: personById.get(personId)!, generation }),
   );
 
   const edges: FamilyTreeEdge[] = [
     ...allFiliations
-      .filter((f) => includedFiliationIds.has(f.id))
+      .filter(
+        (f) => includedPersonIds.has(f.parentId) && includedPersonIds.has(f.childId),
+      )
       .map(
         (f): FamilyTreeFiliationEdge => ({
           type: "filiation",
@@ -145,7 +152,11 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
         }),
       ),
     ...allUnions
-      .filter((u) => includedUnionIds.has(u.id))
+      .filter(
+        (u) =>
+          u.personIds.length > 0 &&
+          u.personIds.every((personId) => includedPersonIds.has(personId)),
+      )
       .map(
         (u): FamilyTreeUnionEdge => ({
           type: "union",
