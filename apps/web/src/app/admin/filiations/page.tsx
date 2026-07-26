@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { FiliationRole } from "@testvibe/core";
+import { sortPersonsChronologically } from "@/lib/sort-persons";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
     adminListFiliations(),
     adminListPersons(),
   ]);
+  const sortedPersons = sortPersonsChronologically(persons);
 
   const personLabel = (id: number) => {
     const p = persons.find((x) => x.id === id);
@@ -100,7 +102,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
               size={Math.min(6, Math.max(2, persons.length))}
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             >
-              {persons.map((p) => (
+              {sortedPersons.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName}
                 </option>
@@ -120,7 +122,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
               size={Math.min(6, Math.max(2, persons.length))}
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             >
-              {persons.map((p) => (
+              {sortedPersons.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName}
                 </option>
