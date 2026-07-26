@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { FiliationRole } from "@testvibe/core";
+import { sortPersonsChronologically } from "@/lib/sort-persons";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
   }
 
   const persons = await adminListPersons();
+  const sortedPersons = sortPersonsChronologically(persons);
 
   async function updateFiliationAction(formData: FormData) {
     "use server";
@@ -77,7 +79,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
             defaultValue={filiation.parentId}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
-            {persons.map((p) => (
+            {sortedPersons.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.firstName} {p.lastName}
               </option>
@@ -95,7 +97,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
             defaultValue={filiation.childId}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           >
-            {persons.map((p) => (
+            {sortedPersons.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.firstName} {p.lastName}
               </option>
