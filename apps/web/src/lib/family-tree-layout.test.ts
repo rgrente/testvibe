@@ -147,6 +147,66 @@ describe("buildReactFlowGraph", () => {
     expect(mathildeX).toBeLessThan(romainX);
     // Didier+Martine (parents de Mathilde) entièrement à gauche de Pascal+Laurence (parents de Romain).
     expect(didierMartineMaxX).toBeLessThan(pascalLaurenceMinX);
+
+    // Les deux couples d'ascendants ont la même largeur et sont tous deux
+    // gênés par l'autre : l'écart nécessaire pour respecter l'espacement
+    // minimal doit être réparti à parts égales (chacun s'éloigne autant de
+    // son propre ancrage), plutôt que d'être entièrement absorbé par un
+    // seul des deux couples.
+    const didierMartineMidpoint = (xOf("3") + xOf("4")) / 2;
+    const pascalLaurenceMidpoint = (xOf("1") + xOf("2")) / 2;
+    const leftShift = mathildeX - didierMartineMidpoint;
+    const rightShift = pascalLaurenceMidpoint - romainX;
+    expect(leftShift).toBeGreaterThan(0);
+    expect(leftShift).toBeCloseTo(rightShift, 5);
+  });
+
+  it("centre un couple d'ascendants exactement sur son enfant unique", () => {
+    const tree: FamilyTree = {
+      rootId: 11,
+      nodes: [
+        { person: { id: 1, firstName: "Pascal", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 2, firstName: "Laurence", lastName: "Grente", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 11, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+      ],
+      edges: [
+        { type: "union", unionId: 200, personIds: [1, 2] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 11, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 11, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+    const coupleMidpoint = (xOf("1") + xOf("2")) / 2;
+
+    expect(coupleMidpoint).toBe(xOf("11"));
+  });
+
+  it("centre un couple d'ascendants sur la largeur occupée par ses deux enfants (fratrie)", () => {
+    const tree: FamilyTree = {
+      rootId: 11,
+      nodes: [
+        { person: { id: 1, firstName: "Pascal", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 2, firstName: "Laurence", lastName: "Grente", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 11, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+        { person: { id: 12, firstName: "Sophie", lastName: "Grente", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
+      ],
+      edges: [
+        { type: "union", unionId: 200, personIds: [1, 2] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 11, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 11, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 1, childId: 12, role: "biologique" },
+        { type: "filiation", filiationId: 4, parentId: 2, childId: 12, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+    const coupleMidpoint = (xOf("1") + xOf("2")) / 2;
+    const childrenMidpoint = (xOf("11") + xOf("12")) / 2;
+
+    expect(coupleMidpoint).toBe(childrenMidpoint);
   });
 
   it("garde une arête de Filiation directe quand le parent n'a pas d'Union commune avec un autre parent", () => {

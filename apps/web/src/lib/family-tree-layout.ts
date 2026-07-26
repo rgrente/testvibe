@@ -140,10 +140,6 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     ...generationKeys.filter((g) => g > 0).sort((a, b) => a - b),
   ].filter((g) => byGeneration.has(g));
 
-  // Curseur x (plutôt qu'un simple index de colonne) : permet un écart
-  // dédié, plus large, entre les deux membres d'un couple, distinct de
-  // l'écart standard entre personnes sans lien direct sur une même ligne.
-  const xCursorByGeneration = new Map<number, number>();
   const placedPersonIds = new Set<number>();
   const xByPersonId = new Map<number, number>();
   const personNodes: ReactFlowGraphNode[] = [];
@@ -168,20 +164,14 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     });
   };
 
-  const placeUnit = (
-    generation: number,
-    first: (typeof sortedByGeneration)[number],
-    partner: (typeof sortedByGeneration)[number] | undefined,
-  ) => {
-    const x = xCursorByGeneration.get(generation) ?? 0;
-    placeNode(first, x);
-    if (partner) {
-      const partnerX = x + UNION_PARTNER_GAP;
-      placeNode(partner, partnerX);
-      xCursorByGeneration.set(generation, partnerX + NODE_COLUMN_WIDTH);
-    } else {
-      xCursorByGeneration.set(generation, x + NODE_COLUMN_WIDTH);
-    }
+  type Unit = { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] };
+
+  /** Largeur (écart entre le premier membre et son partenaire) occupée par l'unité ; 0 pour une personne seule. */
+  const widthOf = (unit: Unit) => (unit.partner ? UNION_PARTNER_GAP : 0);
+
+  const placeUnit = (unit: Unit, x: number) => {
+    placeNode(unit.first, x);
+    if (unit.partner) placeNode(unit.partner, x + UNION_PARTNER_GAP);
   };
 
   for (const generation of generationOrder) {
@@ -189,7 +179,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     const byPersonId = new Map(nodesInGeneration.map((n) => [n.person.id, n]));
 
     // Regroupe en "unités" de placement (personne seule, ou couple adjacent).
-    const units: { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] }[] = [];
+    const units: Unit[] = [];
     const grouped = new Set<number>();
     for (const n of nodesInGeneration) {
       if (grouped.has(n.person.id)) continue;
@@ -204,38 +194,109 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       }
     }
 
-    if (generation !== 0) {
-      // Ancre chaque unité sur le barycentre x de ses voisins (enfants pour
-      // les ascendants, parents pour les descendants) déjà positionnés.
-      const neighborsOf = (personId: number) =>
-        generation < 0 ? (childrenOfParent.get(personId) ?? []) : (parentsOfChild.get(personId) ?? []);
-
-      const anchorOf = (unit: (typeof units)[number]): number | undefined => {
-        const memberIds = unit.partner ? [unit.first.person.id, unit.partner.person.id] : [unit.first.person.id];
-        const neighborXs = memberIds
-          .flatMap(neighborsOf)
-          .map((id) => xByPersonId.get(id))
-          .filter((x): x is number => x !== undefined);
-        if (neighborXs.length === 0) return undefined;
-        return neighborXs.reduce((sum, x) => sum + x, 0) / neighborXs.length;
-      };
-
-      const withAnchor = units.map((unit, index) => ({ unit, index, anchor: anchorOf(unit) }));
-      // Sans voisin déjà placé (ex. partenaire d'union sans Filiation connue),
-      // on repousse l'unité en fin de ligne plutôt que d'inventer une position.
-      withAnchor.sort((a, b) => {
-        const aAnchor = a.anchor ?? Number.POSITIVE_INFINITY;
-        const bAnchor = b.anchor ?? Number.POSITIVE_INFINITY;
-        if (aAnchor !== bAnchor) return aAnchor - bAnchor;
-        return a.index - b.index; // ordre d'id d'origine, stable
-      });
-      units.length = 0;
-      units.push(...withAnchor.map((w) => w.unit));
+    if (generation === 0) {
+      // Génération racine : pas d'ancrage possible (rien n'est encore placé),
+      // simple empilement dans l'ordre id/adjacence d'union.
+      let cursorX = 0;
+      for (const unit of units) {
+        placeUnit(unit, cursorX);
+        cursorX += widthOf(unit) + NODE_COLUMN_WIDTH;
+      }
+      continue;
     }
 
-    for (const unit of units) {
-      placeUnit(generation, unit.first, unit.partner);
+    // Ancre chaque unité sur le barycentre x de ses voisins (enfants pour
+    // les ascendants, parents pour les descendants) déjà positionnés.
+    const neighborsOf = (personId: number) =>
+      generation < 0 ? (childrenOfParent.get(personId) ?? []) : (parentsOfChild.get(personId) ?? []);
+
+    const anchorOf = (unit: Unit): number | undefined => {
+      const memberIds = unit.partner ? [unit.first.person.id, unit.partner.person.id] : [unit.first.person.id];
+      const neighborXs = memberIds
+        .flatMap(neighborsOf)
+        .map((id) => xByPersonId.get(id))
+        .filter((x): x is number => x !== undefined);
+      if (neighborXs.length === 0) return undefined;
+      return neighborXs.reduce((sum, x) => sum + x, 0) / neighborXs.length;
+    };
+
+    const withAnchor = units.map((unit, index) => ({ unit, index, anchor: anchorOf(unit) }));
+    withAnchor.sort((a, b) => {
+      const aAnchor = a.anchor ?? Number.POSITIVE_INFINITY;
+      const bAnchor = b.anchor ?? Number.POSITIVE_INFINITY;
+      if (aAnchor !== bAnchor) return aAnchor - bAnchor;
+      return a.index - b.index; // ordre d'id d'origine, stable
+    });
+
+    // Regroupe les unités contiguës partageant le même ancrage (ex. une
+    // fratrie entière rattachée aux mêmes parents) : le groupe entier doit
+    // être centré sur cet ancrage, pas seulement sa première unité — sinon
+    // toute la fratrie se retrouve décalée à droite du parent plutôt que
+    // centrée sous lui.
+    const clusters: { anchor: number | undefined; units: Unit[] }[] = [];
+    for (const { unit, anchor } of withAnchor) {
+      const last = clusters[clusters.length - 1];
+      if (last && last.anchor !== undefined && anchor === last.anchor) {
+        last.units.push(unit);
+      } else {
+        clusters.push({ anchor, units: [unit] });
+      }
     }
+
+    const clusterWidthOf = (cluster: (typeof clusters)[number]) =>
+      cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
+
+    // Résout les chevauchements entre clusters voisins par une passe
+    // gauche→droite (ne repousse qu'à droite) puis une passe droite→gauche
+    // (ne repousse qu'à gauche), et moyenne les deux. Une seule passe
+    // gauche→droite ferait porter tout le décalage nécessaire sur le
+    // cluster de droite alors que celui de gauche resterait pile sur son
+    // ancrage ; la moyenne des deux passes répartit le décalage de part et
+    // d'autre du point médian, pour un rendu plus symétrique/compact.
+    const leftPass: number[] = [];
+    {
+      let prevEnd = Number.NEGATIVE_INFINITY;
+      for (const cluster of clusters) {
+        const width = clusterWidthOf(cluster);
+        const ideal = cluster.anchor !== undefined ? cluster.anchor - width / 2 : (Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
+        const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + NODE_COLUMN_WIDTH) : ideal;
+        leftPass.push(start);
+        prevEnd = start + width;
+      }
+    }
+
+    const rightPass: number[] = new Array(clusters.length);
+    {
+      let nextStart = Number.POSITIVE_INFINITY;
+      for (let i = clusters.length - 1; i >= 0; i--) {
+        const cluster = clusters[i];
+        const width = clusterWidthOf(cluster);
+        const ideal =
+          cluster.anchor !== undefined
+            ? cluster.anchor - width / 2
+            : Number.isFinite(nextStart)
+              ? nextStart - NODE_COLUMN_WIDTH - width
+              : 0;
+        const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - NODE_COLUMN_WIDTH - width) : ideal;
+        rightPass[i] = start;
+        nextStart = start;
+      }
+    }
+
+    // Moyenne des deux passes, puis correction gauche→droite finale (filet
+    // de sécurité au cas où moyenner réintroduirait un léger chevauchement).
+    let prevEnd = Number.NEGATIVE_INFINITY;
+    clusters.forEach((cluster, i) => {
+      const averaged = (leftPass[i] + rightPass[i]) / 2;
+      const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + NODE_COLUMN_WIDTH) : averaged;
+      prevEnd = start + clusterWidthOf(cluster);
+
+      let x = start;
+      for (const unit of cluster.units) {
+        placeUnit(unit, x);
+        x += widthOf(unit) + NODE_COLUMN_WIDTH;
+      }
+    });
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
