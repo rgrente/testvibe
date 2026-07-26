@@ -18,6 +18,7 @@ export const person = sqliteTable("person", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   firstName: text("first_name").notNull(),
   lastName: text("last_name").notNull(),
+  birthName: text("birth_name"),
   birthDate: text("birth_date"),
   deathDate: text("death_date"),
   gender: text("gender"),

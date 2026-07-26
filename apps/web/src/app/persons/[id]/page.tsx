@@ -57,6 +57,9 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
           <h1 className="text-3xl font-bold text-slate-900">
             {person.firstName} {person.lastName}
           </h1>
+          {person.birthName && (
+            <p className="mt-1 text-sm text-slate-600">Nom de naissance : {person.birthName}</p>
+          )}
           <p className="mt-1 text-sm text-slate-500">
             {person.gender === "M" ? "Masculin" : person.gender === "F" ? "Féminin" : person.gender ?? ""}
             {person.birthDate && ` · né·e le ${person.birthDate}`}

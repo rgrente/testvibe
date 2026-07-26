@@ -26,7 +26,10 @@ export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
               : "border-slate-200 bg-white text-slate-800"
           }`}
         >
-          {row.label}
+          <div>{row.label}</div>
+          {row.birthName ? (
+            <div className="text-xs font-normal text-slate-500">Nom de naissance : {row.birthName}</div>
+          ) : null}
           {row.isRoot ? <span className="ml-2 text-xs text-blue-600">(racine)</span> : null}
         </li>
       ))}
