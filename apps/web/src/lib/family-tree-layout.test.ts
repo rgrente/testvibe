@@ -268,6 +268,36 @@ describe("buildReactFlowGraph", () => {
     expect(coupleMidpoint).toBe(childrenMidpoint);
   });
 
+  it("n'utilise pas une unité sans ancrage pour contraindre la position d'un cluster ancré voisin", () => {
+    // Maxime (frère de Mathilde) est dans la même génération que le couple
+    // Romain+Mathilde, mais n'a aucun enfant connu dans cette vue : il ne
+    // doit pas décentrer Romain+Mathilde de la fratrie Léni/Mahé.
+    const tree: FamilyTree = {
+      rootId: 30,
+      nodes: [
+        { person: { id: 1, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 2, firstName: "Mathilde", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 3, firstName: "Maxime", lastName: "Renault", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 30, firstName: "Leni", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 31, firstName: "Mahe", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      ],
+      edges: [
+        { type: "union", unionId: 100, personIds: [1, 2] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 30, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 30, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 1, childId: 31, role: "biologique" },
+        { type: "filiation", filiationId: 4, parentId: 2, childId: 31, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+    const coupleMidpoint = (xOf("1") + xOf("2")) / 2;
+    const childrenMidpoint = (xOf("30") + xOf("31")) / 2;
+
+    expect(coupleMidpoint).toBe(childrenMidpoint);
+  });
+
   it("garde une arête de Filiation directe quand le parent n'a pas d'Union commune avec un autre parent", () => {
     const graph = buildReactFlowGraph(makeTree());
     expect(graph.edges.find((e) => e.id === "filiation-10")).toMatchObject({

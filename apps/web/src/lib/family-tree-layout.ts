@@ -277,7 +277,29 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     const clusterWidthOf = (cluster: (typeof clusters)[number]) =>
       cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
 
-    // Résout les chevauchements entre clusters voisins par une passe
+    const placeSequence = (clustersToPlace: typeof clusters, startX: number) => {
+      let x = startX;
+      for (const cluster of clustersToPlace) {
+        for (const unit of cluster.units) {
+          placeUnit(unit, x);
+          x += widthOf(unit) + NODE_COLUMN_WIDTH;
+        }
+      }
+      return x;
+    };
+
+    // Le tri ci-dessus place les unités sans ancrage (aucun voisin encore
+    // placé, ex. un parent sans enfant connu dans cette vue) en fin de
+    // ligne — elles forment donc toujours un bloc de fin contigu. On les
+    // exclut du calcul de centrage : sans ça, l'unité de fin, dépourvue de
+    // position réelle, ne peut que "deviner" une valeur pour se chaîner à
+    // la précédente, et cette valeur arbitraire vient ensuite contraindre
+    // à tort — via la passe droite→gauche — la position du groupe ancré
+    // juste avant elle, le tirant loin de son véritable centre.
+    const anchoredClusters = clusters.filter((c) => c.anchor !== undefined);
+    const trailingUnanchoredClusters = clusters.filter((c) => c.anchor === undefined);
+
+    // Résout les chevauchements entre clusters ancrés voisins par une passe
     // gauche→droite (ne repousse qu'à droite) puis une passe droite→gauche
     // (ne repousse qu'à gauche), et moyenne les deux. Une seule passe
     // gauche→droite ferait porter tout le décalage nécessaire sur le
@@ -287,27 +309,22 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     const leftPass: number[] = [];
     {
       let prevEnd = Number.NEGATIVE_INFINITY;
-      for (const cluster of clusters) {
+      for (const cluster of anchoredClusters) {
         const width = clusterWidthOf(cluster);
-        const ideal = cluster.anchor !== undefined ? cluster.anchor - width / 2 : (Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
+        const ideal = cluster.anchor! - width / 2;
         const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + NODE_COLUMN_WIDTH) : ideal;
         leftPass.push(start);
         prevEnd = start + width;
       }
     }
 
-    const rightPass: number[] = new Array(clusters.length);
+    const rightPass: number[] = new Array(anchoredClusters.length);
     {
       let nextStart = Number.POSITIVE_INFINITY;
-      for (let i = clusters.length - 1; i >= 0; i--) {
-        const cluster = clusters[i];
+      for (let i = anchoredClusters.length - 1; i >= 0; i--) {
+        const cluster = anchoredClusters[i];
         const width = clusterWidthOf(cluster);
-        const ideal =
-          cluster.anchor !== undefined
-            ? cluster.anchor - width / 2
-            : Number.isFinite(nextStart)
-              ? nextStart - NODE_COLUMN_WIDTH - width
-              : 0;
+        const ideal = cluster.anchor! - width / 2;
         const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - NODE_COLUMN_WIDTH - width) : ideal;
         rightPass[i] = start;
         nextStart = start;
@@ -317,7 +334,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     // Moyenne des deux passes, puis correction gauche→droite finale (filet
     // de sécurité au cas où moyenner réintroduirait un léger chevauchement).
     let prevEnd = Number.NEGATIVE_INFINITY;
-    clusters.forEach((cluster, i) => {
+    anchoredClusters.forEach((cluster, i) => {
       const averaged = (leftPass[i] + rightPass[i]) / 2;
       const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + NODE_COLUMN_WIDTH) : averaged;
       prevEnd = start + clusterWidthOf(cluster);
@@ -328,6 +345,10 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
         x += widthOf(unit) + NODE_COLUMN_WIDTH;
       }
     });
+
+    // Les unités sans ancrage viennent enfin s'enchaîner après le dernier
+    // groupe ancré (ou depuis 0 si la génération n'en a aucun).
+    placeSequence(trailingUnanchoredClusters, Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
