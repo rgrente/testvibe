@@ -8,7 +8,7 @@ function makeTree(): FamilyTree {
   return {
     rootId: 2,
     nodes: [
-      { person: { id: 1, firstName: "Ada", lastName: "Lovelace", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+      { person: { id: 1, firstName: "Ada", lastName: "Lovelace", birthName: "Byron", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
       { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
       { person: { id: 4, firstName: "Ralph", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
     ],
@@ -29,5 +29,11 @@ describe("FamilyTreeMobileList", () => {
     const rootRow = screen.getByTestId("mobile-row-2");
     expect(rootRow).toHaveTextContent("(racine)");
     expect(screen.getByTestId("mobile-row-1")).not.toHaveTextContent("(racine)");
+  });
+
+  it("affiche distinctement le nom de naissance seulement lorsqu'il existe", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+    expect(screen.getByTestId("mobile-row-1")).toHaveTextContent("Nom de naissance : Byron");
+    expect(screen.getByTestId("mobile-row-2")).not.toHaveTextContent("Nom de naissance");
   });
 });

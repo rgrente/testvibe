@@ -33,6 +33,8 @@ const VALID_GEDCOM = `0 HEAD
 2 DATE 15 MAR 1940
 0 @I2@ INDI
 1 NAME Marie /DUPONT/
+1 NAME Marie /DURAND/
+2 TYPE birth
 1 SEX F
 1 BIRT
 2 DATE 20 JUN 1945
@@ -110,6 +112,7 @@ describe("importGedcom", () => {
     // Vérifie genre
     expect(henri?.gender).toBe("M");
     expect(marie?.gender).toBe("F");
+    expect(marie?.birthName).toBe("DURAND");
 
     // Vérifie unions (2 familles)
     const unions = await listUnions(db);
@@ -162,6 +165,7 @@ describe("exportGedcom", () => {
     expect(ged).toContain("FAM");
     expect(ged).toContain("MARTIN");
     expect(ged).toContain("DUPONT");
+    expect(ged).toContain("1 NAME Marie /DURAND/\n2 TYPE birth");
   });
 
   it("aller-retour import→export→import : pas de perte de données clés", async () => {
@@ -194,5 +198,8 @@ describe("exportGedcom", () => {
     const henri1 = personsAfterFirstImport.find((p) => p.firstName === "Henri");
     const henri2 = personsAfterSecondImport.find((p) => p.firstName === "Henri");
     expect(henri2?.birthDate).toBe(henri1?.birthDate);
+    const marie2 = personsAfterSecondImport.find((p) => p.firstName === "Marie");
+    expect(marie2?.lastName).toBe("DUPONT");
+    expect(marie2?.birthName).toBe("DURAND");
   });
 });

@@ -54,6 +54,11 @@ function PersonNodeComponent({ data }: NodeProps<PersonNodeData>) {
         )}
         <span>{data.label}</span>
       </div>
+      {data.birthName && (
+        <div className="mt-0.5 text-xs font-normal text-slate-500">
+          Nom de naissance : {data.birthName}
+        </div>
+      )}
       {hasDates && (
         <div className="mt-0.5 text-xs font-normal text-slate-500">
           {data.birthDate && <span>* {formatDate(data.birthDate)}</span>}

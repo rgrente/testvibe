@@ -29,6 +29,7 @@ interface GedcomIndi {
   xref: string;
   firstName: string;
   lastName: string;
+  birthName: string | null;
   gender: string | null;
   birthDate: string | null;
   deathDate: string | null;
@@ -163,6 +164,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
       const xref = line.xref;
       let firstName = "";
       let lastName = "";
+      let birthName: string | null = null;
       let gender: string | null = null;
       let birthDate: string | null = null;
       let deathDate: string | null = null;
@@ -173,22 +175,25 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
       while (i < parsed.length && parsed[i].level > 0) {
         const sub = parsed[i];
         if (sub.level === 1 && sub.tag === "NAME") {
-          // Format "prénom /NOM/" ou "prénom NOM" ou "/NOM/"
+          // Le NAME principal reste le nom courant. Un NAME immédiatement suivi
+          // de `2 TYPE birth` porte uniquement le nom de naissance.
           const nameVal = sub.value;
           const nameMatch = nameVal.match(/^(.*?)\s*\/([^/]*)\//);
-          if (nameMatch) {
-            firstName = nameMatch[1].trim();
-            lastName = nameMatch[2].trim();
+          const parts = nameVal.trim().split(/\s+/);
+          const parsedFirstName = nameMatch
+            ? nameMatch[1].trim()
+            : parts.length >= 2 ? parts.slice(0, -1).join(" ") : nameVal.trim();
+          const parsedLastName = nameMatch
+            ? nameMatch[2].trim()
+            : parts.length >= 2 ? parts[parts.length - 1] : "";
+          const next = parsed[i + 1];
+          const isBirthName =
+            next?.level === 2 && next.tag === "TYPE" && next.value.toLowerCase() === "birth";
+          if (isBirthName) {
+            birthName = parsedLastName || null;
           } else {
-            // Pas de slashes, split sur espace
-            const parts = nameVal.trim().split(/\s+/);
-            if (parts.length >= 2) {
-              lastName = parts[parts.length - 1];
-              firstName = parts.slice(0, -1).join(" ");
-            } else {
-              firstName = nameVal.trim();
-              lastName = "";
-            }
+            firstName = parsedFirstName;
+            lastName = parsedLastName;
           }
           inBirt = false;
           inDeat = false;
@@ -215,7 +220,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
         i++;
       }
 
-      indis.push({ xref, firstName, lastName, gender, birthDate, deathDate });
+      indis.push({ xref, firstName, lastName, birthName, gender, birthDate, deathDate });
       continue;
     }
 
@@ -320,15 +325,16 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
   try {
     // 1. Insérer les individus
     for (const indi of indis) {
-      const p = await createPerson(db, {
+      const person = await createPerson(db, {
         firstName: indi.firstName || "(inconnu)",
         lastName: indi.lastName || "(inconnu)",
+        birthName: indi.birthName,
         birthDate: indi.birthDate ?? null,
         deathDate: indi.deathDate ?? null,
         gender: indi.gender ?? null,
       });
-      xrefToId.set(indi.xref, p.id);
-      insertedPersonIds.push(p.id);
+      xrefToId.set(indi.xref, person.id);
+      insertedPersonIds.push(person.id);
     }
 
     // 2. Insérer les familles (unions) et filiations
@@ -419,6 +425,10 @@ export async function exportGedcom(db: Database): Promise<string> {
     const xref = `@I${idx + 1}@`;
     lines.push(`0 ${xref} INDI`);
     lines.push(`1 NAME ${p.firstName} /${p.lastName}/`);
+    if (p.birthName) {
+      lines.push(`1 NAME ${p.firstName} /${p.birthName}/`);
+      lines.push("2 TYPE birth");
+    }
     if (p.gender) {
       lines.push(`1 SEX ${p.gender}`);
     }

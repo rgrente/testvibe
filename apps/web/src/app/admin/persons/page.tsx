@@ -11,6 +11,7 @@ async function createPersonAction(formData: FormData) {
   "use server";
   const firstName = formData.get("firstName")?.toString().trim() ?? "";
   const lastName = formData.get("lastName")?.toString().trim() ?? "";
+  const birthName = formData.get("birthName")?.toString().trim() || null;
   const birthDate = formData.get("birthDate")?.toString().trim() || null;
   const deathDate = formData.get("deathDate")?.toString().trim() || null;
   const gender = formData.get("gender")?.toString().trim() || null;
@@ -20,7 +21,7 @@ async function createPersonAction(formData: FormData) {
   }
 
   try {
-    await adminCreatePerson({ firstName, lastName, birthDate, deathDate, gender });
+    await adminCreatePerson({ firstName, lastName, birthName, birthDate, deathDate, gender });
   } catch {
     redirect("/admin/persons?error=validation");
   }
@@ -85,6 +86,17 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               name="lastName"
               type="text"
               required
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="birthName" className="mb-1 block text-sm font-medium text-slate-700">
+              Nom de naissance
+            </label>
+            <input
+              id="birthName"
+              name="birthName"
+              type="text"
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>

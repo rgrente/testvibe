@@ -41,6 +41,7 @@ function toPerson(row: typeof person.$inferSelect): Person {
     id: row.id,
     firstName: row.firstName,
     lastName: row.lastName,
+    birthName: row.birthName,
     birthDate: row.birthDate,
     deathDate: row.deathDate,
     gender: row.gender,
@@ -54,6 +55,7 @@ export async function createPerson(db: Database, input: PersonInput): Promise<Pe
     .values({
       firstName: input.firstName,
       lastName: input.lastName,
+      birthName: input.birthName?.trim() || null,
       birthDate: input.birthDate ?? null,
       deathDate: input.deathDate ?? null,
       gender: input.gender ?? null,
@@ -84,6 +86,7 @@ export async function updatePerson(
   const merged: PersonInput = {
     firstName: input.firstName ?? existing.firstName,
     lastName: input.lastName ?? existing.lastName,
+    birthName: input.birthName !== undefined ? input.birthName?.trim() || null : existing.birthName,
     birthDate: input.birthDate !== undefined ? input.birthDate : existing.birthDate,
     deathDate: input.deathDate !== undefined ? input.deathDate : existing.deathDate,
     gender: input.gender !== undefined ? input.gender : existing.gender,
@@ -94,6 +97,7 @@ export async function updatePerson(
     .set({
       firstName: merged.firstName,
       lastName: merged.lastName,
+      birthName: merged.birthName?.trim() || null,
       birthDate: merged.birthDate ?? null,
       deathDate: merged.deathDate ?? null,
       gender: merged.gender ?? null,

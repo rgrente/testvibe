@@ -40,6 +40,26 @@ describe("Person CRUD", () => {
     expect(updated.firstName).toBe("Ada"); // inchangé
   });
 
+  it("persiste puis efface un nom de naissance optionnel", async () => {
+    const created = await createPerson(db, {
+      firstName: "Simone",
+      lastName: "Signoret",
+      birthName: "Kaminker",
+    });
+    expect(created.birthName).toBe("Kaminker");
+    expect((await getPersonById(db, created.id)).birthName).toBe("Kaminker");
+    expect((await updatePerson(db, created.id, { birthName: null })).birthName).toBeNull();
+  });
+
+  it("normalise un nom de naissance vide en valeur absente", async () => {
+    const created = await createPerson(db, {
+      firstName: "Marie",
+      lastName: "Curie",
+      birthName: "   ",
+    });
+    expect(created.birthName).toBeNull();
+  });
+
   it("supprime une Person existante", async () => {
     const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
     await deletePerson(db, created.id);

@@ -29,6 +29,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
     "use server";
     const firstName = formData.get("firstName")?.toString().trim();
     const lastName = formData.get("lastName")?.toString().trim();
+    const birthName = formData.get("birthName")?.toString().trim() || null;
     const birthDate = formData.get("birthDate")?.toString().trim() || null;
     const deathDate = formData.get("deathDate")?.toString().trim() || null;
     const gender = formData.get("gender")?.toString().trim() || null;
@@ -38,7 +39,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
     }
 
     try {
-      await adminUpdatePerson(id, { firstName, lastName, birthDate, deathDate, gender });
+      await adminUpdatePerson(id, { firstName, lastName, birthName, birthDate, deathDate, gender });
     } catch {
       redirect(`/admin/persons/${id}/edit?error=validation`);
     }
@@ -82,6 +83,18 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             type="text"
             required
             defaultValue={person.lastName}
+            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="birthName" className="mb-1 block text-sm font-medium text-slate-700">
+            Nom de naissance
+          </label>
+          <input
+            id="birthName"
+            name="birthName"
+            type="text"
+            defaultValue={person.birthName ?? ""}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           />
         </div>

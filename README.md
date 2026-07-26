@@ -26,6 +26,12 @@ pnpm test          # tests de tous les packages/apps
 pnpm db:migrate    # applique les migrations Drizzle sur la base SQLite locale
 ```
 
+## Convention de nommage des personnes
+
+- `lastName` est le nom principal/courant affiché avec le prénom.
+- `birthName` est un nom de naissance facultatif, distinct du nom principal. Une valeur vide est stockée comme `null`.
+- En GEDCOM 5.5.1, le nom principal est le premier `1 NAME`. Le nom de naissance est exporté comme un second `1 NAME`, immédiatement suivi de `2 TYPE birth`. L'import conserve le premier nom comme nom principal et affecte uniquement ce second nom à `birthName`.
+
 ## État du projet
 
 **Phase 0 (bootstrap)** — ce commit pose les fondations du monorepo :

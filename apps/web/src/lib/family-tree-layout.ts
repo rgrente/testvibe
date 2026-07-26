@@ -10,6 +10,7 @@ import type { FamilyTree } from "@testvibe/core";
 export interface PersonNodeData {
   personId: number;
   label: string;
+  birthName: string | null;
   isRoot: boolean;
   generation: number;
   gender: string | null;
@@ -126,6 +127,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       data: {
         personId: n.person.id,
         label: `${n.person.firstName} ${n.person.lastName}`.trim(),
+        birthName: n.person.birthName,
         isRoot: n.person.id === tree.rootId,
         generation: n.generation,
         gender: n.person.gender,
@@ -265,6 +267,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
 export interface HierarchyRow {
   personId: number;
   label: string;
+  birthName: string | null;
   generation: number;
   isRoot: boolean;
   /** Nombre de niveaux d'indentation (0 pour la racine). */
@@ -283,6 +286,7 @@ export function buildHierarchyRows(tree: FamilyTree): HierarchyRow[] {
     .map((n) => ({
       personId: n.person.id,
       label: personLabel(tree, n.person.id),
+      birthName: n.person.birthName,
       generation: n.generation,
       isRoot: n.person.id === tree.rootId,
       depth: Math.abs(n.generation),

@@ -13,6 +13,7 @@ export interface Person {
   id: number;
   firstName: string;
   lastName: string;
+  birthName: string | null;
   birthDate: string | null;
   deathDate: string | null;
   gender: string | null;
@@ -21,6 +22,7 @@ export interface Person {
 export interface PersonInput {
   firstName: string;
   lastName: string;
+  birthName?: string | null;
   birthDate?: string | null;
   deathDate?: string | null;
   gender?: string | null;

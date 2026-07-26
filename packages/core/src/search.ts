@@ -1,6 +1,6 @@
 /**
  * Recherche simple par nom (prénom + nom, partielle, insensible à la casse).
- * Retourne les Person dont le prénom ou le nom contient la query.
+ * Retourne les Person dont le prénom, le nom courant ou le nom de naissance contient la query.
  */
 import type { Database } from "@testvibe/db";
 import type { Person } from "./types.js";
@@ -21,6 +21,7 @@ export async function searchPersons(db: Database, query: string): Promise<Person
     (p) =>
       p.firstName.toLowerCase().includes(q) ||
       p.lastName.toLowerCase().includes(q) ||
+      p.birthName?.toLowerCase().includes(q) ||
       `${p.firstName} ${p.lastName}`.toLowerCase().includes(q),
   );
 }

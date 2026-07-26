@@ -17,7 +17,7 @@ beforeEach(async () => {
 describe("searchPersons", () => {
   beforeEach(async () => {
     await createPerson(db, { firstName: "Jean", lastName: "Dupont" });
-    await createPerson(db, { firstName: "Marie", lastName: "Martin" });
+    await createPerson(db, { firstName: "Marie", lastName: "Martin", birthName: "Durand" });
     await createPerson(db, { firstName: "Jean-Paul", lastName: "Sartre" });
     await createPerson(db, { firstName: "Simone", lastName: "De Beauvoir" });
   });
@@ -63,5 +63,11 @@ describe("searchPersons", () => {
   it("supporte une recherche prénom+nom combinés", async () => {
     const results = await searchPersons(db, "jean dupont");
     expect(results.some((p) => p.firstName === "Jean" && p.lastName === "Dupont")).toBe(true);
+  });
+
+  it("filtre par nom de naissance partiel et sans tenir compte de la casse", async () => {
+    const results = await searchPersons(db, "URAN");
+    expect(results).toHaveLength(1);
+    expect(results[0].birthName).toBe("Durand");
   });
 });
