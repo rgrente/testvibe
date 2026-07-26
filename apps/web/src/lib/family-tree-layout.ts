@@ -79,10 +79,15 @@ function personLabel(tree: FamilyTree, personId: number): string {
 }
 
 /**
- * Calcule les positions (x, y) des noeuds pour react-flow : une ligne
- * par génération (y = generation * hauteur), les personnes d'une même
- * génération réparties horizontalement dans l'ordre de leur id (ordre
- * stable, suffisant pour un jeu de données de démonstration).
+ * Calcule les positions (x, y) des noeuds pour react-flow : une ligne par
+ * génération (y = generation * hauteur). Au sein d'une génération, l'ordre
+ * horizontal part de la génération de la racine (0) puis s'étend vers les
+ * ascendants et descendants : chaque personne (ou couple) se positionne au
+ * barycentre x de ses enfants/parents déjà placés dans la génération
+ * adjacente déjà traitée, plutôt que par simple ordre d'id — ce qui évite
+ * les croisements de lignes quand deux couples d'une même génération se
+ * rattachent à des branches opposées (gauche/droite) de la génération
+ * suivante.
  *
  * Les Union à deux partenaires reçoivent en plus un noeud "jonction"
  * invisible placé entre eux : les arêtes de Filiation vers un enfant
@@ -105,21 +110,47 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     unionPartnerOf.set(b, a);
   }
 
+  const filiationEdges = tree.edges.filter((e) => e.type === "filiation");
+  const unionEdges = tree.edges.filter((e) => e.type === "union");
+
+  // Voisins par Filiation, pour ancrer chaque génération sur la position
+  // déjà connue de la génération adjacente la plus proche de la racine.
+  const childrenOfParent = new Map<number, number[]>();
+  const parentsOfChild = new Map<number, number[]>();
+  for (const f of filiationEdges) {
+    if (!childrenOfParent.has(f.parentId)) childrenOfParent.set(f.parentId, []);
+    childrenOfParent.get(f.parentId)!.push(f.childId);
+    if (!parentsOfChild.has(f.childId)) parentsOfChild.set(f.childId, []);
+    parentsOfChild.get(f.childId)!.push(f.parentId);
+  }
+
   const byGeneration = new Map<number, typeof sortedByGeneration>();
   for (const n of sortedByGeneration) {
     if (!byGeneration.has(n.generation)) byGeneration.set(n.generation, []);
     byGeneration.get(n.generation)!.push(n);
   }
 
+  // Ordre de traitement des générations : la génération 0 (racine) d'abord,
+  // puis en s'éloignant — ascendants (-1, -2, ...) et descendants (1, 2, ...)
+  // — pour que chaque génération puisse s'ancrer sur la précédente déjà placée.
+  const generationKeys = [...byGeneration.keys()];
+  const generationOrder = [
+    0,
+    ...generationKeys.filter((g) => g < 0).sort((a, b) => b - a),
+    ...generationKeys.filter((g) => g > 0).sort((a, b) => a - b),
+  ].filter((g) => byGeneration.has(g));
+
   // Curseur x (plutôt qu'un simple index de colonne) : permet un écart
   // dédié, plus large, entre les deux membres d'un couple, distinct de
   // l'écart standard entre personnes sans lien direct sur une même ligne.
   const xCursorByGeneration = new Map<number, number>();
   const placedPersonIds = new Set<number>();
+  const xByPersonId = new Map<number, number>();
   const personNodes: ReactFlowGraphNode[] = [];
 
   const placeNode = (n: (typeof sortedByGeneration)[number], x: number) => {
     placedPersonIds.add(n.person.id);
+    xByPersonId.set(n.person.id, x);
     personNodes.push({
       id: String(n.person.id),
       type: "person",
@@ -137,31 +168,77 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     });
   };
 
-  for (const nodesInGeneration of byGeneration.values()) {
-    const byPersonId = new Map(nodesInGeneration.map((n) => [n.person.id, n]));
-    for (const n of nodesInGeneration) {
-      if (placedPersonIds.has(n.person.id)) continue;
-      const x = xCursorByGeneration.get(n.generation) ?? 0;
-      placeNode(n, x);
+  const placeUnit = (
+    generation: number,
+    first: (typeof sortedByGeneration)[number],
+    partner: (typeof sortedByGeneration)[number] | undefined,
+  ) => {
+    const x = xCursorByGeneration.get(generation) ?? 0;
+    placeNode(first, x);
+    if (partner) {
+      const partnerX = x + UNION_PARTNER_GAP;
+      placeNode(partner, partnerX);
+      xCursorByGeneration.set(generation, partnerX + NODE_COLUMN_WIDTH);
+    } else {
+      xCursorByGeneration.set(generation, x + NODE_COLUMN_WIDTH);
+    }
+  };
 
-      // Place le partenaire d'Union juste après, avec un écart dédié plus
-      // large qu'entre deux personnes sans lien direct sur la même ligne.
+  for (const generation of generationOrder) {
+    const nodesInGeneration = byGeneration.get(generation)!;
+    const byPersonId = new Map(nodesInGeneration.map((n) => [n.person.id, n]));
+
+    // Regroupe en "unités" de placement (personne seule, ou couple adjacent).
+    const units: { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] }[] = [];
+    const grouped = new Set<number>();
+    for (const n of nodesInGeneration) {
+      if (grouped.has(n.person.id)) continue;
+      grouped.add(n.person.id);
       const partnerId = unionPartnerOf.get(n.person.id);
       const partnerNode = partnerId !== undefined ? byPersonId.get(partnerId) : undefined;
-      if (partnerNode && !placedPersonIds.has(partnerNode.person.id)) {
-        const partnerX = x + UNION_PARTNER_GAP;
-        placeNode(partnerNode, partnerX);
-        xCursorByGeneration.set(n.generation, partnerX + NODE_COLUMN_WIDTH);
+      if (partnerNode && !grouped.has(partnerNode.person.id)) {
+        grouped.add(partnerNode.person.id);
+        units.push({ first: n, partner: partnerNode });
       } else {
-        xCursorByGeneration.set(n.generation, x + NODE_COLUMN_WIDTH);
+        units.push({ first: n });
       }
+    }
+
+    if (generation !== 0) {
+      // Ancre chaque unité sur le barycentre x de ses voisins (enfants pour
+      // les ascendants, parents pour les descendants) déjà positionnés.
+      const neighborsOf = (personId: number) =>
+        generation < 0 ? (childrenOfParent.get(personId) ?? []) : (parentsOfChild.get(personId) ?? []);
+
+      const anchorOf = (unit: (typeof units)[number]): number | undefined => {
+        const memberIds = unit.partner ? [unit.first.person.id, unit.partner.person.id] : [unit.first.person.id];
+        const neighborXs = memberIds
+          .flatMap(neighborsOf)
+          .map((id) => xByPersonId.get(id))
+          .filter((x): x is number => x !== undefined);
+        if (neighborXs.length === 0) return undefined;
+        return neighborXs.reduce((sum, x) => sum + x, 0) / neighborXs.length;
+      };
+
+      const withAnchor = units.map((unit, index) => ({ unit, index, anchor: anchorOf(unit) }));
+      // Sans voisin déjà placé (ex. partenaire d'union sans Filiation connue),
+      // on repousse l'unité en fin de ligne plutôt que d'inventer une position.
+      withAnchor.sort((a, b) => {
+        const aAnchor = a.anchor ?? Number.POSITIVE_INFINITY;
+        const bAnchor = b.anchor ?? Number.POSITIVE_INFINITY;
+        if (aAnchor !== bAnchor) return aAnchor - bAnchor;
+        return a.index - b.index; // ordre d'id d'origine, stable
+      });
+      units.length = 0;
+      units.push(...withAnchor.map((w) => w.unit));
+    }
+
+    for (const unit of units) {
+      placeUnit(generation, unit.first, unit.partner);
     }
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
-
-  const filiationEdges = tree.edges.filter((e) => e.type === "filiation");
-  const unionEdges = tree.edges.filter((e) => e.type === "union");
 
   /** Ensemble des parents connus (via Filiation) de chaque enfant. */
   const parentIdsByChild = new Map<number, Set<number>>();

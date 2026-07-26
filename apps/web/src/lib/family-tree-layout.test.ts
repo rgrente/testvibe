@@ -108,6 +108,47 @@ describe("buildReactFlowGraph", () => {
     expect(graph.edges.find((e) => e.id === "filiation-12")).toBeUndefined();
   });
 
+  it("ancre chaque couple d'ascendants sur la position de son propre enfant, plutôt que de trier par id", () => {
+    // Reproduit le cas où deux couples d'une même génération d'ascendants
+    // se rattachent chacun à un enfant différent de la génération 0 :
+    // sans ancrage, l'ordre par id placerait Pascal+Laurence à gauche et
+    // Didier+Martine à droite, alors que Mathilde (leur fille) est à
+    // gauche et Romain (fils de Pascal+Laurence) à droite — provoquant
+    // un croisement des liens de Filiation.
+    const tree: FamilyTree = {
+      rootId: 11,
+      nodes: [
+        { person: { id: 1, firstName: "Pascal", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 2, firstName: "Laurence", lastName: "Grente", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 3, firstName: "Didier", lastName: "Renault", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 4, firstName: "Martine", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 10, firstName: "Mathilde", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
+        { person: { id: 11, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+      ],
+      edges: [
+        { type: "union", unionId: 100, personIds: [10, 11] },
+        { type: "union", unionId: 200, personIds: [1, 2] },
+        { type: "union", unionId: 201, personIds: [3, 4] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 11, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 11, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 3, childId: 10, role: "biologique" },
+        { type: "filiation", filiationId: 4, parentId: 4, childId: 10, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+
+    const mathildeX = xOf("10");
+    const romainX = xOf("11");
+    const didierMartineMaxX = Math.max(xOf("3"), xOf("4"));
+    const pascalLaurenceMinX = Math.min(xOf("1"), xOf("2"));
+
+    expect(mathildeX).toBeLessThan(romainX);
+    // Didier+Martine (parents de Mathilde) entièrement à gauche de Pascal+Laurence (parents de Romain).
+    expect(didierMartineMaxX).toBeLessThan(pascalLaurenceMinX);
+  });
+
   it("garde une arête de Filiation directe quand le parent n'a pas d'Union commune avec un autre parent", () => {
     const graph = buildReactFlowGraph(makeTree());
     expect(graph.edges.find((e) => e.id === "filiation-10")).toMatchObject({
