@@ -72,10 +72,42 @@ const JUNCTION_HALF_SIZE = 4;
 
 const UNION_LINK_STYLE = { stroke: "#cbd5e1", strokeDasharray: "4 4" };
 
+type FamilyTreeNode = FamilyTree["nodes"][number];
+
 function personLabel(tree: FamilyTree, personId: number): string {
   const node = tree.nodes.find((n) => n.person.id === personId);
   if (!node) return `#${personId}`;
   return `${node.person.firstName} ${node.person.lastName}`.trim();
+}
+
+/**
+ * Ordre d'affichage par génération croissante, puis par date de naissance
+ * (plutôt que par id) au sein d'une même génération — pour que les enfants
+ * d'une fratrie apparaissent dans leur ordre de naissance réel. Personnes
+ * sans date connue reléguées en fin de groupe ; id en dernier recours pour
+ * un ordre stable et déterministe.
+ */
+function compareSiblingOrder(a: FamilyTreeNode, b: FamilyTreeNode): number {
+  if (a.generation !== b.generation) return a.generation - b.generation;
+  const aDate = a.person.birthDate;
+  const bDate = b.person.birthDate;
+  if (aDate && bDate && aDate !== bDate) return aDate < bDate ? -1 : 1;
+  if (aDate && !bDate) return -1;
+  if (!aDate && bDate) return 1;
+  return a.person.id - b.person.id;
+}
+
+/**
+ * Ordonne un couple gauche→droite : l'homme à gauche, la femme à droite.
+ * En cas d'ambiguïté (deux hommes, deux femmes, ou genre(s) inconnu(s)),
+ * conserve l'ordre de rencontre (déjà trié par date de naissance puis id).
+ */
+function orderCoupleLeftToRight(a: FamilyTreeNode, b: FamilyTreeNode): [FamilyTreeNode, FamilyTreeNode] {
+  const aMale = a.person.gender === "M";
+  const bMale = b.person.gender === "M";
+  if (aMale && !bMale) return [a, b];
+  if (bMale && !aMale) return [b, a];
+  return [a, b];
 }
 
 /**
@@ -95,9 +127,7 @@ function personLabel(tree: FamilyTree, personId: number): string {
  * de chaque parent séparément, pour éviter les traits dupliqués.
  */
 export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
-  const sortedByGeneration = [...tree.nodes].sort(
-    (a, b) => a.generation - b.generation || a.person.id - b.person.id,
-  );
+  const sortedByGeneration = [...tree.nodes].sort(compareSiblingOrder);
 
   // Partenaire d'Union à deux membres, pour un placement adjacent garanti
   // (cf. plus bas) : sans ça, deux partenaires ne se retrouvent côte à
@@ -188,7 +218,8 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       const partnerNode = partnerId !== undefined ? byPersonId.get(partnerId) : undefined;
       if (partnerNode && !grouped.has(partnerNode.person.id)) {
         grouped.add(partnerNode.person.id);
-        units.push({ first: n, partner: partnerNode });
+        const [first, partner] = orderCoupleLeftToRight(n, partnerNode);
+        units.push({ first, partner });
       } else {
         units.push({ first: n });
       }
@@ -420,7 +451,7 @@ export interface HierarchyRow {
  */
 export function buildHierarchyRows(tree: FamilyTree): HierarchyRow[] {
   return [...tree.nodes]
-    .sort((a, b) => a.generation - b.generation || a.person.id - b.person.id)
+    .sort(compareSiblingOrder)
     .map((n) => ({
       personId: n.person.id,
       label: personLabel(tree, n.person.id),
