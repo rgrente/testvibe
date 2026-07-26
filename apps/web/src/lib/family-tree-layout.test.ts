@@ -82,6 +82,63 @@ describe("buildReactFlowGraph", () => {
     expect(Math.abs(anne.position.x - byron.position.x)).toBe(300);
   });
 
+  it("place l'homme à gauche et la femme à droite dans un couple, même si l'ordre de rencontre suggère l'inverse", () => {
+    const tree: FamilyTree = {
+      rootId: 9,
+      nodes: [
+        // Anne (F, id 2) rencontrée avant Byron (M, id 9) par tri id/date :
+        // sans la règle de genre, Anne se retrouverait à gauche.
+        { person: { id: 2, firstName: "Anne", lastName: "Fontaine", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
+        { person: { id: 9, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+      ],
+      edges: [{ type: "union", unionId: 30, personIds: [2, 9] }],
+    };
+    const graph = buildReactFlowGraph(tree);
+    const byronX = graph.nodes.find((n) => n.id === "9")!.position.x;
+    const anneX = graph.nodes.find((n) => n.id === "2")!.position.x;
+    expect(byronX).toBeLessThan(anneX);
+  });
+
+  it("conserve l'ordre de rencontre pour départager un couple de même genre (ex. deux hommes)", () => {
+    const tree: FamilyTree = {
+      rootId: 9,
+      nodes: [
+        { person: { id: 2, firstName: "Marc", lastName: "Fontaine", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+        { person: { id: 9, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+      ],
+      edges: [{ type: "union", unionId: 30, personIds: [2, 9] }],
+    };
+    const graph = buildReactFlowGraph(tree);
+    const byronX = graph.nodes.find((n) => n.id === "9")!.position.x;
+    const marcX = graph.nodes.find((n) => n.id === "2")!.position.x;
+    // Aucun des deux n'est prioritaire par genre : Marc (id 2, rencontré en
+    // premier par tri id) reste à gauche.
+    expect(marcX).toBeLessThan(byronX);
+  });
+
+  it("ordonne les enfants par date de naissance plutôt que par id", () => {
+    const tree: FamilyTree = {
+      rootId: 1,
+      nodes: [
+        { person: { id: 1, firstName: "Parent", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        // Ids volontairement en désordre par rapport aux dates de naissance.
+        { person: { id: 20, firstName: "Cadet", lastName: "Grente", birthDate: "2018-01-01", deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 21, firstName: "Aine", lastName: "Grente", birthDate: "2016-01-01", deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 22, firstName: "Benjamin", lastName: "Grente", birthDate: "2020-01-01", deathDate: null, gender: null } as any, generation: 1 },
+      ],
+      edges: [
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 20, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 1, childId: 21, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 1, childId: 22, role: "biologique" },
+      ],
+    };
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+    // Aine (2016) < Cadet (2018) < Benjamin (2020), indépendamment de l'ordre des id (21, 20, 22).
+    expect(xOf("21")).toBeLessThan(xOf("20"));
+    expect(xOf("20")).toBeLessThan(xOf("22"));
+  });
+
   it("crée un point de jonction pour une Union à deux partenaires, relié aux deux partenaires", () => {
     const graph = buildReactFlowGraph(makeTree());
     const junction = graph.nodes.find((n) => n.id === "union-20");
@@ -118,12 +175,14 @@ describe("buildReactFlowGraph", () => {
     const tree: FamilyTree = {
       rootId: 11,
       nodes: [
-        { person: { id: 1, firstName: "Pascal", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
-        { person: { id: 2, firstName: "Laurence", lastName: "Grente", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
-        { person: { id: 3, firstName: "Didier", lastName: "Renault", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
-        { person: { id: 4, firstName: "Martine", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
-        { person: { id: 10, firstName: "Mathilde", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
-        { person: { id: 11, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+        // Genre neutre partout : ce test porte sur l'anti-croisement par
+        // ancrage, indépendamment de la règle homme-à-gauche (cf. tests dédiés).
+        { person: { id: 1, firstName: "Pascal", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+        { person: { id: 2, firstName: "Laurence", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+        { person: { id: 3, firstName: "Didier", lastName: "Renault", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+        { person: { id: 4, firstName: "Martine", lastName: "Renault", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+        { person: { id: 10, firstName: "Mathilde", lastName: "Renault", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 11, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
       ],
       edges: [
         { type: "union", unionId: 100, personIds: [10, 11] },
@@ -205,6 +264,36 @@ describe("buildReactFlowGraph", () => {
     const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
     const coupleMidpoint = (xOf("1") + xOf("2")) / 2;
     const childrenMidpoint = (xOf("11") + xOf("12")) / 2;
+
+    expect(coupleMidpoint).toBe(childrenMidpoint);
+  });
+
+  it("n'utilise pas une unité sans ancrage pour contraindre la position d'un cluster ancré voisin", () => {
+    // Maxime (frère de Mathilde) est dans la même génération que le couple
+    // Romain+Mathilde, mais n'a aucun enfant connu dans cette vue : il ne
+    // doit pas décentrer Romain+Mathilde de la fratrie Léni/Mahé.
+    const tree: FamilyTree = {
+      rootId: 30,
+      nodes: [
+        { person: { id: 1, firstName: "Romain", lastName: "Grente", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 2, firstName: "Mathilde", lastName: "Renault", birthDate: null, deathDate: null, gender: "F" } as any, generation: -1 },
+        { person: { id: 3, firstName: "Maxime", lastName: "Renault", birthDate: null, deathDate: null, gender: "M" } as any, generation: -1 },
+        { person: { id: 30, firstName: "Leni", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 31, firstName: "Mahe", lastName: "Grente", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      ],
+      edges: [
+        { type: "union", unionId: 100, personIds: [1, 2] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 30, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 30, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 1, childId: 31, role: "biologique" },
+        { type: "filiation", filiationId: 4, parentId: 2, childId: 31, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const xOf = (id: string) => graph.nodes.find((n) => n.id === id)!.position.x;
+    const coupleMidpoint = (xOf("1") + xOf("2")) / 2;
+    const childrenMidpoint = (xOf("30") + xOf("31")) / 2;
 
     expect(coupleMidpoint).toBe(childrenMidpoint);
   });

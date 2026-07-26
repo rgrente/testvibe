@@ -72,10 +72,42 @@ const JUNCTION_HALF_SIZE = 4;
 
 const UNION_LINK_STYLE = { stroke: "#cbd5e1", strokeDasharray: "4 4" };
 
+type FamilyTreeNode = FamilyTree["nodes"][number];
+
 function personLabel(tree: FamilyTree, personId: number): string {
   const node = tree.nodes.find((n) => n.person.id === personId);
   if (!node) return `#${personId}`;
   return `${node.person.firstName} ${node.person.lastName}`.trim();
+}
+
+/**
+ * Ordre d'affichage par génération croissante, puis par date de naissance
+ * (plutôt que par id) au sein d'une même génération — pour que les enfants
+ * d'une fratrie apparaissent dans leur ordre de naissance réel. Personnes
+ * sans date connue reléguées en fin de groupe ; id en dernier recours pour
+ * un ordre stable et déterministe.
+ */
+function compareSiblingOrder(a: FamilyTreeNode, b: FamilyTreeNode): number {
+  if (a.generation !== b.generation) return a.generation - b.generation;
+  const aDate = a.person.birthDate;
+  const bDate = b.person.birthDate;
+  if (aDate && bDate && aDate !== bDate) return aDate < bDate ? -1 : 1;
+  if (aDate && !bDate) return -1;
+  if (!aDate && bDate) return 1;
+  return a.person.id - b.person.id;
+}
+
+/**
+ * Ordonne un couple gauche→droite : l'homme à gauche, la femme à droite.
+ * En cas d'ambiguïté (deux hommes, deux femmes, ou genre(s) inconnu(s)),
+ * conserve l'ordre de rencontre (déjà trié par date de naissance puis id).
+ */
+function orderCoupleLeftToRight(a: FamilyTreeNode, b: FamilyTreeNode): [FamilyTreeNode, FamilyTreeNode] {
+  const aMale = a.person.gender === "M";
+  const bMale = b.person.gender === "M";
+  if (aMale && !bMale) return [a, b];
+  if (bMale && !aMale) return [b, a];
+  return [a, b];
 }
 
 /**
@@ -95,9 +127,7 @@ function personLabel(tree: FamilyTree, personId: number): string {
  * de chaque parent séparément, pour éviter les traits dupliqués.
  */
 export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
-  const sortedByGeneration = [...tree.nodes].sort(
-    (a, b) => a.generation - b.generation || a.person.id - b.person.id,
-  );
+  const sortedByGeneration = [...tree.nodes].sort(compareSiblingOrder);
 
   // Partenaire d'Union à deux membres, pour un placement adjacent garanti
   // (cf. plus bas) : sans ça, deux partenaires ne se retrouvent côte à
@@ -188,7 +218,8 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       const partnerNode = partnerId !== undefined ? byPersonId.get(partnerId) : undefined;
       if (partnerNode && !grouped.has(partnerNode.person.id)) {
         grouped.add(partnerNode.person.id);
-        units.push({ first: n, partner: partnerNode });
+        const [first, partner] = orderCoupleLeftToRight(n, partnerNode);
+        units.push({ first, partner });
       } else {
         units.push({ first: n });
       }
@@ -246,7 +277,29 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     const clusterWidthOf = (cluster: (typeof clusters)[number]) =>
       cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
 
-    // Résout les chevauchements entre clusters voisins par une passe
+    const placeSequence = (clustersToPlace: typeof clusters, startX: number) => {
+      let x = startX;
+      for (const cluster of clustersToPlace) {
+        for (const unit of cluster.units) {
+          placeUnit(unit, x);
+          x += widthOf(unit) + NODE_COLUMN_WIDTH;
+        }
+      }
+      return x;
+    };
+
+    // Le tri ci-dessus place les unités sans ancrage (aucun voisin encore
+    // placé, ex. un parent sans enfant connu dans cette vue) en fin de
+    // ligne — elles forment donc toujours un bloc de fin contigu. On les
+    // exclut du calcul de centrage : sans ça, l'unité de fin, dépourvue de
+    // position réelle, ne peut que "deviner" une valeur pour se chaîner à
+    // la précédente, et cette valeur arbitraire vient ensuite contraindre
+    // à tort — via la passe droite→gauche — la position du groupe ancré
+    // juste avant elle, le tirant loin de son véritable centre.
+    const anchoredClusters = clusters.filter((c) => c.anchor !== undefined);
+    const trailingUnanchoredClusters = clusters.filter((c) => c.anchor === undefined);
+
+    // Résout les chevauchements entre clusters ancrés voisins par une passe
     // gauche→droite (ne repousse qu'à droite) puis une passe droite→gauche
     // (ne repousse qu'à gauche), et moyenne les deux. Une seule passe
     // gauche→droite ferait porter tout le décalage nécessaire sur le
@@ -256,27 +309,22 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     const leftPass: number[] = [];
     {
       let prevEnd = Number.NEGATIVE_INFINITY;
-      for (const cluster of clusters) {
+      for (const cluster of anchoredClusters) {
         const width = clusterWidthOf(cluster);
-        const ideal = cluster.anchor !== undefined ? cluster.anchor - width / 2 : (Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
+        const ideal = cluster.anchor! - width / 2;
         const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + NODE_COLUMN_WIDTH) : ideal;
         leftPass.push(start);
         prevEnd = start + width;
       }
     }
 
-    const rightPass: number[] = new Array(clusters.length);
+    const rightPass: number[] = new Array(anchoredClusters.length);
     {
       let nextStart = Number.POSITIVE_INFINITY;
-      for (let i = clusters.length - 1; i >= 0; i--) {
-        const cluster = clusters[i];
+      for (let i = anchoredClusters.length - 1; i >= 0; i--) {
+        const cluster = anchoredClusters[i];
         const width = clusterWidthOf(cluster);
-        const ideal =
-          cluster.anchor !== undefined
-            ? cluster.anchor - width / 2
-            : Number.isFinite(nextStart)
-              ? nextStart - NODE_COLUMN_WIDTH - width
-              : 0;
+        const ideal = cluster.anchor! - width / 2;
         const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - NODE_COLUMN_WIDTH - width) : ideal;
         rightPass[i] = start;
         nextStart = start;
@@ -286,7 +334,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     // Moyenne des deux passes, puis correction gauche→droite finale (filet
     // de sécurité au cas où moyenner réintroduirait un léger chevauchement).
     let prevEnd = Number.NEGATIVE_INFINITY;
-    clusters.forEach((cluster, i) => {
+    anchoredClusters.forEach((cluster, i) => {
       const averaged = (leftPass[i] + rightPass[i]) / 2;
       const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + NODE_COLUMN_WIDTH) : averaged;
       prevEnd = start + clusterWidthOf(cluster);
@@ -297,6 +345,10 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
         x += widthOf(unit) + NODE_COLUMN_WIDTH;
       }
     });
+
+    // Les unités sans ancrage viennent enfin s'enchaîner après le dernier
+    // groupe ancré (ou depuis 0 si la génération n'en a aucun).
+    placeSequence(trailingUnanchoredClusters, Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
@@ -420,7 +472,7 @@ export interface HierarchyRow {
  */
 export function buildHierarchyRows(tree: FamilyTree): HierarchyRow[] {
   return [...tree.nodes]
-    .sort((a, b) => a.generation - b.generation || a.person.id - b.person.id)
+    .sort(compareSiblingOrder)
     .map((n) => ({
       personId: n.person.id,
       label: personLabel(tree, n.person.id),
