@@ -243,28 +243,60 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       }
     }
 
-    let minX = Number.NEGATIVE_INFINITY;
-    for (const cluster of clusters) {
-      const clusterWidth =
-        cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
-      // Sans ancrage (ex. partenaire d'union sans Filiation connue), on
-      // enchaîne simplement après le groupe précédent plutôt que d'inventer
-      // une position.
-      const desiredStart =
-        cluster.anchor !== undefined
-          ? cluster.anchor - clusterWidth / 2
-          : Number.isFinite(minX)
-            ? minX
-            : 0;
-      const start = Math.max(desiredStart, minX);
+    const clusterWidthOf = (cluster: (typeof clusters)[number]) =>
+      cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
+
+    // Résout les chevauchements entre clusters voisins par une passe
+    // gauche→droite (ne repousse qu'à droite) puis une passe droite→gauche
+    // (ne repousse qu'à gauche), et moyenne les deux. Une seule passe
+    // gauche→droite ferait porter tout le décalage nécessaire sur le
+    // cluster de droite alors que celui de gauche resterait pile sur son
+    // ancrage ; la moyenne des deux passes répartit le décalage de part et
+    // d'autre du point médian, pour un rendu plus symétrique/compact.
+    const leftPass: number[] = [];
+    {
+      let prevEnd = Number.NEGATIVE_INFINITY;
+      for (const cluster of clusters) {
+        const width = clusterWidthOf(cluster);
+        const ideal = cluster.anchor !== undefined ? cluster.anchor - width / 2 : (Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
+        const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + NODE_COLUMN_WIDTH) : ideal;
+        leftPass.push(start);
+        prevEnd = start + width;
+      }
+    }
+
+    const rightPass: number[] = new Array(clusters.length);
+    {
+      let nextStart = Number.POSITIVE_INFINITY;
+      for (let i = clusters.length - 1; i >= 0; i--) {
+        const cluster = clusters[i];
+        const width = clusterWidthOf(cluster);
+        const ideal =
+          cluster.anchor !== undefined
+            ? cluster.anchor - width / 2
+            : Number.isFinite(nextStart)
+              ? nextStart - NODE_COLUMN_WIDTH - width
+              : 0;
+        const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - NODE_COLUMN_WIDTH - width) : ideal;
+        rightPass[i] = start;
+        nextStart = start;
+      }
+    }
+
+    // Moyenne des deux passes, puis correction gauche→droite finale (filet
+    // de sécurité au cas où moyenner réintroduirait un léger chevauchement).
+    let prevEnd = Number.NEGATIVE_INFINITY;
+    clusters.forEach((cluster, i) => {
+      const averaged = (leftPass[i] + rightPass[i]) / 2;
+      const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + NODE_COLUMN_WIDTH) : averaged;
+      prevEnd = start + clusterWidthOf(cluster);
 
       let x = start;
       for (const unit of cluster.units) {
         placeUnit(unit, x);
         x += widthOf(unit) + NODE_COLUMN_WIDTH;
       }
-      minX = start + clusterWidth + NODE_COLUMN_WIDTH;
-    }
+    });
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));

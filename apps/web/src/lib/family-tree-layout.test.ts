@@ -147,6 +147,18 @@ describe("buildReactFlowGraph", () => {
     expect(mathildeX).toBeLessThan(romainX);
     // Didier+Martine (parents de Mathilde) entièrement à gauche de Pascal+Laurence (parents de Romain).
     expect(didierMartineMaxX).toBeLessThan(pascalLaurenceMinX);
+
+    // Les deux couples d'ascendants ont la même largeur et sont tous deux
+    // gênés par l'autre : l'écart nécessaire pour respecter l'espacement
+    // minimal doit être réparti à parts égales (chacun s'éloigne autant de
+    // son propre ancrage), plutôt que d'être entièrement absorbé par un
+    // seul des deux couples.
+    const didierMartineMidpoint = (xOf("3") + xOf("4")) / 2;
+    const pascalLaurenceMidpoint = (xOf("1") + xOf("2")) / 2;
+    const leftShift = mathildeX - didierMartineMidpoint;
+    const rightShift = pascalLaurenceMidpoint - romainX;
+    expect(leftShift).toBeGreaterThan(0);
+    expect(leftShift).toBeCloseTo(rightShift, 5);
   });
 
   it("centre un couple d'ascendants exactement sur son enfant unique", () => {
