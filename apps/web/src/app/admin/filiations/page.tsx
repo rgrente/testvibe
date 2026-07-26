@@ -1,6 +1,6 @@
 import {
   adminListFiliations,
-  adminCreateFiliation,
+  adminCreateFiliations,
   adminDeleteFiliation,
   adminListPersons,
 } from "@testvibe/core";
@@ -15,21 +15,20 @@ export const dynamic = "force-dynamic";
 
 async function createFiliationAction(formData: FormData) {
   "use server";
-  const parentId = Number(formData.get("parentId"));
-  const childId = Number(formData.get("childId"));
+  const parentIds = formData.getAll("parentIds").map(Number).filter(Boolean);
+  const childIds = formData.getAll("childIds").map(Number).filter(Boolean);
   const role = formData.get("role")?.toString() as FiliationRole;
 
-  if (!parentId || !childId || !role) {
+  if (parentIds.length === 0 || childIds.length === 0 || !role) {
     redirect("/admin/filiations?error=champs_requis");
   }
-
   try {
-    await adminCreateFiliation({ parentId, childId, role });
+    await adminCreateFiliations({ parentIds, childIds, role });
   } catch {
     redirect("/admin/filiations?error=validation");
   }
   revalidatePath("/admin/filiations");
-  redirect("/admin/filiations");
+  redirect("/admin/filiations?success=creation");
 }
 
 async function deleteFiliationAction(formData: FormData) {
@@ -48,7 +47,7 @@ async function deleteFiliationAction(formData: FormData) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 interface FiliationsPageProps {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; success?: string }>;
 }
 
 const ROLE_LABELS: Record<FiliationRole, string> = {
@@ -58,7 +57,7 @@ const ROLE_LABELS: Record<FiliationRole, string> = {
 };
 
 export default async function FiliationsPage({ searchParams }: FiliationsPageProps) {
-  const { error } = await searchParams;
+  const { error, success } = await searchParams;
   const [filiations, persons] = await Promise.all([
     adminListFiliations(),
     adminListPersons(),
@@ -72,6 +71,11 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
   return (
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Filiations</h1>
+      {success === "creation" && (
+        <p className="mb-4 rounded bg-green-50 px-4 py-3 text-sm text-green-800">
+          Filiations créées avec succès.
+        </p>
+      )}
 
       {/* Formulaire de création */}
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
@@ -85,40 +89,44 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
         )}
         <form action={createFiliationAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor="parentId" className="mb-1 block text-sm font-medium text-slate-700">
-              Parent *
+            <label htmlFor="parentIds" className="mb-1 block text-sm font-medium text-slate-700">
+              Parents * (1 ou 2)
             </label>
             <select
-              id="parentId"
-              name="parentId"
+              id="parentIds"
+              name="parentIds"
               required
+              multiple
+              size={Math.min(6, Math.max(2, persons.length))}
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             >
-              <option value="">Sélectionnez une personne</option>
               {persons.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-slate-500">Ctrl/Cmd + clic pour choisir deux parents.</p>
           </div>
           <div>
-            <label htmlFor="childId" className="mb-1 block text-sm font-medium text-slate-700">
-              Enfant *
+            <label htmlFor="childIds" className="mb-1 block text-sm font-medium text-slate-700">
+              Enfants * (un ou plusieurs)
             </label>
             <select
-              id="childId"
-              name="childId"
+              id="childIds"
+              name="childIds"
               required
+              multiple
+              size={Math.min(6, Math.max(2, persons.length))}
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             >
-              <option value="">Sélectionnez une personne</option>
               {persons.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.firstName} {p.lastName}
                 </option>
               ))}
             </select>
+            <p className="mt-1 text-xs text-slate-500">Ctrl/Cmd + clic pour choisir plusieurs enfants.</p>
           </div>
           <div>
             <label htmlFor="role" className="mb-1 block text-sm font-medium text-slate-700">

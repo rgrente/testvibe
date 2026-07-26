@@ -21,6 +21,7 @@ import type {
   FiliationInput,
   Event,
   EventInput,
+  FiliationBatchInput,
   Media,
   MediaInput,
 } from "./types.js";
@@ -34,6 +35,7 @@ import {
 import { createUnion, getUnionById, listUnions, updateUnion, deleteUnion } from "./union.js";
 import {
   createFiliation,
+  createFiliations,
   getFiliationById,
   listFiliations,
   updateFiliation,
@@ -107,6 +109,10 @@ export async function adminDeleteUnion(id: number): Promise<void> {
 
 export async function adminCreateFiliation(input: FiliationInput): Promise<Filiation> {
   return createFiliation(defaultDb, input);
+}
+
+export async function adminCreateFiliations(input: FiliationBatchInput): Promise<Filiation[]> {
+  return createFiliations(defaultDb, input);
 }
 
 export async function adminGetFiliation(id: number): Promise<Filiation> {

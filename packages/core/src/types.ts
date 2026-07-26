@@ -53,6 +53,12 @@ export interface FiliationInput {
   role: FiliationRole;
 }
 
+export interface FiliationBatchInput {
+  parentIds: number[];
+  childIds: number[];
+  role: FiliationRole;
+}
+
 export interface Event {
   id: number;
   personId: number;
