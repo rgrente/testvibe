@@ -72,6 +72,10 @@ const JUNCTION_HALF_SIZE = 4;
 
 const UNION_LINK_STYLE = { stroke: "#cbd5e1", strokeDasharray: "4 4" };
 
+function filiationLabel(role: string): string | undefined {
+  return role === "biologique" ? undefined : role;
+}
+
 type FamilyTreeNode = FamilyTree["nodes"][number];
 
 function personLabel(tree: FamilyTree, personId: number): string {
@@ -430,7 +434,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
         sourceHandle: "bottom",
         target: String(childId),
         targetHandle: "top",
-        label: roles.size === 1 ? [...roles][0] : undefined,
+        label: roles.size === 1 ? filiationLabel([...roles][0]) : undefined,
       });
 
       for (const f of matchingFiliations) consumedFiliationIds.add(f.filiationId);
@@ -447,7 +451,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       sourceHandle: "bottom",
       target: String(f.childId),
       targetHandle: "top",
-      label: f.role,
+      label: filiationLabel(f.role),
     });
   }
 
