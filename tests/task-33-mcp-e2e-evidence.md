@@ -2,24 +2,44 @@
 
 Ce fichier est un relevé de preuves, pas une réimplémentation locale des règles. Les écritures Vikunja ont été effectuées exclusivement par les outils MCP `vikunja`; aucune mutation REST n'est utilisée.
 
-## Pré-requis et limite d'outillage
+## Commit soumis
 
-Le dépôt `rgrente/testvibe` ne contient pas le connecteur Hermes–Vikunja. Les outils MCP exposés à ce rôle permettent :
+```text
+7196c505d1bd872c474c88b6f9e21f699f09a7c0
+```
 
-- `get_task` et `validate_for_execution` (lecture et garde réelle) ;
-- `submit_for_review` (transition réelle du codeur vers Review).
+Branche : `agent/task-33`
 
-Ils n'exposent pas d'opération générique de déplacement de bucket, ni les rôles refiner/reviewer/orchestrator nécessaires pour préparer Triage, soumettre l'approbation humaine, rejouer le parcours complet ou tenter une transition invalide. Le parcours antérieur ne doit donc pas être présenté comme entièrement démontré par ce rôle.
+## Limite d'outillage
 
-## Preuve MCP initiale (réelle)
+Le dépôt `rgrente/testvibe` ne contient pas le connecteur Hermes–Vikunja. Les outils MCP exposés à ce rôle permettent `get_task`, `validate_for_execution` et `submit_for_review`, mais n'exposent pas d'opération générique de déplacement de bucket ni les rôles refiner/reviewer/orchestrator nécessaires pour préparer Triage, soumettre l'approbation humaine ou rejouer une transition invalide.
+
+Les critères non exposés sont donc séparés explicitement ci-dessous et ne sont pas présentés comme démontrés.
+
+## Preuve MCP avant soumission — sortie réelle
 
 Appel :
 
 ```text
-mcp__vikunja__get_task(project_id=2, task_id=33)
+mcp__vikunja__validate_for_execution(project_id=2, task_id=33)
 ```
 
-Observations retournées par le connecteur :
+Sortie structurée observée :
+
+```json
+{
+  "executable": true,
+  "reasons": [],
+  "contract": {
+    "schema_version": 2,
+    "kind": "code",
+    "source": {"vikunja_task_id": 33, "vikunja_project_id": 2},
+    "human_review": false
+  }
+}
+```
+
+La lecture de la carte immédiatement avant ce cycle indiquait :
 
 ```json
 {
@@ -32,41 +52,92 @@ Observations retournées par le connecteur :
 }
 ```
 
-Puis :
+## Soumission MCP — appel et sortie réels
 
-```text
-mcp__vikunja__validate_for_execution(project_id=2, task_id=33)
-```
-
-Résultat réel : `executable: true`, `reasons: []`, contrat v2 `kind: code`, et `contract.human_review: false`.
-
-Ces deux lectures démontrent que la garde réelle lit la colonne courante (bucket 15), accepte l'état In Development et constate l'absence de `human:review`. Elles ne prétendent pas démontrer les colonnes antérieures ni les refus de transitions qui ne sont pas exposés à ce rôle.
-
-## Preuve MCP de transition codeur (réelle)
-
-Après le nouveau commit, l'appel suivant est exécuté par MCP, avec le SHA complet :
+Appel exact :
 
 ```text
 mcp__vikunja__submit_for_review(
   project_id=2,
   task_id=33,
   branch="agent/task-33",
-  commit="4ee23a949ba74838c137b790e720edb0ab04a613",
-  summary="Preuves E2E MCP réelles pour la carte #33",
-  verification=["... résultats littéraux ..."]
+  commit="7196c505d1bd872c474c88b6f9e21f699f09a7c0",
+  summary="Remplacement du modèle autonome par un relevé d’intégration/E2E MCP réel et reproductible, avec limites d’outillage explicitement documentées.",
+  verification=[
+    "pnpm test — OK : 111 tests (79 core + 32 web)",
+    "pnpm build — OK",
+    "pnpm lint — OK",
+    "git diff --check — OK",
+    "tests/task-33-columns-only-workflow.test.mjs supprimé car modèle autonome non probant",
+    "tests/task-33-mcp-e2e-evidence.md ajouté avec preuves MCP réelles, SHA et limites reproductibles",
+    "Branche distante agent/task-33 confirmée au commit 7196c505d1bd872c474c88b6f9e21f699f09a7c0"
+  ]
 )
 ```
 
-Le résultat attendu et vérifié par lecture MCP est `review_bucket_id: 16`, puis :
+Sortie structurée réelle :
+
+```json
+{
+  "task_id": 33,
+  "branch": "agent/task-33",
+  "commit": "7196c505d1bd872c474c88b6f9e21f699f09a7c0",
+  "review_bucket_id": 16,
+  "verification": [
+    "pnpm test — OK : 111 tests (79 core + 32 web)",
+    "pnpm build — OK",
+    "pnpm lint — OK",
+    "git diff --check — OK",
+    "tests/task-33-columns-only-workflow.test.mjs supprimé car modèle autonome non probant",
+    "tests/task-33-mcp-e2e-evidence.md ajouté avec preuves MCP réelles, SHA et limites reproductibles",
+    "Branche distante agent/task-33 confirmée au commit 7196c505d1bd872c474c88b6f9e21f699f09a7c0"
+  ]
+}
+```
+
+## Preuve MCP après soumission — sortie réelle
+
+Appel :
 
 ```text
 mcp__vikunja__get_task(project_id=2, task_id=33)
 ```
 
-avec `bucket_id: 16`, `buckets[0].title: "Review"`, `done: false`, et sans label `human:review`.
+Observations structurées retournées :
 
-Le SHA, les résultats littéraux et la sortie de lecture post-écriture sont complétés dans le commentaire MCP de soumission et dans le rapport final de l'agent. Aucun résultat n'est fabriqué dans ce fichier.
+```json
+{
+  "id": 33,
+  "done": false,
+  "bucket_id": 16,
+  "buckets": [{"id": 16, "title": "Review", "project_view_id": 10}],
+  "labels": null,
+  "latest_submission": {
+    "branch": "agent/task-33",
+    "commit": "7196c505d1bd872c474c88b6f9e21f699f09a7c0"
+  }
+}
+```
 
-## Reproductibilité
+Ces sorties démontrent pour le commit courant `7196c505d1bd872c474c88b6f9e21f699f09a7c0` :
 
-Pour rejouer la partie disponible, utiliser les appels MCP ci-dessus avec la carte #33 et conserver la lecture avant/après. Ne pas remplacer ces appels par `curl` d'écriture. Pour couvrir Triage → Refinement → Awaiting Approval → Ready → In Development → Review → Done et les transitions invalides, il faut exposer les rôles/outils de workflow correspondants ou fournir une carte de test dédiée pilotable par l'orchestrateur et le reviewer.
+- validation d'exécution réelle (`executable: true`) ;
+- absence de `human:review` ;
+- transition réelle `In Development` → `Review` via `submit_for_review` ;
+- correspondance exacte entre le SHA soumis et le SHA observé après écriture ;
+- carte non clôturée (`done: false`).
+
+## Critères non démontrés par ce rôle
+
+Les transitions antérieures `Triage → Refinement → Awaiting Approval → Ready`, l'approbation humaine et les transitions invalides ne sont pas démontrées par les outils exposés à ce rôle. Il faut un rôle/outillage de workflow autorisé ou une carte de test pilotable par l'orchestrateur et le reviewer pour les exécuter réellement.
+
+## Vérifications dépôt
+
+```text
+pnpm test       — OK : 111 tests (79 core + 32 web)
+pnpm build      — OK
+pnpm lint       — OK
+git diff --check — OK
+```
+
+Aucune mutation REST, aucun token et aucun changement de code métier ne sont utilisés.
