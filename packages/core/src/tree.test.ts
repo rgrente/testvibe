@@ -114,54 +114,51 @@ describe("getFamilyTree", () => {
     expect(filiationEdges).toHaveLength(6);
   });
 
-  it("écarte le frère de la racine tout en conservant ses ascendants et descendants", async () => {
+  it("inclut les frères et sœurs via tous les types de filiation, sans duplication", async () => {
     const grandParent = await createPerson(db, { firstName: "Grand", lastName: "Parent" });
     const parent = await createPerson(db, { firstName: "Parent", lastName: "Commun" });
-    const mathilde = await createPerson(db, { firstName: "Mathilde", lastName: "Famille" });
-    const maxime = await createPerson(db, { firstName: "Maxime", lastName: "Famille" });
-    const leni = await createPerson(db, { firstName: "Léni", lastName: "Famille" });
-    const petitEnfant = await createPerson(db, { firstName: "Petit", lastName: "Enfant" });
+    const otherParent = await createPerson(db, { firstName: "Autre", lastName: "Parent" });
+    const root = await createPerson(db, { firstName: "Mathilde", lastName: "Famille" });
+    const adoptedSibling = await createPerson(db, { firstName: "Maxime", lastName: "Famille" });
+    const stepSibling = await createPerson(db, { firstName: "Léni", lastName: "Famille" });
+    const child = await createPerson(db, { firstName: "Petit", lastName: "Enfant" });
 
-    await createFiliation(db, {
-      parentId: grandParent.id,
-      childId: parent.id,
-      role: "biologique",
-    });
-    await createFiliation(db, {
-      parentId: parent.id,
-      childId: mathilde.id,
-      role: "biologique",
-    });
-    await createFiliation(db, {
-      parentId: parent.id,
-      childId: maxime.id,
-      role: "biologique",
-    });
-    await createFiliation(db, {
-      parentId: mathilde.id,
-      childId: leni.id,
-      role: "biologique",
-    });
-    await createFiliation(db, {
-      parentId: leni.id,
-      childId: petitEnfant.id,
-      role: "biologique",
-    });
+    await createFiliation(db, { parentId: grandParent.id, childId: parent.id, role: "biologique" });
+    await createFiliation(db, { parentId: parent.id, childId: root.id, role: "biologique" });
+    await createFiliation(db, { parentId: otherParent.id, childId: root.id, role: "biologique" });
+    await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "adopte" });
+    await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "beau-parent" });
+    await createFiliation(db, { parentId: otherParent.id, childId: adoptedSibling.id, role: "biologique" });
+    await createFiliation(db, { parentId: parent.id, childId: stepSibling.id, role: "beau-parent" });
+    await createFiliation(db, { parentId: root.id, childId: child.id, role: "biologique" });
 
-    const tree = await getFamilyTree(db, mathilde.id);
+    const tree = await getFamilyTree(db, root.id);
     const byId = new Map(tree.nodes.map((node) => [node.person.id, node.generation]));
 
     expect(byId.get(grandParent.id)).toBe(-2);
     expect(byId.get(parent.id)).toBe(-1);
-    expect(byId.get(mathilde.id)).toBe(0);
-    expect(byId.get(leni.id)).toBe(1);
-    expect(byId.get(petitEnfant.id)).toBe(2);
-    expect(byId.has(maxime.id)).toBe(false);
-    expect(tree.edges.every((edge) =>
-      edge.type === "filiation"
-        ? byId.has(edge.parentId) && byId.has(edge.childId)
-        : edge.personIds.every((personId) => byId.has(personId)),
-    )).toBe(true);
+    expect(byId.get(otherParent.id)).toBe(-1);
+    expect(byId.get(root.id)).toBe(0);
+    expect(byId.get(adoptedSibling.id)).toBe(0);
+    expect(byId.get(stepSibling.id)).toBe(0);
+    expect(byId.get(child.id)).toBe(1);
+    expect(tree.nodes.filter((node) => node.person.id === adoptedSibling.id)).toHaveLength(1);
+    expect(tree.rootId).toBe(root.id);
+    expect(tree.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ parentId: parent.id, childId: adoptedSibling.id, role: "adopte" }),
+      expect.objectContaining({ parentId: parent.id, childId: adoptedSibling.id, role: "beau-parent" }),
+    ]));
+  });
+
+  it("ne crée aucun frère ou sœur quand la racine est enfant unique", async () => {
+    const parent = await createPerson(db, { firstName: "Parent", lastName: "Unique" });
+    const root = await createPerson(db, { firstName: "Solo", lastName: "Racine" });
+    await createFiliation(db, { parentId: parent.id, childId: root.id, role: "biologique" });
+
+    const tree = await getFamilyTree(db, root.id);
+
+    expect(tree.nodes.map((node) => node.person.id)).toEqual([root.id, parent.id]);
+    expect(tree.nodes.filter((node) => node.generation === 0).map((node) => node.person.id)).toEqual([root.id]);
   });
 
   it("lève NotFoundError si la Person racine n'existe pas", async () => {
