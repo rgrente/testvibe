@@ -158,7 +158,8 @@ describe("buildReactFlowGraph", () => {
   it("fusionne les Filiation d'un enfant commun aux deux partenaires en une seule arête depuis le point de jonction", () => {
     const graph = buildReactFlowGraph(makeTree());
     const merged = graph.edges.find((e) => e.id === "union-20-child-4");
-    expect(merged).toMatchObject({ source: "union-20", target: "4", label: "biologique" });
+    expect(merged).toMatchObject({ source: "union-20", target: "4" });
+    expect(merged!.label).toBeUndefined();
 
     // Les arêtes de Filiation individuelles (11 et 12) ne doivent plus apparaître telles quelles.
     expect(graph.edges.find((e) => e.id === "filiation-11")).toBeUndefined();
@@ -298,12 +299,19 @@ describe("buildReactFlowGraph", () => {
     expect(coupleMidpoint).toBe(childrenMidpoint);
   });
 
-  it("garde une arête de Filiation directe quand le parent n'a pas d'Union commune avec un autre parent", () => {
-    const graph = buildReactFlowGraph(makeTree());
+  it("masque uniquement le libellé biologique et conserve celui des autres filiations", () => {
+    const tree = makeTree();
+    tree.edges.push({ type: "filiation", filiationId: 13, parentId: 1, childId: 3, role: "adopte" });
+    const graph = buildReactFlowGraph(tree);
     expect(graph.edges.find((e) => e.id === "filiation-10")).toMatchObject({
       source: "1",
       target: "2",
-      label: "biologique",
+    });
+    expect(graph.edges.find((e) => e.id === "filiation-10")!.label).toBeUndefined();
+    expect(graph.edges.find((e) => e.id === "filiation-13")).toMatchObject({
+      source: "1",
+      target: "3",
+      label: "adopte",
     });
   });
 });
