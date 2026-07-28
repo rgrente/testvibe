@@ -125,8 +125,10 @@ describe("getFamilyTree", () => {
 
     await createFiliation(db, { parentId: grandParent.id, childId: parent.id, role: "biologique" });
     await createFiliation(db, { parentId: parent.id, childId: root.id, role: "biologique" });
+    await createFiliation(db, { parentId: otherParent.id, childId: root.id, role: "biologique" });
     await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "adopte" });
     await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "beau-parent" });
+    await createFiliation(db, { parentId: otherParent.id, childId: adoptedSibling.id, role: "biologique" });
     await createFiliation(db, { parentId: parent.id, childId: stepSibling.id, role: "beau-parent" });
     await createFiliation(db, { parentId: root.id, childId: child.id, role: "biologique" });
 
@@ -135,6 +137,7 @@ describe("getFamilyTree", () => {
 
     expect(byId.get(grandParent.id)).toBe(-2);
     expect(byId.get(parent.id)).toBe(-1);
+    expect(byId.get(otherParent.id)).toBe(-1);
     expect(byId.get(root.id)).toBe(0);
     expect(byId.get(adoptedSibling.id)).toBe(0);
     expect(byId.get(stepSibling.id)).toBe(0);
