@@ -80,6 +80,10 @@ describe("getFamilyTree", () => {
       firstName: "Hors",
       lastName: "Branche",
     });
+    const unrelatedParent = await createPerson(db, {
+      firstName: "Parent",
+      lastName: "Hors Branche",
+    });
 
     const union = await createUnion(db, { personIds: [parentA.id, parentB.id] });
     await createFiliation(db, { parentId: parentA.id, childId: child1.id, role: "biologique" });
@@ -89,7 +93,7 @@ describe("getFamilyTree", () => {
     await createFiliation(db, { parentId: parentA.id, childId: child3.id, role: "biologique" });
     await createFiliation(db, { parentId: parentB.id, childId: child3.id, role: "biologique" });
     await createFiliation(db, {
-      parentId: parentB.id,
+      parentId: unrelatedParent.id,
       childId: unrelatedChild.id,
       role: "biologique",
     });
@@ -112,6 +116,35 @@ describe("getFamilyTree", () => {
     });
     const filiationEdges = tree.edges.filter((e) => e.type === "filiation");
     expect(filiationEdges).toHaveLength(6);
+  });
+
+  it("inclut les ascendants et descendants du partenaire de la racine", async () => {
+    const root = await createPerson(db, { firstName: "Racine", lastName: "Union" });
+    const partner = await createPerson(db, { firstName: "Partenaire", lastName: "Union" });
+    const partnerParent = await createPerson(db, { firstName: "Parent", lastName: "Partenaire" });
+    const partnerGrandParent = await createPerson(db, { firstName: "Grand-parent", lastName: "Partenaire" });
+    const sharedChild = await createPerson(db, { firstName: "Enfant", lastName: "Commun" });
+    const partnerChild = await createPerson(db, { firstName: "Enfant", lastName: "Partenaire" });
+    const unrelated = await createPerson(db, { firstName: "Hors", lastName: "Branche" });
+
+    await createUnion(db, { personIds: [root.id, partner.id] });
+    await createFiliation(db, { parentId: partnerParent.id, childId: partner.id, role: "biologique" });
+    await createFiliation(db, { parentId: partnerGrandParent.id, childId: partnerParent.id, role: "biologique" });
+    await createFiliation(db, { parentId: root.id, childId: sharedChild.id, role: "biologique" });
+    await createFiliation(db, { parentId: partner.id, childId: sharedChild.id, role: "biologique" });
+    await createFiliation(db, { parentId: partner.id, childId: partnerChild.id, role: "biologique" });
+    await createFiliation(db, { parentId: unrelated.id, childId: partnerChild.id, role: "biologique" });
+
+    const tree = await getFamilyTree(db, root.id);
+    const generationById = new Map(tree.nodes.map((node) => [node.person.id, node.generation]));
+
+    expect(generationById.get(root.id)).toBe(0);
+    expect(generationById.get(partner.id)).toBe(0);
+    expect(generationById.get(partnerParent.id)).toBe(-1);
+    expect(generationById.get(partnerGrandParent.id)).toBe(-2);
+    expect(generationById.get(sharedChild.id)).toBe(1);
+    expect(generationById.get(partnerChild.id)).toBe(1);
+    expect(generationById.has(unrelated.id)).toBe(false);
   });
 
   it("inclut les frères et sœurs via tous les types de filiation, sans duplication", async () => {

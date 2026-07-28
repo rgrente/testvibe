@@ -81,11 +81,22 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
   }
 
   const generationOf = new Map<number, number>([[root.id, 0]]);
+  const rootPartnerIds = new Set<number>();
+  for (const union of unionsOfPerson.get(root.id) ?? []) {
+    for (const partnerId of union.personIds) {
+      if (partnerId !== root.id && personById.has(partnerId)) {
+        rootPartnerIds.add(partnerId);
+        generationOf.set(partnerId, 0);
+      }
+    }
+  }
 
   // Les deux parcours restent strictement directionnels. Un ascendant ne
   // devient donc jamais le point de départ d'une descente vers une branche
-  // collatérale, et réciproquement pour un descendant.
-  const ancestorQueue: number[] = [root.id];
+  // collatérale, et réciproquement pour un descendant. Les partenaires de la
+  // racine sont toutefois ajoutés aux deux files : leurs propres branches
+  // ascendante et descendante font partie de l'arbre demandé.
+  const ancestorQueue: number[] = [root.id, ...rootPartnerIds];
   for (let index = 0; index < ancestorQueue.length; index += 1) {
     const currentId = ancestorQueue[index]!;
     const currentGeneration = generationOf.get(currentId)!;
@@ -115,7 +126,7 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
     }
   }
 
-  const descendantQueue: number[] = [root.id];
+  const descendantQueue: number[] = [root.id, ...rootPartnerIds];
   for (let index = 0; index < descendantQueue.length; index += 1) {
     const currentId = descendantQueue[index]!;
     const currentGeneration = generationOf.get(currentId)!;
