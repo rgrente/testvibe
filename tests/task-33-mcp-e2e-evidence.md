@@ -51,7 +51,7 @@ mcp__vikunja__submit_for_review(
   project_id=2,
   task_id=33,
   branch="agent/task-33",
-  commit="<SHA du commit soumis>",
+  commit="4ee23a949ba74838c137b790e720edb0ab04a613",
   summary="Preuves E2E MCP réelles pour la carte #33",
   verification=["... résultats littéraux ..."]
 )
