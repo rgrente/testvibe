@@ -101,6 +101,20 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
     }
   }
 
+  // Les frères et sœurs partagent au moins un parent avec la racine. Ils sont
+  // ajoutés à la génération de la racine, sans être mis dans la file des
+  // descendants : leur propre branche collatérale ne doit pas être parcourue.
+  // Le Set `generationOf` déduplique naturellement un enfant qui partage les
+  // deux parents et conserve la racine si une relation cyclique est présente.
+  for (const parentFiliation of parentsOf.get(root.id) ?? []) {
+    for (const siblingFiliation of childrenOf.get(parentFiliation.parentId) ?? []) {
+      const siblingId = siblingFiliation.childId;
+      if (siblingId !== root.id && personById.has(siblingId) && !generationOf.has(siblingId)) {
+        generationOf.set(siblingId, 0);
+      }
+    }
+  }
+
   const descendantQueue: number[] = [root.id];
   for (let index = 0; index < descendantQueue.length; index += 1) {
     const currentId = descendantQueue[index]!;
