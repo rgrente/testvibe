@@ -4,8 +4,9 @@
  */
 import { eq } from "drizzle-orm";
 import { event, type Database } from "@testvibe/db";
-import type { Event, EventInput } from "./types.js";
+import type { Event, EventInput, FamilyTimelineEntry } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { listPersons } from "./person.js";
 
 function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
@@ -74,6 +75,29 @@ export async function listEventsByPerson(db: Database, personId: number): Promis
 export async function listAllEvents(db: Database): Promise<Event[]> {
   const rows = await db.select().from(event);
   return rows.map(toEvent);
+}
+
+/**
+ * Charge les événements de toutes les personnes et les trie par date puis id.
+ * Les dates absentes ou inexploitables restent présentes à la fin de la liste.
+ */
+export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineEntry[]> {
+  const [events, persons] = await Promise.all([listAllEvents(db), listPersons(db)]);
+  const personsById = new Map(persons.map((person) => [person.id, person]));
+
+  return events
+    .map((event) => ({ event, person: personsById.get(event.personId) }))
+    .filter((entry): entry is FamilyTimelineEntry => entry.person !== undefined)
+    .sort((a, b) => {
+      const aTimestamp = a.event.eventDate ? Date.parse(a.event.eventDate) : Number.POSITIVE_INFINITY;
+      const bTimestamp = b.event.eventDate ? Date.parse(b.event.eventDate) : Number.POSITIVE_INFINITY;
+      const safeATimestamp = Number.isNaN(aTimestamp) ? Number.POSITIVE_INFINITY : aTimestamp;
+      const safeBTimestamp = Number.isNaN(bTimestamp) ? Number.POSITIVE_INFINITY : bTimestamp;
+
+      return safeATimestamp === safeBTimestamp
+        ? a.event.id - b.event.id
+        : safeATimestamp - safeBTimestamp;
+    });
 }
 
 export async function updateEvent(

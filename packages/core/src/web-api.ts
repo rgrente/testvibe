@@ -14,10 +14,10 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { Person, Event, Media } from "./types.js";
+import type { Person, Event, FamilyTimelineEntry, Media } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
 import { getFamilyTree, type FamilyTree } from "./tree.js";
-import { listEventsByPerson } from "./event.js";
+import { listEventsByPerson, listFamilyTimeline } from "./event.js";
 import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
 
@@ -45,6 +45,11 @@ export async function searchPersonsForWeb(query: string): Promise<Person[]> {
  */
 export async function getPersonTimelineForWeb(personId: number): Promise<Event[]> {
   return listEventsByPerson(defaultDb, personId);
+}
+
+/** Retourne tous les événements familiaux avec leur personne, triés chronologiquement. */
+export async function getFamilyTimelineForWeb(): Promise<FamilyTimelineEntry[]> {
+  return listFamilyTimeline(defaultDb);
 }
 
 /**
