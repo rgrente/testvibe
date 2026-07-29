@@ -24,7 +24,7 @@ export function RootPersonSelect({ persons, selectedId }: RootPersonSelectProps)
       <select
         id="root-select"
         name="personId"
-        defaultValue={String(selectedId)}
+        value={String(selectedId)}
         onChange={(event) => router.push(`/?personId=${event.target.value}`)}
         className="rounded border border-slate-300 px-3 py-1.5 text-sm"
       >
