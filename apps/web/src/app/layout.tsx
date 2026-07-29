@@ -1,4 +1,5 @@
 import "./globals.css";
+import Link from "next/link";
 
 export default function RootLayout({
   children,
@@ -9,7 +10,14 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
-          <div className="mx-auto max-w-5xl text-lg font-semibold text-slate-900">Genealogie</div>
+          <div className="mx-auto flex max-w-5xl items-center justify-between">
+            <div className="text-lg font-semibold text-slate-900">Genealogie</div>
+            <nav aria-label="Navigation principale">
+              <Link href="/timeline" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+                Timeline
+              </Link>
+            </nav>
+          </div>
         </header>
         {children}
       </body>

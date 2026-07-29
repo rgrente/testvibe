@@ -80,6 +80,11 @@ export interface EventInput {
   description?: string | null;
 }
 
+export interface FamilyTimelineEntry {
+  event: Event;
+  person: Person;
+}
+
 export interface Media {
   id: number;
   personId: number | null;

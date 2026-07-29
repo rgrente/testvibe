@@ -6,7 +6,14 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createTestDb } from "./test-utils.js";
 import type { Database } from "@testvibe/db";
 import { createPerson } from "./person.js";
-import { createEvent, getEventById, listEventsByPerson, updateEvent, deleteEvent } from "./event.js";
+import {
+  createEvent,
+  deleteEvent,
+  getEventById,
+  listEventsByPerson,
+  listFamilyTimeline,
+  updateEvent,
+} from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 
 let db: Database;
@@ -91,6 +98,44 @@ describe("listEventsByPerson", () => {
     const person = await createPerson(db, { firstName: "Diane", lastName: "X" });
     const events = await listEventsByPerson(db, person.id);
     expect(events).toHaveLength(0);
+  });
+});
+
+describe("listFamilyTimeline", () => {
+  it("charge les événements de toutes les personnes dans un ordre chronologique déterministe", async () => {
+    const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const bob = await createPerson(db, { firstName: "Bob", lastName: "Dupont" });
+    const later = await createEvent(db, {
+      personId: alice.id,
+      type: "mariage",
+      eventDate: "2010-06-15",
+    });
+    const firstSameDay = await createEvent(db, {
+      personId: bob.id,
+      type: "naissance",
+      eventDate: "1985-03-10",
+    });
+    const secondSameDay = await createEvent(db, {
+      personId: alice.id,
+      type: "libre",
+      label: "Diplôme",
+      eventDate: "1985-03-10",
+    });
+    const undated = await createEvent(db, {
+      personId: bob.id,
+      type: "libre",
+      label: "Déménagement",
+    });
+
+    const timeline = await listFamilyTimeline(db);
+
+    expect(timeline.map(({ event }) => event.id)).toEqual([
+      firstSameDay.id,
+      secondSameDay.id,
+      later.id,
+      undated.id,
+    ]);
+    expect(timeline.map(({ person }) => person.firstName)).toEqual(["Bob", "Alice", "Alice", "Bob"]);
   });
 });
 
