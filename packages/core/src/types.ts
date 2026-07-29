@@ -80,8 +80,23 @@ export interface EventInput {
   description?: string | null;
 }
 
+export interface FamilyTimelineEvent {
+  type: EventType;
+  label: string | null;
+  eventDate: string | null;
+  description: string | null;
+}
+
 export interface FamilyTimelineEntry {
   event: Event;
+  person: Person;
+}
+
+/** Élément de rendu pouvant provenir d'un Event ou d'une date portée par Person. */
+export interface FamilyTimelineItem {
+  /** Clé stable de rendu, sans fabriquer d'identifiant d'événement métier. */
+  key: string;
+  event: FamilyTimelineEvent;
   person: Person;
 }
 

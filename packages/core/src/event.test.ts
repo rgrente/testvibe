@@ -102,6 +102,50 @@ describe("listEventsByPerson", () => {
 });
 
 describe("listFamilyTimeline", () => {
+  it("charge les dates de naissance et de décès portées par les personnes", async () => {
+    const ada = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+      deathDate: "1852-11-27",
+    });
+
+    const timeline = await listFamilyTimeline(db);
+
+    expect(
+      timeline.map(({ event, person }) => ({
+        type: event.type,
+        eventDate: event.eventDate,
+        personId: person.id,
+      })),
+    ).toEqual([
+      { type: "naissance", eventDate: "1815-12-10", personId: ada.id },
+      { type: "décès", eventDate: "1852-11-27", personId: ada.id },
+    ]);
+  });
+
+  it("ne duplique pas une date biographique quand un événement sémantique existe", async () => {
+    const ada = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+      deathDate: "1852",
+    });
+    await createEvent(db, { personId: ada.id, type: "naissance" });
+    await createEvent(db, {
+      personId: ada.id,
+      type: "décès",
+      eventDate: "1852-11-27",
+    });
+
+    const timeline = await listFamilyTimeline(db);
+
+    expect(timeline.map(({ event }) => ({ type: event.type, eventDate: event.eventDate }))).toEqual([
+      { type: "naissance", eventDate: "1815-12-10" },
+      { type: "décès", eventDate: "1852" },
+    ]);
+  });
+
   it("charge les événements de toutes les personnes dans un ordre chronologique déterministe", async () => {
     const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
     const bob = await createPerson(db, { firstName: "Bob", lastName: "Dupont" });
@@ -129,13 +173,34 @@ describe("listFamilyTimeline", () => {
 
     const timeline = await listFamilyTimeline(db);
 
-    expect(timeline.map(({ event }) => event.id)).toEqual([
-      firstSameDay.id,
-      secondSameDay.id,
-      later.id,
-      undated.id,
+    expect(timeline.map(({ key }) => key)).toEqual([
+      `event:${firstSameDay.id}`,
+      `event:${secondSameDay.id}`,
+      `event:${later.id}`,
+      `event:${undated.id}`,
     ]);
     expect(timeline.map(({ person }) => person.firstName)).toEqual(["Bob", "Alice", "Alice", "Bob"]);
+  });
+
+  it("départage de façon stable les événements et dates biographiques identiques", async () => {
+    const alice = await createPerson(db, {
+      firstName: "Alice",
+      lastName: "Martin",
+      birthDate: "1985-03-10",
+    });
+    const bob = await createPerson(db, { firstName: "Bob", lastName: "Dupont" });
+    const sameDayEvent = await createEvent(db, {
+      personId: bob.id,
+      type: "libre",
+      eventDate: "1985-03-10",
+    });
+
+    const timeline = await listFamilyTimeline(db);
+
+    expect(timeline.map(({ key }) => key)).toEqual([
+      `event:${sameDayEvent.id}`,
+      `person:${alice.id}:naissance`,
+    ]);
   });
 });
 
