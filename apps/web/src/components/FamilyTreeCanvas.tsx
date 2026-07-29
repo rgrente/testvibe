@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import ReactFlow, { Background, Controls, type NodeTypes } from "reactflow";
 import "reactflow/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
@@ -20,6 +21,7 @@ export interface FamilyTreeCanvasProps {
  * écrans au profit de FamilyTreeMobileList (cf. page.tsx).
  */
 export function FamilyTreeCanvas({ tree }: FamilyTreeCanvasProps) {
+  const router = useRouter();
   const graph = useMemo(() => buildReactFlowGraph(tree), [tree]);
 
   return (
@@ -31,6 +33,9 @@ export function FamilyTreeCanvas({ tree }: FamilyTreeCanvasProps) {
         nodes={graph.nodes}
         edges={graph.edges}
         nodeTypes={nodeTypes}
+        onNodeClick={(_event, node) => {
+          if (node.type === "person") router.push(`/?personId=${node.id}`);
+        }}
         fitView
         proOptions={{ hideAttribution: true }}
       >
