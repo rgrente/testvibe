@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import type { FamilyTimelineEntry } from "@testvibe/core";
+import type { FamilyTimelineItem } from "@testvibe/core";
 import { describe, expect, it } from "vitest";
 import { FamilyTimeline } from "./FamilyTimeline";
 
@@ -17,15 +17,13 @@ function makeEntry({
   personId: number;
   firstName: string;
   lastName: string;
-  type: FamilyTimelineEntry["event"]["type"];
+  type: FamilyTimelineItem["event"]["type"];
   eventDate: string | null;
   label?: string | null;
-}): FamilyTimelineEntry {
+}): FamilyTimelineItem {
   return {
+    key: `event:${eventId}`,
     event: {
-      id: eventId,
-      personId,
-      unionId: null,
       type,
       label,
       eventDate,
@@ -61,17 +59,18 @@ describe("FamilyTimeline", () => {
             personId: 11,
             firstName: "Bob",
             lastName: "Dupont",
-            type: "mariage",
-            eventDate: "1985-03-10",
+            type: "décès",
+            eventDate: "2020",
           }),
         ]}
       />,
     );
 
     const datedSection = screen.getByRole("region", { name: "Événements datés" });
-    expect(within(datedSection).getAllByText("10/03/1985")).toHaveLength(2);
+    expect(within(datedSection).getByText("10/03/1985")).toBeInTheDocument();
+    expect(within(datedSection).getByText("2020")).toBeInTheDocument();
     expect(within(datedSection).getByText("Naissance")).toBeInTheDocument();
-    expect(within(datedSection).getByText("Mariage")).toBeInTheDocument();
+    expect(within(datedSection).getByText("Décès")).toBeInTheDocument();
     expect(within(datedSection).getByRole("link", { name: "Alice Martin" })).toHaveAttribute(
       "href",
       "/persons/10",

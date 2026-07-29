@@ -1,7 +1,7 @@
-import type { FamilyTimelineEntry } from "@testvibe/core";
+import type { FamilyTimelineItem } from "@testvibe/core";
 import Link from "next/link";
 
-const EVENT_TYPE_LABELS: Record<FamilyTimelineEntry["event"]["type"], string> = {
+const EVENT_TYPE_LABELS: Record<FamilyTimelineItem["event"]["type"], string> = {
   naissance: "Naissance",
   décès: "Décès",
   mariage: "Mariage",
@@ -20,7 +20,7 @@ function formatDate(value: string): string {
   return `${day}/${month}/${year}`;
 }
 
-function EventCard({ entry, showDate }: { entry: FamilyTimelineEntry; showDate: boolean }) {
+function EventCard({ entry, showDate }: { entry: FamilyTimelineItem; showDate: boolean }) {
   const { event, person } = entry;
 
   return (
@@ -47,7 +47,7 @@ function EventCard({ entry, showDate }: { entry: FamilyTimelineEntry; showDate: 
   );
 }
 
-export function FamilyTimeline({ entries }: { entries: FamilyTimelineEntry[] }) {
+export function FamilyTimeline({ entries }: { entries: FamilyTimelineItem[] }) {
   if (entries.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center">
@@ -69,7 +69,7 @@ export function FamilyTimeline({ entries }: { entries: FamilyTimelineEntry[] }) 
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Événements datés</h2>
           <ol className="space-y-3">
             {datedEntries.map((entry) => (
-              <EventCard key={entry.event.id} entry={entry} showDate />
+              <EventCard key={entry.key} entry={entry} showDate />
             ))}
           </ol>
         </section>
@@ -80,7 +80,7 @@ export function FamilyTimeline({ entries }: { entries: FamilyTimelineEntry[] }) 
           <h2 className="mb-4 text-lg font-semibold text-slate-800">Non datés</h2>
           <ul className="space-y-3">
             {undatedEntries.map((entry) => (
-              <EventCard key={entry.event.id} entry={entry} showDate={false} />
+              <EventCard key={entry.key} entry={entry} showDate={false} />
             ))}
           </ul>
         </section>
