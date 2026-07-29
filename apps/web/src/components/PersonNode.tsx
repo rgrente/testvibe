@@ -31,7 +31,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonNodeData>) {
   return (
     <div
       data-testid={`person-node-${data.personId}`}
-      className={`rounded-lg border px-4 py-2 text-sm shadow-sm ${
+      className={`cursor-pointer rounded-lg border px-4 py-2 text-sm shadow-sm ${
         data.isRoot
           ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
           : "border-slate-300 bg-white text-slate-800"
