@@ -26,6 +26,17 @@ pnpm test          # tests de tous les packages/apps
 pnpm db:migrate    # applique les migrations Drizzle sur la base SQLite locale
 ```
 
+## Vérification locale
+
+Avant d'ouvrir une PR, exécutez ces commandes dans cet ordre :
+
+```bash
+pnpm install
+pnpm lint
+pnpm test
+pnpm build
+```
+
 ## Convention de nommage des personnes
 
 - `lastName` est le nom principal/courant affiché avec le prénom.
