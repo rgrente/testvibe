@@ -9,6 +9,16 @@ const EVENT_TYPE_LABELS: Record<EventType, string> = {
   libre: "Événement",
 };
 
+function personColor(id: number): string {
+  const hue = (id * 137.5) % 360;
+  return `hsl(${hue}, 65%, 55%)`;
+}
+
+function personColorDark(id: number): string {
+  const hue = (id * 137.5) % 360;
+  return `hsl(${hue}, 65%, 35%)`;
+}
+
 export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }) {
   if (rows.length === 0) {
     return (
@@ -29,10 +39,14 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
   const canvasWidth = Math.max(720, span * 8);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-0">
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Légende">
         <span className="inline-flex items-center gap-2">
-          <span className="h-1 w-8 rounded bg-blue-500" aria-hidden="true" /> Durée de vie
+          <span
+            className="h-1 w-8 rounded"
+            style={{ background: "linear-gradient(to right, #f43f5e, #f59e0b, #10b981, #3b82f6, #8b5cf6)" }}
+            aria-hidden="true"
+          /> Barre de vie (couleur par personne)
         </span>
         <span className="inline-flex items-center gap-2">
           <span className="h-3 w-3 rounded-full border-2 border-white bg-amber-500 ring-1 ring-amber-600" aria-hidden="true" />
@@ -76,6 +90,8 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
 
           {timeline.rows.map((row) => {
             const fullName = `${row.person.firstName} ${row.person.lastName}`;
+            const color = personColor(row.person.id);
+            const colorDark = personColorDark(row.person.id);
             return (
               <section
                 key={row.person.id}
@@ -84,7 +100,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                 className="grid border-b border-slate-100 last:border-b-0"
                 style={{ gridTemplateColumns: "220px minmax(0, 1fr)" }}
               >
-                <div className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-4 shadow-[3px_0_5px_-5px_rgba(15,23,42,0.4)]">
+                <div className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-1.5 shadow-[3px_0_5px_-5px_rgba(15,23,42,0.4)]">
                   <Link
                     href={`/persons/${row.person.id}`}
                     className="font-semibold text-slate-900 hover:text-blue-700 hover:underline"
@@ -97,8 +113,8 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                 </div>
 
                 <div
-                  className="relative px-3 py-4"
-                  style={{ minHeight: `${Math.max(8, row.maxLanes * 4 + 5)}rem` }}
+                  className="relative px-3 py-1.5"
+                  style={{ minHeight: `${Math.max(3, row.maxLanes * 1.5 + 1.5)}rem` }}
                 >
                   {timeline.ticks.map((year) => {
                     const tickPosition = ((year - timeline.startYear!) / (timeline.endYear! - timeline.startYear!)) * 100;
@@ -115,10 +131,12 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                   {row.life ? (
                     <span
                       aria-label={`Vie de ${fullName} : ${row.person.birthDate ?? "naissance inconnue"} – ${row.life.openEnded ? "décès inconnu" : (row.person.deathDate ?? "décès inconnu")}`}
-                      className={`absolute top-12 h-2 rounded-l-full bg-blue-500 ${row.life.openEnded ? "rounded-r-none border-r-4 border-blue-700" : "rounded-r-full"}`}
+                      className={`absolute top-2 h-2 rounded-l-full ${row.life.openEnded ? "rounded-r-none border-r-4" : "rounded-r-full"}`}
                       style={{
                         left: `${row.life.startPosition}%`,
                         width: `${Math.max(row.life.endPosition - row.life.startPosition, 0.4)}%`,
+                        backgroundColor: color,
+                        ...(row.life.openEnded ? { borderRightColor: colorDark } : {}),
                       }}
                     />
                   ) : (
@@ -143,7 +161,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                         aria-label={accessibleLabel}
                         title={accessibleLabel}
                         className={`absolute z-[2] flex flex-col ${horizontalAlignment}`}
-                        style={{ left: `${event.position}%`, top: `${event.lane * 4 + 0.25}rem` }}
+                        style={{ left: `${event.position}%`, top: `${event.lane * 1.5 + 1.5}rem` }}
                       >
                         <span className="h-4 w-4 rounded-full border-2 border-white bg-amber-500 shadow ring-1 ring-amber-600" aria-hidden="true" />
                         <span className="mt-1 whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-950 shadow-sm">
@@ -156,7 +174,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                   {row.undatedEvents.length > 0 && (
                     <ul
                       className="relative z-[1] flex flex-wrap gap-2"
-                      style={{ marginTop: `${Math.max(5, row.maxLanes * 4 + 2)}rem` }}
+                      style={{ marginTop: `${Math.max(3, row.maxLanes * 1.5 + 2)}rem` }}
                       aria-label={`Événements non datés de ${fullName}`}
                     >
                       {row.undatedEvents.map((event) => (
