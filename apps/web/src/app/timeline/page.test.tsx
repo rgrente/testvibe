@@ -3,24 +3,24 @@ import "@testing-library/jest-dom/vitest";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import TimelinePage from "./page";
 
-const { getFamilyTimelineForWeb } = vi.hoisted(() => ({
-  getFamilyTimelineForWeb: vi.fn(),
+const { getComparativeTimelineForWeb } = vi.hoisted(() => ({
+  getComparativeTimelineForWeb: vi.fn(),
 }));
 
 vi.mock("@testvibe/core", () => ({
-  getFamilyTimelineForWeb,
+  getComparativeTimelineForWeb,
 }));
 
 describe("TimelinePage", () => {
   beforeEach(() => {
-    getFamilyTimelineForWeb.mockResolvedValue([]);
+    getComparativeTimelineForWeb.mockResolvedValue([]);
   });
 
-  it("charge la timeline familiale et affiche la page dédiée", async () => {
+  it("charge la timeline comparative et affiche la page dédiée", async () => {
     render(await TimelinePage());
 
-    expect(getFamilyTimelineForWeb).toHaveBeenCalledOnce();
-    expect(screen.getByRole("heading", { level: 1, name: "Timeline familiale" })).toBeInTheDocument();
-    expect(screen.getByText("Aucun événement familial n’est encore disponible.")).toBeInTheDocument();
+    expect(getComparativeTimelineForWeb).toHaveBeenCalledOnce();
+    expect(screen.getByRole("heading", { level: 1, name: "Timeline comparative" })).toBeInTheDocument();
+    expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
   });
 });
