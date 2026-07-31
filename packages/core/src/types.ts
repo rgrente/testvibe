@@ -100,6 +100,12 @@ export interface FamilyTimelineItem {
   person: Person;
 }
 
+/** Ligne de la timeline comparative : une personne et ses événements métier. */
+export interface ComparativeTimelineRow {
+  person: Person;
+  events: Event[];
+}
+
 export interface Media {
   id: number;
   personId: number | null;

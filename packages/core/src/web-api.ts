@@ -14,12 +14,13 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { Person, Event, FamilyTimelineItem, Media } from "./types.js";
+import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, Media } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
 import { getFamilyTree, type FamilyTree } from "./tree.js";
 import { listEventsByPerson, listFamilyTimeline } from "./event.js";
 import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
+import { listComparativeTimeline } from "./comparative-timeline.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
@@ -50,6 +51,11 @@ export async function getPersonTimelineForWeb(personId: number): Promise<Event[]
 /** Retourne tous les événements familiaux avec leur personne, triés chronologiquement. */
 export async function getFamilyTimelineForWeb(): Promise<FamilyTimelineItem[]> {
   return listFamilyTimeline(defaultDb);
+}
+
+/** Retourne une ligne par personne pour la timeline horizontale comparative. */
+export async function getComparativeTimelineForWeb(): Promise<ComparativeTimelineRow[]> {
+  return listComparativeTimeline(defaultDb);
 }
 
 /**
