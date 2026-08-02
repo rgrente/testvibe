@@ -21,6 +21,12 @@ export default function RootLayout({
               <Link href="/timeline" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Timeline
               </Link>
+              <Link
+                href="/admin"
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900"
+              >
+                Mode édition
+              </Link>
             </nav>
           </div>
         </header>

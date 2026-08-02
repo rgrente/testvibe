@@ -47,6 +47,7 @@ describe("RootLayout", () => {
     expect(navigationLinks.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Arbre", "/"],
       ["Timeline", "/timeline"],
+      ["Mode édition", "/admin"],
     ]);
   });
 });
