@@ -10,11 +10,14 @@ export default function RootLayout({
     <html lang="fr">
       <body>
         <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-5xl items-center justify-between">
+          <div className="mx-auto flex max-w-5xl flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/" className="text-lg font-semibold text-slate-900">
               Genealogie
             </Link>
-            <nav aria-label="Navigation principale" className="flex items-center gap-4">
+            <nav
+              aria-label="Navigation principale"
+              className="flex flex-wrap items-center gap-x-4 gap-y-2"
+            >
               <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Arbre
               </Link>
