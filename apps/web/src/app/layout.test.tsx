@@ -47,6 +47,23 @@ describe("RootLayout", () => {
     expect(navigationLinks.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Arbre", "/"],
       ["Timeline", "/timeline"],
+      ["Mode édition", "/admin"],
     ]);
+  });
+
+  it("adapte la navigation aux petits écrans sans débordement horizontal", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const headerContent = document.querySelector("header > div");
+    const navigation = headerContent?.querySelector("nav");
+
+    expect(headerContent?.classList.contains("flex-col")).toBe(true);
+    expect(headerContent?.classList.contains("sm:flex-row")).toBe(true);
+    expect(navigation?.classList.contains("flex-wrap")).toBe(true);
+    expect(navigation?.classList.contains("gap-y-2")).toBe(true);
   });
 });
