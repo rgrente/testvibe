@@ -129,7 +129,8 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
             <input
               id="eventDate"
               name="eventDate"
-              type="date"
+              type="text"
+              placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ"
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -233,7 +234,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   </label>
                   <label className="text-xs font-medium text-slate-700">
                     Date
-                    <input name="eventDate" type="date" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                    <input name="eventDate" type="text" placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Libellé

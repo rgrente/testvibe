@@ -36,7 +36,7 @@ describe("PersonEventsPage", () => {
         unionId: null,
         type: "libre",
         label: "Voyage",
-        eventDate: "1900-06-15",
+        eventDate: "1900",
         description: "Description",
         place: "Paris",
         latitude: 48.8566,
@@ -52,6 +52,7 @@ describe("PersonEventsPage", () => {
     );
 
     const item = screen.getByRole("listitem");
+    expect(within(item).getByDisplayValue("1900")).toHaveAttribute("name", "eventDate");
     expect(within(item).getByDisplayValue("Voyage")).toHaveAttribute("name", "label");
     expect(within(item).getByDisplayValue("Paris")).toHaveAttribute("name", "place");
     expect(within(item).getByDisplayValue("48.8566")).toHaveAttribute("name", "latitude");
