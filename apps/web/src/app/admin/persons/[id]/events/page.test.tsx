@@ -23,7 +23,9 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("PersonEventsPage", () => {
-  it("propose l’édition protégée de toutes les données d’un événement existant", async () => {
+  it.each(["1900", "1900-06"])(
+    "propose l’édition protégée sans perdre la date partielle %s",
+    async (eventDate) => {
     mocks.adminGetPerson.mockResolvedValue({
       id: 7,
       firstName: "Marie",
@@ -36,7 +38,7 @@ describe("PersonEventsPage", () => {
         unionId: null,
         type: "libre",
         label: "Voyage",
-        eventDate: "1900",
+        eventDate,
         description: "Description",
         place: "Paris",
         latitude: 48.8566,
@@ -52,13 +54,14 @@ describe("PersonEventsPage", () => {
     );
 
     const item = screen.getByRole("listitem");
-    expect(within(item).getByDisplayValue("1900")).toHaveAttribute("name", "eventDate");
+    expect(within(item).getByDisplayValue(eventDate)).toHaveAttribute("name", "eventDate");
     expect(within(item).getByDisplayValue("Voyage")).toHaveAttribute("name", "label");
     expect(within(item).getByDisplayValue("Paris")).toHaveAttribute("name", "place");
     expect(within(item).getByDisplayValue("48.8566")).toHaveAttribute("name", "latitude");
     expect(within(item).getByDisplayValue("2.3522")).toHaveAttribute("name", "longitude");
     expect(within(item).getByRole("button", { name: "Modifier" })).toBeInTheDocument();
-  });
+    },
+  );
 
   it("transmet toutes les valeurs modifiées à adminUpdateEvent", async () => {
     const formData = new FormData();

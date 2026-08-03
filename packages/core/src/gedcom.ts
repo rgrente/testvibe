@@ -53,7 +53,6 @@ interface GedcomFam {
 /** Événement libre (EVEN) avec PLAC. */
 interface GedcomEven {
   personXref: string;
-  type: string;
   value: string | null;
   date: string | null;
   place: string | null;
@@ -238,14 +237,16 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
           }
         } else if (sub.level === 1 && sub.tag === "EVEN") {
           // Événement libre sous INDI (ex: 1 EVEN, 2 TYPE ..., 2 DATE ..., 2 PLAC ...)
-          const evenType = sub.value || "EVEN";
+          // GEDCOM 5.5.1 porte normalement le libellé dans 2 TYPE. Certains
+          // producteurs le placent directement sur 1 EVEN : gardons ce fallback.
+          let evenLabel = sub.value || null;
           let evenDate: string | null = null;
           let evenPlace: string | null = null;
           let evenSubIdx = i + 1;
           while (evenSubIdx < parsed.length && parsed[evenSubIdx].level >= 2) {
             const esub = parsed[evenSubIdx];
             if (esub.level === 2 && esub.tag === "TYPE") {
-              // Le TYPE précise le type (ignore, déjà capturé dans value)
+              evenLabel = esub.value || evenLabel;
               evenSubIdx++;
               continue;
             }
@@ -257,7 +258,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
             }
             evenSubIdx++;
           }
-          evens.push({ personXref: xref, type: evenType, value: sub.value || null, date: evenDate, place: evenPlace });
+          evens.push({ personXref: xref, value: evenLabel, date: evenDate, place: evenPlace });
           inBirt = false;
           inDeat = false;
         }

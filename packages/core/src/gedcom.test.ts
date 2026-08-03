@@ -182,9 +182,18 @@ describe("exportGedcom", () => {
     const personsAfterFirstImport = await listPersons(db);
     const unionsAfterFirstImport = await listUnions(db);
     const filiationsAfterFirstImport = await listFiliations(db);
+    const moveAfterFirstImport = (await listAllEvents(db)).find(
+      (event) => event.type === "libre" && event.place === "Bordeaux, France",
+    );
+    expect(moveAfterFirstImport).toMatchObject({
+      label: "Déménagement",
+      eventDate: "1970-01-15",
+      place: "Bordeaux, France",
+    });
 
     // Export
     const exported = await exportGedcom(db);
+    expect(exported).toContain("1 EVEN\n2 TYPE Déménagement\n2 DATE 15 JAN 1970\n2 PLAC Bordeaux, France");
 
     // Second import dans une base fraîche
     const db2 = await createTestDb();
@@ -192,6 +201,14 @@ describe("exportGedcom", () => {
     const personsAfterSecondImport = await listPersons(db2);
     const unionsAfterSecondImport = await listUnions(db2);
     const filiationsAfterSecondImport = await listFiliations(db2);
+    const moveAfterSecondImport = (await listAllEvents(db2)).find(
+      (event) => event.type === "libre" && event.place === "Bordeaux, France",
+    );
+    expect(moveAfterSecondImport).toMatchObject({
+      label: "Déménagement",
+      eventDate: "1970-01-15",
+      place: "Bordeaux, France",
+    });
 
     // Vérifie la préservation des données clés (noms, dates, liens)
     expect(personsAfterSecondImport).toHaveLength(personsAfterFirstImport.length);
