@@ -33,6 +33,18 @@ describe("RootLayout", () => {
     expect(timelineLink?.textContent).toBe("Timeline");
   });
 
+  it("propose le mode édition dans la navigation principale", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const adminLink = document.querySelector('header nav a[href="/admin"]');
+
+    expect(adminLink?.textContent).toBe("Mode édition");
+  });
+
   it("rend l'arbre accessible depuis le nom du site et à côté de la Timeline", () => {
     const markup = renderToStaticMarkup(
       <RootLayout>
@@ -47,6 +59,7 @@ describe("RootLayout", () => {
     expect(navigationLinks.map((link) => [link.textContent, link.getAttribute("href")])).toEqual([
       ["Arbre", "/"],
       ["Timeline", "/timeline"],
+      ["Mode édition", "/admin"],
     ]);
   });
 });
