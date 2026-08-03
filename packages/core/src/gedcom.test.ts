@@ -149,6 +149,41 @@ describe("importGedcom", () => {
     expect(filiations).toHaveLength(0);
   });
 
+  it("preserve le libellé d'un EVEN porté par 2 TYPE, et retombe sur 1 EVEN sinon", async () => {
+    // 2 TYPE doit primer sur une éventuelle valeur de 1 EVEN.
+    const withType = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Henri /MARTIN/
+1 SEX M
+1 EVEN Fallback
+2 TYPE Déménagement
+2 PLAC Bordeaux, France
+0 TRLR
+`;
+    await importGedcom(db, withType);
+    let events = await listAllEvents(db);
+    const typeEv = events.find((e) => e.type === "libre" && e.place === "Bordeaux, France");
+    expect(typeEv?.label).toBe("Déménagement");
+
+    // Sans 2 TYPE, la valeur portée par 1 EVEN sert de libellé (fallback).
+    const withoutType = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I2@ INDI
+1 NAME Marie /DUPONT/
+1 SEX F
+1 EVEN Voyage à Rome
+2 PLAC Rome, Italie
+0 TRLR
+`;
+    await importGedcom(db, withoutType);
+    events = await listAllEvents(db);
+    const fallbackEv = events.find((e) => e.type === "libre" && e.place === "Rome, Italie");
+    expect(fallbackEv?.label).toBe("Voyage à Rome");
+  });
+
   it("rejette un GEDCOM vide (sans individus ni familles)", async () => {
     const emptyGedcom = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR\n";
     await expect(importGedcom(db, emptyGedcom)).rejects.toBeInstanceOf(ValidationError);
