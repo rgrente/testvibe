@@ -423,32 +423,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
       insertedEventIds.push(ev.id);
     }
 
-    // 1d. Créer les événements de mariage avec lieu pour chaque FAM
-    for (const fam of fams) {
-      if (!fam.marriagePlace) continue;
-      // Trouver les partenaires pour créer l'événement mariage
-      const partnerIds: number[] = [];
-      if (fam.husbXref) {
-        const id = xrefToId.get(fam.husbXref);
-        if (id !== undefined) partnerIds.push(id);
-      }
-      if (fam.wifeXref) {
-        const id = xrefToId.get(fam.wifeXref);
-        if (id !== undefined) partnerIds.push(id);
-      }
-      // Créer un événement mariage pour chaque partenaire
-      for (const personId of partnerIds) {
-        const ev = await createEvent(db, {
-          personId,
-          type: "mariage",
-          eventDate: fam.marriageDate ?? null,
-          place: fam.marriagePlace,
-        });
-        insertedEventIds.push(ev.id);
-      }
-    }
-
-    // 2. Insérer les familles (unions) et filiations
+    // 2. Insérer les familles (unions), leurs événements et filiations
     for (const fam of fams) {
       const personIds: number[] = [];
       if (fam.husbXref) {
@@ -468,6 +443,19 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
           personIds,
         });
         insertedUnionIds.push(union.id);
+
+        if (fam.marriagePlace) {
+          for (const personId of personIds) {
+            const ev = await createEvent(db, {
+              personId,
+              unionId: union.id,
+              type: "mariage",
+              eventDate: fam.marriageDate ?? null,
+              place: fam.marriagePlace,
+            });
+            insertedEventIds.push(ev.id);
+          }
+        }
 
         // 3. Créer les filiations : chaque partenaire → enfant
         for (const childXref of fam.childXrefs) {
@@ -563,16 +551,11 @@ export async function exportGedcom(db: Database): Promise<string> {
     }
   }
 
-  // Marriage events: group by union's personIds
-  const marriageEventPlaceByPersonId = new Map<number, string | null>();
-  for (const union of unions) {
-    for (const ev of events) {
-      if (ev.type === "mariage" && ev.place && union.personIds.includes(ev.personId)) {
-        for (const pid of union.personIds) {
-          if (!marriageEventPlaceByPersonId.has(pid)) {
-            marriageEventPlaceByPersonId.set(pid, ev.place);
-          }
-        }
+  const marriageEventPlaceByUnionId = new Map<number, string>();
+  for (const ev of events) {
+    if (ev.type === "mariage" && ev.unionId != null && ev.place) {
+      if (!marriageEventPlaceByUnionId.has(ev.unionId)) {
+        marriageEventPlaceByUnionId.set(ev.unionId, ev.place);
       }
     }
   }
@@ -671,20 +654,11 @@ export async function exportGedcom(db: Database): Promise<string> {
       if (gDate) {
         lines.push("1 MARR");
         lines.push(`2 DATE ${gDate}`);
-        // Trouver un PLAC de mariage
-        let marriagePlace: string | null = null;
-        for (const pid of union.personIds) {
-          const p = marriageEventPlaceByPersonId.get(pid);
-          if (p) { marriagePlace = p; break; }
-        }
+        const marriagePlace = marriageEventPlaceByUnionId.get(union.id);
         if (marriagePlace) lines.push(`2 PLAC ${marriagePlace}`);
       }
     } else {
-      let marriagePlace: string | null = null;
-      for (const pid of union.personIds) {
-        const p = marriageEventPlaceByPersonId.get(pid);
-        if (p) { marriagePlace = p; break; }
-      }
+      const marriagePlace = marriageEventPlaceByUnionId.get(union.id);
       if (marriagePlace) {
         lines.push("1 MARR");
         lines.push(`2 PLAC ${marriagePlace}`);

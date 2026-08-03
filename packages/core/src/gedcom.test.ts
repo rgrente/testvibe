@@ -13,6 +13,7 @@ import { importGedcom, exportGedcom } from "./gedcom.js";
 import { listPersons } from "./person.js";
 import { listUnions } from "./union.js";
 import { listFiliations } from "./filiation.js";
+import { listAllEvents } from "./event.js";
 import { ValidationError } from "./errors.js";
 
 // ─── Fixture GEDCOM multi-générations ────────────────────────────────────────
@@ -208,5 +209,52 @@ describe("exportGedcom", () => {
     const marie2 = personsAfterSecondImport.find((p) => p.firstName === "Marie");
     expect(marie2?.lastName).toBe("DUPONT");
     expect(marie2?.birthName).toBe("DURAND");
+  });
+
+  it("préserve le lieu propre à chaque mariage quand une personne a plusieurs unions", async () => {
+    const multipleMarriages = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alex /MARTIN/
+0 @I2@ INDI
+1 NAME Camille /DUPONT/
+0 @I3@ INDI
+1 NAME Sam /BERNARD/
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1 JAN 1980
+2 PLAC Paris
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I3@
+1 MARR
+2 DATE 2 FEB 1990
+2 PLAC Lyon
+0 TRLR
+`;
+
+    await importGedcom(db, multipleMarriages);
+    const importedMarriageEvents = (await listAllEvents(db)).filter(
+      (event) => event.type === "mariage",
+    );
+    expect(importedMarriageEvents).toHaveLength(4);
+    expect(importedMarriageEvents.every((event) => event.unionId !== null)).toBe(true);
+    expect(new Set(importedMarriageEvents.map((event) => event.unionId)).size).toBe(2);
+
+    const exported = await exportGedcom(db);
+    expect(exported).toMatch(/0 @F1@ FAM[\s\S]*?2 PLAC Paris/);
+    expect(exported).toMatch(/0 @F2@ FAM[\s\S]*?2 PLAC Lyon/);
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    const roundTripPlaces = (await listAllEvents(db2))
+      .filter((event) => event.type === "mariage")
+      .map((event) => `${event.unionId}:${event.place}`);
+    expect(new Set(roundTripPlaces).size).toBe(2);
+    expect(roundTripPlaces.filter((value) => value.endsWith(":Paris"))).toHaveLength(2);
+    expect(roundTripPlaces.filter((value) => value.endsWith(":Lyon"))).toHaveLength(2);
   });
 });

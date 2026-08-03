@@ -17,6 +17,12 @@ const EVENT_EMOJIS: Record<string, string> = {
   libre: "🟡",
 };
 
+export function createMarkerTooltip(personName: string, place: string): HTMLElement {
+  const tooltip = document.createElement("span");
+  tooltip.textContent = `${personName} — ${place}`;
+  return tooltip;
+}
+
 export default function LeafletMap({ locations, onMarkerClick }: LeafletMapProps) {
   const mapRef = useRef<L.Map | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -86,7 +92,9 @@ export default function LeafletMap({ locations, onMarkerClick }: LeafletMapProps
 
       const marker = L.marker([lat, lng], { icon }).addTo(map);
       marker.bindTooltip(
-        isCluster ? `${group.length} événements` : `${loc.personName} — ${loc.place}`,
+        isCluster
+          ? `${group.length} événements`
+          : createMarkerTooltip(loc.personName, loc.place),
         { direction: "top", offset: [0, -16] },
       );
       marker.on("click", () => {

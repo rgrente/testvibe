@@ -5,8 +5,8 @@ import {
   adminDeleteEvent,
 } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { updateEventAction } from "./actions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -219,28 +219,47 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
         ) : (
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
             {events.map((ev) => (
-              <li key={ev.id} className="flex items-start justify-between px-4 py-3">
-                <div>
-                  <span className="font-medium text-slate-900">
-                    {EVENT_TYPE_LABELS[ev.type] ?? ev.type}
-                    {ev.label ? ` — ${ev.label}` : ""}
-                  </span>
-                  {ev.eventDate && (
-                    <span className="ml-2 text-sm text-slate-500">{ev.eventDate}</span>
-                  )}
-                  {ev.place && (
-                    <span className="ml-2 text-sm text-slate-500">
-                      📍 {ev.place}
-                      {ev.latitude != null && ev.longitude != null
-                        ? ` (${ev.latitude.toFixed(4)}, ${ev.longitude.toFixed(4)})`
-                        : ""}
-                    </span>
-                  )}
-                  {ev.description && (
-                    <p className="mt-0.5 text-sm text-slate-600">{ev.description}</p>
-                  )}
-                </div>
-                <form action={deleteEventAction}>
+              <li key={ev.id} className="px-4 py-4">
+                <form action={updateEventAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input type="hidden" name="id" value={ev.id} />
+                  <input type="hidden" name="personId" value={id} />
+                  <label className="text-xs font-medium text-slate-700">
+                    Type *
+                    <select name="type" defaultValue={ev.type} required className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                      {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Date
+                    <input name="eventDate" type="date" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Libellé
+                    <input name="label" type="text" defaultValue={ev.label ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Description
+                    <textarea name="description" rows={2} defaultValue={ev.description ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Lieu
+                    <input name="place" type="text" defaultValue={ev.place ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Latitude
+                    <input name="latitude" type="number" step="any" min="-90" max="90" defaultValue={ev.latitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Longitude
+                    <input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={ev.longitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <button type="submit" className="w-fit rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">
+                    Modifier
+                  </button>
+                </form>
+                <form action={deleteEventAction} className="mt-2">
                   <input type="hidden" name="id" value={ev.id} />
                   <input type="hidden" name="personId" value={id} />
                   <button
