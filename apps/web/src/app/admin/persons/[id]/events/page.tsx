@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
 import { updateEventAction } from "./actions";
 import Link from "next/link";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 
 export const dynamic = "force-dynamic";
 
@@ -157,47 +158,11 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
-          <div>
+          <div className="sm:col-span-2">
             <label htmlFor="place" className="mb-1 block text-sm font-medium text-slate-700">
               Lieu
             </label>
-            <input
-              id="place"
-              name="place"
-              type="text"
-              placeholder="Ex: Paris, France"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="latitude" className="mb-1 block text-sm font-medium text-slate-700">
-              Latitude
-            </label>
-            <input
-              id="latitude"
-              name="latitude"
-              type="number"
-              step="any"
-              min="-90"
-              max="90"
-              placeholder="Ex: 48.8566"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            />
-          </div>
-          <div>
-            <label htmlFor="longitude" className="mb-1 block text-sm font-medium text-slate-700">
-              Longitude
-            </label>
-            <input
-              id="longitude"
-              name="longitude"
-              type="number"
-              step="any"
-              min="-180"
-              max="180"
-              placeholder="Ex: 2.3522"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
-            />
+            <PlaceAutocomplete inputId="place" placeholder="Ex: Paris, France" />
           </div>
           <div className="flex items-end">
             <button
@@ -244,18 +209,17 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                     Description
                     <textarea name="description" rows={2} defaultValue={ev.description ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
                   </label>
-                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
-                    Lieu
-                    <input name="place" type="text" defaultValue={ev.place ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-                  </label>
-                  <label className="text-xs font-medium text-slate-700">
-                    Latitude
-                    <input name="latitude" type="number" step="any" min="-90" max="90" defaultValue={ev.latitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-                  </label>
-                  <label className="text-xs font-medium text-slate-700">
-                    Longitude
-                    <input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={ev.longitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
-                  </label>
+                  <div className="sm:col-span-2">
+                    <label htmlFor={`place-${ev.id}`} className="text-xs font-medium text-slate-700">
+                      Lieu
+                    </label>
+                    <PlaceAutocomplete
+                      inputId={`place-${ev.id}`}
+                      defaultPlace={ev.place ?? ""}
+                      defaultLatitude={ev.latitude}
+                      defaultLongitude={ev.longitude}
+                    />
+                  </div>
                   <button type="submit" className="w-fit rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">
                     Modifier
                   </button>
