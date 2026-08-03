@@ -193,3 +193,54 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
 
   return { rootId: root.id, nodes, edges };
 }
+
+/**
+ * Retourne l'ensemble des identifiants des ascendants directs d'une personne
+ * (tous les parents, grands-parents, etc. via les filiations).
+ */
+export async function getAncestorIds(db: Database, personId: number): Promise<Set<number>> {
+  const allFiliations = await listFiliations(db);
+  const childrenOf = new Map<number, number[]>(); // parentId → [childId, ...]
+  const parentsOf = new Map<number, number[]>();   // childId → [parentId, ...]
+  for (const f of allFiliations) {
+    if (!childrenOf.has(f.parentId)) childrenOf.set(f.parentId, []);
+    childrenOf.get(f.parentId)!.push(f.childId);
+    if (!parentsOf.has(f.childId)) parentsOf.set(f.childId, []);
+    parentsOf.get(f.childId)!.push(f.parentId);
+  }
+  const result = new Set<number>();
+  const queue = [personId];
+  for (let i = 0; i < queue.length; i++) {
+    for (const parentId of parentsOf.get(queue[i]) ?? []) {
+      if (!result.has(parentId)) {
+        result.add(parentId);
+        queue.push(parentId);
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Retourne l'ensemble des identifiants des descendants directs d'une personne
+ * (tous les enfants, petits-enfants, etc. via les filiations).
+ */
+export async function getDescendantIds(db: Database, personId: number): Promise<Set<number>> {
+  const allFiliations = await listFiliations(db);
+  const childrenOf = new Map<number, number[]>(); // parentId → [childId, ...]
+  for (const f of allFiliations) {
+    if (!childrenOf.has(f.parentId)) childrenOf.set(f.parentId, []);
+    childrenOf.get(f.parentId)!.push(f.childId);
+  }
+  const result = new Set<number>();
+  const queue = [personId];
+  for (let i = 0; i < queue.length; i++) {
+    for (const childId of childrenOf.get(queue[i]) ?? []) {
+      if (!result.has(childId)) {
+        result.add(childId);
+        queue.push(childId);
+      }
+    }
+  }
+  return result;
+}

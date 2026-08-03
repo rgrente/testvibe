@@ -4,7 +4,7 @@ import { createTestDb } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createUnion } from "./union.js";
 import { createFiliation } from "./filiation.js";
-import { getFamilyTree } from "./tree.js";
+import { getFamilyTree, getAncestorIds, getDescendantIds } from "./tree.js";
 import { NotFoundError } from "./errors.js";
 
 describe("getFamilyTree", () => {
@@ -196,5 +196,53 @@ describe("getFamilyTree", () => {
 
   it("lève NotFoundError si la Person racine n'existe pas", async () => {
     await expect(getFamilyTree(db, 9999)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("getAncestorIds", () => {
+  let db: Database;
+  beforeEach(async () => { db = await createTestDb(); });
+
+  it("retourne les ascendants sur 2 générations", async () => {
+    const grandParent = await createPerson(db, { firstName: "GP", lastName: "A" });
+    const parent = await createPerson(db, { firstName: "P", lastName: "A" });
+    const child = await createPerson(db, { firstName: "C", lastName: "A" });
+    await createFiliation(db, { parentId: grandParent.id, childId: parent.id, role: "biologique" });
+    await createFiliation(db, { parentId: parent.id, childId: child.id, role: "biologique" });
+
+    const ids = await getAncestorIds(db, child.id);
+    expect(ids.has(parent.id)).toBe(true);
+    expect(ids.has(grandParent.id)).toBe(true);
+    expect(ids.size).toBe(2);
+  });
+
+  it("retourne un set vide si la personne n'a pas de parents", async () => {
+    const person = await createPerson(db, { firstName: "Solo", lastName: "X" });
+    const ids = await getAncestorIds(db, person.id);
+    expect(ids.size).toBe(0);
+  });
+});
+
+describe("getDescendantIds", () => {
+  let db: Database;
+  beforeEach(async () => { db = await createTestDb(); });
+
+  it("retourne les descendants sur 2 générations", async () => {
+    const grandParent = await createPerson(db, { firstName: "GP", lastName: "B" });
+    const child = await createPerson(db, { firstName: "C", lastName: "B" });
+    const grandChild = await createPerson(db, { firstName: "GC", lastName: "B" });
+    await createFiliation(db, { parentId: grandParent.id, childId: child.id, role: "biologique" });
+    await createFiliation(db, { parentId: child.id, childId: grandChild.id, role: "biologique" });
+
+    const ids = await getDescendantIds(db, grandParent.id);
+    expect(ids.has(child.id)).toBe(true);
+    expect(ids.has(grandChild.id)).toBe(true);
+    expect(ids.size).toBe(2);
+  });
+
+  it("retourne un set vide si la personne n'a pas d'enfants", async () => {
+    const person = await createPerson(db, { firstName: "Solo", lastName: "Y" });
+    const ids = await getDescendantIds(db, person.id);
+    expect(ids.size).toBe(0);
   });
 });

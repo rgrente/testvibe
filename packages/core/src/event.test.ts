@@ -12,6 +12,7 @@ import {
   getEventById,
   listEventsByPerson,
   listFamilyTimeline,
+  listMapLocations,
   updateEvent,
 } from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
@@ -63,6 +64,71 @@ describe("createEvent", () => {
     const person = await createPerson(db, { firstName: "Eve", lastName: "Blanc" });
     await expect(
       createEvent(db, { personId: person.id, type: "naissance", eventDate: "pas-une-date" }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("lève ValidationError pour une latitude hors bornes", async () => {
+    const person = await createPerson(db, { firstName: "Eve", lastName: "Blanc" });
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", latitude: 91 }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", latitude: -91 }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("lève ValidationError pour une longitude hors bornes", async () => {
+    const person = await createPerson(db, { firstName: "Eve", lastName: "Blanc" });
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", longitude: 181 }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", longitude: -181 }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("lève ValidationError pour des coordonnées non finies", async () => {
+    const person = await createPerson(db, { firstName: "Eve", lastName: "Blanc" });
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", latitude: Infinity }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      createEvent(db, { personId: person.id, type: "naissance", longitude: NaN }),
+    ).rejects.toThrow(ValidationError);
+  });
+
+  it("accepte un événement avec lieu et coordonnées valides", async () => {
+    const person = await createPerson(db, { firstName: "Geo", lastName: "Test" });
+    const ev = await createEvent(db, {
+      personId: person.id,
+      type: "naissance",
+      place: "  Paris, France  ",
+      latitude: 48.8566,
+      longitude: 2.3522,
+    });
+    expect(ev.place).toBe("Paris, France");
+    expect(ev.latitude).toBeCloseTo(48.8566);
+    expect(ev.longitude).toBeCloseTo(2.3522);
+  });
+
+  it("rejette des coordonnées incomplètes ou sans libellé de lieu", async () => {
+    const person = await createPerson(db, { firstName: "Geo", lastName: "Test" });
+
+    await expect(
+      createEvent(db, {
+        personId: person.id,
+        type: "libre",
+        place: "Paris",
+        latitude: 48.8566,
+      }),
+    ).rejects.toThrow(ValidationError);
+    await expect(
+      createEvent(db, {
+        personId: person.id,
+        type: "libre",
+        latitude: 48.8566,
+        longitude: 2.3522,
+      }),
     ).rejects.toThrow(ValidationError);
   });
 });
@@ -220,5 +286,54 @@ describe("deleteEvent", () => {
     const ev = await createEvent(db, { personId: person.id, type: "naissance" });
     await deleteEvent(db, ev.id);
     await expect(getEventById(db, ev.id)).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe("listMapLocations", () => {
+  it("retourne uniquement les événements avec coordonnées et personne décédée", async () => {
+    const alive = await createPerson(db, { firstName: "Vivant", lastName: "X" }); // pas de deathDate
+    const dead = await createPerson(db, { firstName: "Mort", lastName: "Y", deathDate: "2000-01-01" });
+    await createEvent(db, {
+      personId: alive.id,
+      type: "naissance",
+      place: "Paris",
+      latitude: 48.8,
+      longitude: 2.3,
+    });
+    await createEvent(db, {
+      personId: dead.id,
+      type: "décès",
+      place: "Lyon",
+      latitude: 45.7,
+      longitude: 4.8,
+    });
+    await createEvent(db, {
+      personId: dead.id,
+      type: "mariage",
+      place: "Marseille",
+      latitude: 43.3,
+      longitude: 5.4,
+    });
+    // Événement sans coordonnées (ignoré)
+    await createEvent(db, {
+      personId: dead.id,
+      type: "libre",
+      label: "Sans lieu",
+    });
+
+    const locations = await listMapLocations(db);
+    expect(locations).toHaveLength(2);
+    const places = locations.map((l) => l.event.place);
+    expect(places).toContain("Lyon");
+    expect(places).toContain("Marseille");
+    // Aucun événement de la personne vivante
+    expect(places).not.toContain("Paris");
+  });
+
+  it("retourne un tableau vide si aucun événement n'a de coordonnées", async () => {
+    const dead = await createPerson(db, { firstName: "Mort2", lastName: "Z", deathDate: "1990-01-01" });
+    await createEvent(db, { personId: dead.id, type: "naissance", place: "Ville" });
+    const locations = await listMapLocations(db);
+    expect(locations).toHaveLength(0);
   });
 });

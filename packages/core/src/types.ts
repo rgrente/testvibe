@@ -69,6 +69,9 @@ export interface Event {
   label: string | null;
   eventDate: string | null;
   description: string | null;
+  place: string | null;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export interface EventInput {
@@ -78,6 +81,9 @@ export interface EventInput {
   label?: string | null;
   eventDate?: string | null;
   description?: string | null;
+  place?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 export interface FamilyTimelineEvent {
@@ -124,4 +130,17 @@ export interface MediaInput {
   originalName: string;
   mimeType: string;
   size: number;
+}
+
+/** Événement géolocalisé pour la carte publique (filtré par confidentialité). */
+export interface MapLocation {
+  eventId: number;
+  personId: number;
+  personName: string;
+  type: EventType;
+  label: string | null;
+  eventDate: string | null;
+  place: string;
+  latitude: number;
+  longitude: number;
 }

@@ -14,6 +14,7 @@ import { ValidationError } from "./errors.js";
 import { createPerson, listPersons, deletePerson } from "./person.js";
 import { createUnion, listUnions, deleteUnion } from "./union.js";
 import { createFiliation, listFiliations, deleteFiliation } from "./filiation.js";
+import { createEvent, deleteEvent, listAllEvents } from "./event.js";
 import type { FiliationRole } from "./types.js";
 
 // ─── Types internes ───────────────────────────────────────────────────────────
@@ -33,6 +34,10 @@ interface GedcomIndi {
   gender: string | null;
   birthDate: string | null;
   deathDate: string | null;
+  /** Lieu de naissance (PLAC sous BIRT). */
+  birthPlace: string | null;
+  /** Lieu de décès (PLAC sous DEAT). */
+  deathPlace: string | null;
 }
 
 interface GedcomFam {
@@ -40,7 +45,18 @@ interface GedcomFam {
   husbXref: string | null;
   wifeXref: string | null;
   marriageDate: string | null;
+  /** Lieu du mariage (PLAC sous MARR). */
+  marriagePlace: string | null;
   childXrefs: string[];
+}
+
+/** Événement libre (EVEN) avec PLAC. */
+interface GedcomEven {
+  personXref: string;
+  type: string;
+  value: string | null;
+  date: string | null;
+  place: string | null;
 }
 
 // ─── Parsing ──────────────────────────────────────────────────────────────────
@@ -131,7 +147,7 @@ function toGedcomDate(isoDate: string | null): string | null {
  * Parse le texte GEDCOM complet et retourne les individus et familles.
  * Lève ValidationError si le fichier est malformé ou vide.
  */
-function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
+function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; evens: GedcomEven[] } {
   const lines = text.split(/\r?\n/);
   const parsed: GedcomLine[] = [];
 
@@ -155,6 +171,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
   // Extraction des individus (INDI)
   const indis: GedcomIndi[] = [];
   const fams: GedcomFam[] = [];
+  const evens: GedcomEven[] = [];
 
   let i = 0;
   while (i < parsed.length) {
@@ -168,6 +185,8 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
       let gender: string | null = null;
       let birthDate: string | null = null;
       let deathDate: string | null = null;
+      let birthPlace: string | null = null;
+      let deathPlace: string | null = null;
       let inBirt = false;
       let inDeat = false;
 
@@ -175,8 +194,6 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
       while (i < parsed.length && parsed[i].level > 0) {
         const sub = parsed[i];
         if (sub.level === 1 && sub.tag === "NAME") {
-          // Le NAME principal reste le nom courant. Un NAME immédiatement suivi
-          // de `2 TYPE birth` porte uniquement le nom de naissance.
           const nameVal = sub.value;
           const nameMatch = nameVal.match(/^(.*?)\s*\/([^/]*)\//);
           const parts = nameVal.trim().split(/\s+/);
@@ -213,14 +230,41 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
           } else if (inDeat) {
             deathDate = parseGedcomDate(sub.value);
           }
-        } else if (sub.level === 1) {
+        } else if (sub.level === 2 && sub.tag === "PLAC") {
+          if (inBirt) {
+            birthPlace = sub.value || null;
+          } else if (inDeat) {
+            deathPlace = sub.value || null;
+          }
+        } else if (sub.level === 1 && sub.tag === "EVEN") {
+          // Événement libre sous INDI (ex: 1 EVEN, 2 TYPE ..., 2 DATE ..., 2 PLAC ...)
+          const evenType = sub.value || "EVEN";
+          let evenDate: string | null = null;
+          let evenPlace: string | null = null;
+          let evenSubIdx = i + 1;
+          while (evenSubIdx < parsed.length && parsed[evenSubIdx].level >= 2) {
+            const esub = parsed[evenSubIdx];
+            if (esub.level === 2 && esub.tag === "TYPE") {
+              // Le TYPE précise le type (ignore, déjà capturé dans value)
+              evenSubIdx++;
+              continue;
+            }
+            if (esub.level === 2 && esub.tag === "DATE") {
+              evenDate = parseGedcomDate(esub.value);
+            }
+            if (esub.level === 2 && esub.tag === "PLAC") {
+              evenPlace = esub.value || null;
+            }
+            evenSubIdx++;
+          }
+          evens.push({ personXref: xref, type: evenType, value: sub.value || null, date: evenDate, place: evenPlace });
           inBirt = false;
           inDeat = false;
         }
         i++;
       }
 
-      indis.push({ xref, firstName, lastName, birthName, gender, birthDate, deathDate });
+      indis.push({ xref, firstName, lastName, birthName, gender, birthDate, deathDate, birthPlace, deathPlace });
       continue;
     }
 
@@ -229,6 +273,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
       let husbXref: string | null = null;
       let wifeXref: string | null = null;
       let marriageDate: string | null = null;
+      let marriagePlace: string | null = null;
       const childXrefs: string[] = [];
       let inMarr = false;
 
@@ -248,13 +293,15 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
           inMarr = true;
         } else if (sub.level === 2 && sub.tag === "DATE" && inMarr) {
           marriageDate = parseGedcomDate(sub.value);
+        } else if (sub.level === 2 && sub.tag === "PLAC" && inMarr) {
+          marriagePlace = sub.value || null;
         } else if (sub.level === 1) {
           inMarr = false;
         }
         i++;
       }
 
-      fams.push({ xref, husbXref, wifeXref, marriageDate, childXrefs });
+      fams.push({ xref, husbXref, wifeXref, marriageDate, marriagePlace, childXrefs });
       continue;
     }
 
@@ -290,7 +337,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
     }
   }
 
-  return { indis, fams };
+  return { indis, fams, evens };
 }
 
 // ─── Import GEDCOM ────────────────────────────────────────────────────────────
@@ -307,7 +354,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[] } {
  */
 export async function importGedcom(db: Database, text: string): Promise<void> {
   // Parse d'abord (lève ValidationError si malformé, avant toute écriture)
-  const { indis, fams } = parseGedcom(text);
+  const { indis, fams, evens } = parseGedcom(text);
 
   // Insertion atomique via manual rollback-on-error.
   // Note : libSQL en mode :memory: ne supporte pas db.transaction() de façon
@@ -321,6 +368,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
   const insertedPersonIds: number[] = [];
   const insertedUnionIds: number[] = [];
   const insertedFiliationIds: number[] = [];
+  const insertedEventIds: number[] = [];
 
   try {
     // 1. Insérer les individus
@@ -335,6 +383,69 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
       });
       xrefToId.set(indi.xref, person.id);
       insertedPersonIds.push(person.id);
+    }
+
+    // 1b. Créer les événements de naissance/décès avec lieu pour chaque INDI
+    for (const indi of indis) {
+      const personId = xrefToId.get(indi.xref);
+      if (!personId) continue;
+      if (indi.birthPlace) {
+        const ev = await createEvent(db, {
+          personId,
+          type: "naissance",
+          eventDate: indi.birthDate ?? null,
+          place: indi.birthPlace,
+        });
+        insertedEventIds.push(ev.id);
+      }
+      if (indi.deathPlace) {
+        const ev = await createEvent(db, {
+          personId,
+          type: "décès",
+          eventDate: indi.deathDate ?? null,
+          place: indi.deathPlace,
+        });
+        insertedEventIds.push(ev.id);
+      }
+    }
+
+    // 1c. Créer les événements EVEN
+    for (const even of evens) {
+      const personId = xrefToId.get(even.personXref);
+      if (!personId) continue;
+      const ev = await createEvent(db, {
+        personId,
+        type: "libre",
+        label: even.value,
+        eventDate: even.date ?? null,
+        place: even.place ?? null,
+      });
+      insertedEventIds.push(ev.id);
+    }
+
+    // 1d. Créer les événements de mariage avec lieu pour chaque FAM
+    for (const fam of fams) {
+      if (!fam.marriagePlace) continue;
+      // Trouver les partenaires pour créer l'événement mariage
+      const partnerIds: number[] = [];
+      if (fam.husbXref) {
+        const id = xrefToId.get(fam.husbXref);
+        if (id !== undefined) partnerIds.push(id);
+      }
+      if (fam.wifeXref) {
+        const id = xrefToId.get(fam.wifeXref);
+        if (id !== undefined) partnerIds.push(id);
+      }
+      // Créer un événement mariage pour chaque partenaire
+      for (const personId of partnerIds) {
+        const ev = await createEvent(db, {
+          personId,
+          type: "mariage",
+          eventDate: fam.marriageDate ?? null,
+          place: fam.marriagePlace,
+        });
+        insertedEventIds.push(ev.id);
+      }
     }
 
     // 2. Insérer les familles (unions) et filiations
@@ -375,10 +486,13 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
       }
     }
   } catch (error) {
-    // Rollback manuel : supprimer dans l'ordre inverse (filiations, unions, personnes)
+    // Rollback manuel : supprimer dans l'ordre inverse (filiations, events, unions, personnes)
     // Les fonctions delete sont importées en haut du module.
     for (const id of insertedFiliationIds.reverse()) {
       try { await deleteFiliation(db, id); } catch { /* ignoré lors du rollback */ }
+    }
+    for (const id of insertedEventIds.reverse()) {
+      try { await deleteEvent(db, id); } catch { /* ignoré lors du rollback */ }
     }
     for (const id of insertedUnionIds.reverse()) {
       try { await deleteUnion(db, id); } catch { /* ignoré lors du rollback */ }
@@ -399,10 +513,11 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
  * @returns   Contenu textuel du fichier .ged généré.
  */
 export async function exportGedcom(db: Database): Promise<string> {
-  const [persons, unions, filiations] = await Promise.all([
+  const [persons, unions, filiations, events] = await Promise.all([
     listPersons(db),
     listUnions(db),
     listFiliations(db),
+    listAllEvents(db),
   ]);
 
   const lines: string[] = [];
@@ -421,6 +536,47 @@ export async function exportGedcom(db: Database): Promise<string> {
     idToXref.set(p.id, xref);
   });
 
+  // Indexer les événements par personne et type
+  const birthEventByPersonId = new Map<number, string | null>(); // place
+  const deathEventByPersonId = new Map<number, string | null>(); // place
+  const libreEventsByPersonId = new Map<number, { label: string | null; date: string | null; place: string | null }[]>();
+
+  for (const person of persons) {
+    libreEventsByPersonId.set(person.id, []);
+  }
+
+  for (const ev of events) {
+    if (ev.type === "naissance" && ev.place) {
+      if (!birthEventByPersonId.has(ev.personId) || !birthEventByPersonId.get(ev.personId)) {
+        birthEventByPersonId.set(ev.personId, ev.place);
+      }
+    }
+    if (ev.type === "décès" && ev.place) {
+      if (!deathEventByPersonId.has(ev.personId) || !deathEventByPersonId.get(ev.personId)) {
+        deathEventByPersonId.set(ev.personId, ev.place);
+      }
+    }
+    if (ev.type === "libre" && ev.place) {
+      const arr = libreEventsByPersonId.get(ev.personId) || [];
+      arr.push({ label: ev.label, date: ev.eventDate, place: ev.place });
+      libreEventsByPersonId.set(ev.personId, arr);
+    }
+  }
+
+  // Marriage events: group by union's personIds
+  const marriageEventPlaceByPersonId = new Map<number, string | null>();
+  for (const union of unions) {
+    for (const ev of events) {
+      if (ev.type === "mariage" && ev.place && union.personIds.includes(ev.personId)) {
+        for (const pid of union.personIds) {
+          if (!marriageEventPlaceByPersonId.has(pid)) {
+            marriageEventPlaceByPersonId.set(pid, ev.place);
+          }
+        }
+      }
+    }
+  }
+
   for (const [idx, p] of persons.entries()) {
     const xref = `@I${idx + 1}@`;
     lines.push(`0 ${xref} INDI`);
@@ -437,6 +593,15 @@ export async function exportGedcom(db: Database): Promise<string> {
       if (gDate) {
         lines.push("1 BIRT");
         lines.push(`2 DATE ${gDate}`);
+        const birthPlace = birthEventByPersonId.get(p.id);
+        if (birthPlace) lines.push(`2 PLAC ${birthPlace}`);
+      }
+    } else {
+      // Date-less birth event with place only
+      const birthPlace = birthEventByPersonId.get(p.id);
+      if (birthPlace) {
+        lines.push("1 BIRT");
+        lines.push(`2 PLAC ${birthPlace}`);
       }
     }
     if (p.deathDate) {
@@ -444,7 +609,26 @@ export async function exportGedcom(db: Database): Promise<string> {
       if (gDate) {
         lines.push("1 DEAT");
         lines.push(`2 DATE ${gDate}`);
+        const deathPlace = deathEventByPersonId.get(p.id);
+        if (deathPlace) lines.push(`2 PLAC ${deathPlace}`);
       }
+    } else {
+      const deathPlace = deathEventByPersonId.get(p.id);
+      if (deathPlace) {
+        lines.push("1 DEAT");
+        lines.push(`2 PLAC ${deathPlace}`);
+      }
+    }
+    // Free events with place
+    const freeEvents = libreEventsByPersonId.get(p.id) || [];
+    for (const freeEv of freeEvents) {
+      lines.push("1 EVEN");
+      if (freeEv.label) lines.push(`2 TYPE ${freeEv.label}`);
+      if (freeEv.date) {
+        const gd = toGedcomDate(freeEv.date);
+        if (gd) lines.push(`2 DATE ${gd}`);
+      }
+      if (freeEv.place) lines.push(`2 PLAC ${freeEv.place}`);
     }
   }
 
@@ -487,6 +671,23 @@ export async function exportGedcom(db: Database): Promise<string> {
       if (gDate) {
         lines.push("1 MARR");
         lines.push(`2 DATE ${gDate}`);
+        // Trouver un PLAC de mariage
+        let marriagePlace: string | null = null;
+        for (const pid of union.personIds) {
+          const p = marriageEventPlaceByPersonId.get(pid);
+          if (p) { marriagePlace = p; break; }
+        }
+        if (marriagePlace) lines.push(`2 PLAC ${marriagePlace}`);
+      }
+    } else {
+      let marriagePlace: string | null = null;
+      for (const pid of union.personIds) {
+        const p = marriageEventPlaceByPersonId.get(pid);
+        if (p) { marriagePlace = p; break; }
+      }
+      if (marriagePlace) {
+        lines.push("1 MARR");
+        lines.push(`2 PLAC ${marriagePlace}`);
       }
     }
 

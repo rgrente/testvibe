@@ -14,10 +14,10 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, Media } from "./types.js";
+import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, Media, MapLocation } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
-import { getFamilyTree, type FamilyTree } from "./tree.js";
-import { listEventsByPerson, listFamilyTimeline } from "./event.js";
+import { getFamilyTree, getAncestorIds, getDescendantIds, type FamilyTree } from "./tree.js";
+import { listEventsByPerson, listFamilyTimeline, listMapLocations } from "./event.js";
 import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
@@ -72,4 +72,42 @@ export async function getPersonMediaForWeb(personId: number): Promise<Media[]> {
  */
 export async function getPersonForWeb(personId: number): Promise<Person> {
   return getPersonById(defaultDb, personId);
+}
+
+/**
+ * Retourne les événements géolocalisés pour la carte publique,
+ * filtrés par confidentialité (exclusion des personnes sans deathDate).
+ * Phase 6 (tâche lieux/carte).
+ */
+export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
+  const locations = await listMapLocations(defaultDb);
+  return locations.map(({ event, person }) => ({
+    eventId: event.id,
+    personId: person.id,
+    personName: `${person.firstName} ${person.lastName}`,
+    type: event.type,
+    label: event.label,
+    eventDate: event.eventDate,
+    place: event.place!,
+    latitude: event.latitude!,
+    longitude: event.longitude!,
+  }));
+}
+
+/**
+ * Retourne les identifiants des ascendants d'une personne.
+ * Phase 6 (tâche lieux/carte).
+ */
+export async function getAncestorIdsForWeb(personId: number): Promise<number[]> {
+  const ids = await getAncestorIds(defaultDb, personId);
+  return [...ids];
+}
+
+/**
+ * Retourne les identifiants des descendants d'une personne.
+ * Phase 6 (tâche lieux/carte).
+ */
+export async function getDescendantIdsForWeb(personId: number): Promise<number[]> {
+  const ids = await getDescendantIds(defaultDb, personId);
+  return [...ids];
 }

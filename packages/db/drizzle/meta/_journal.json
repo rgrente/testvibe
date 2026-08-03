@@ -29,6 +29,13 @@
       "when": 1785047419455,
       "tag": "0003_jittery_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1785759300000,
+      "tag": "0004_phase6_place_coordinates",
+      "breakpoints": true
     }
   ]
 }

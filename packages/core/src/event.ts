@@ -12,6 +12,37 @@ function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+const WGS84_LAT_MIN = -90;
+const WGS84_LAT_MAX = 90;
+const WGS84_LNG_MIN = -180;
+const WGS84_LNG_MAX = 180;
+
+function assertValidCoordinates(lat: number | undefined | null, lng: number | undefined | null): void {
+  if ((lat == null) !== (lng == null)) {
+    throw new ValidationError("latitude et longitude doivent être renseignées ensemble.");
+  }
+  if (lat != null) {
+    if (typeof lat !== "number" || !Number.isFinite(lat)) {
+      throw new ValidationError("latitude doit être un nombre fini.");
+    }
+    if (lat < WGS84_LAT_MIN || lat > WGS84_LAT_MAX) {
+      throw new ValidationError(
+        `latitude hors bornes WGS84 : ${lat} (attendu entre ${WGS84_LAT_MIN} et ${WGS84_LAT_MAX}).`,
+      );
+    }
+  }
+  if (lng != null) {
+    if (typeof lng !== "number" || !Number.isFinite(lng)) {
+      throw new ValidationError("longitude doit être un nombre fini.");
+    }
+    if (lng < WGS84_LNG_MIN || lng > WGS84_LNG_MAX) {
+      throw new ValidationError(
+        `longitude hors bornes WGS84 : ${lng} (attendu entre ${WGS84_LNG_MIN} et ${WGS84_LNG_MAX}).`,
+      );
+    }
+  }
+}
+
 function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
     throw new ValidationError("personId est requis et doit être > 0.");
@@ -23,6 +54,15 @@ function assertValidEventInput(input: EventInput): void {
   if (input.eventDate != null && !isValidDate(input.eventDate)) {
     throw new ValidationError(`eventDate invalide : ${input.eventDate}`);
   }
+  assertValidCoordinates(input.latitude, input.longitude);
+  if (input.latitude != null && !input.place?.trim()) {
+    throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
+  }
+}
+
+function normalizePlace(place: string | null | undefined): string | null {
+  const normalized = place?.trim();
+  return normalized ? normalized : null;
 }
 
 function toEvent(row: typeof event.$inferSelect): Event {
@@ -34,6 +74,9 @@ function toEvent(row: typeof event.$inferSelect): Event {
     label: row.label ?? null,
     eventDate: row.eventDate ?? null,
     description: row.description ?? null,
+    place: row.place ?? null,
+    latitude: row.latitude ?? null,
+    longitude: row.longitude ?? null,
   };
 }
 
@@ -48,6 +91,9 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
       label: input.label ?? null,
       eventDate: input.eventDate ?? null,
       description: input.description ?? null,
+      place: normalizePlace(input.place),
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
     })
     .returning();
   return toEvent(row);
@@ -164,6 +210,9 @@ export async function updateEvent(
     label: input.label !== undefined ? input.label : existing.label,
     eventDate: input.eventDate !== undefined ? input.eventDate : existing.eventDate,
     description: input.description !== undefined ? input.description : existing.description,
+    place: input.place !== undefined ? normalizePlace(input.place) : existing.place,
+    latitude: input.latitude !== undefined ? input.latitude : existing.latitude,
+    longitude: input.longitude !== undefined ? input.longitude : existing.longitude,
   };
   assertValidEventInput(merged);
   const [row] = await db
@@ -175,6 +224,9 @@ export async function updateEvent(
       label: merged.label ?? null,
       eventDate: merged.eventDate ?? null,
       description: merged.description ?? null,
+      place: merged.place ?? null,
+      latitude: merged.latitude ?? null,
+      longitude: merged.longitude ?? null,
     })
     .where(eq(event.id, id))
     .returning();
@@ -184,4 +236,34 @@ export async function updateEvent(
 export async function deleteEvent(db: Database, id: number): Promise<void> {
   await getEventById(db, id);
   await db.delete(event).where(eq(event.id, id));
+}
+
+/**
+ * Retourne les événements géolocalisés (avec latitude ET longitude) destinés
+ * à la carte publique. Exclut tout événement lié à une personne sans deathDate
+ * (présumée vivante, règle de confidentialité MVP).
+ */
+export async function listMapLocations(
+  db: Database,
+): Promise<{ event: Event; person: import("./types.js").Person }[]> {
+  const [allPersons, allEvents] = await Promise.all([
+    listPersons(db),
+    listAllEvents(db),
+  ]);
+  const personsById = new Map(allPersons.map((p) => [p.id, p]));
+  return allEvents
+    .filter((ev) => {
+      // Doit avoir des coordonnées
+      if (ev.latitude == null || ev.longitude == null) return false;
+      // Doit avoir une place
+      if (!ev.place) return false;
+      // La personne doit avoir un deathDate (présumée décédée)
+      const person = personsById.get(ev.personId);
+      if (!person || !person.deathDate) return false;
+      return true;
+    })
+    .map((ev) => {
+      const person = personsById.get(ev.personId)!;
+      return { event: ev, person };
+    });
 }

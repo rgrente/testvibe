@@ -28,12 +28,17 @@ async function createEventAction(formData: FormData) {
   const label = formData.get("label")?.toString().trim() || null;
   const eventDate = formData.get("eventDate")?.toString().trim() || null;
   const description = formData.get("description")?.toString().trim() || null;
+  const place = formData.get("place")?.toString().trim() || null;
+  const latStr = formData.get("latitude")?.toString().trim();
+  const lngStr = formData.get("longitude")?.toString().trim();
+  const latitude = latStr ? Number(latStr) : null;
+  const longitude = lngStr ? Number(lngStr) : null;
 
   if (!personId || !type) {
     redirect(`/admin/persons/${personId}/events?error=champs_requis`);
   }
   try {
-    await adminCreateEvent({ personId, type, label, eventDate, description });
+    await adminCreateEvent({ personId, type, label, eventDate, description, place, latitude, longitude });
   } catch {
     redirect(`/admin/persons/${personId}/events?error=validation`);
   }
@@ -151,6 +156,48 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label htmlFor="place" className="mb-1 block text-sm font-medium text-slate-700">
+              Lieu
+            </label>
+            <input
+              id="place"
+              name="place"
+              type="text"
+              placeholder="Ex: Paris, France"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="latitude" className="mb-1 block text-sm font-medium text-slate-700">
+              Latitude
+            </label>
+            <input
+              id="latitude"
+              name="latitude"
+              type="number"
+              step="any"
+              min="-90"
+              max="90"
+              placeholder="Ex: 48.8566"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="longitude" className="mb-1 block text-sm font-medium text-slate-700">
+              Longitude
+            </label>
+            <input
+              id="longitude"
+              name="longitude"
+              type="number"
+              step="any"
+              min="-180"
+              max="180"
+              placeholder="Ex: 2.3522"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
           <div className="flex items-end">
             <button
               type="submit"
@@ -180,6 +227,14 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   </span>
                   {ev.eventDate && (
                     <span className="ml-2 text-sm text-slate-500">{ev.eventDate}</span>
+                  )}
+                  {ev.place && (
+                    <span className="ml-2 text-sm text-slate-500">
+                      📍 {ev.place}
+                      {ev.latitude != null && ev.longitude != null
+                        ? ` (${ev.latitude.toFixed(4)}, ${ev.longitude.toFixed(4)})`
+                        : ""}
+                    </span>
                   )}
                   {ev.description && (
                     <p className="mt-0.5 text-sm text-slate-600">{ev.description}</p>
