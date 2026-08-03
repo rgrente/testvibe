@@ -6,7 +6,7 @@
  * jonction personnes <-> union), et `filiation` (lien parent/enfant
  * avec un rôle biologique/adopté/beau-parent).
  */
-import { sqliteTable, integer, text, primaryKey } from "drizzle-orm/sqlite-core";
+import { sqliteTable, integer, text, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const health = sqliteTable("_health", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -75,6 +75,9 @@ export const event = sqliteTable("event", {
   label: text("label"),
   eventDate: text("event_date"),
   description: text("description"),
+  place: text("place"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
 });
 
 /**

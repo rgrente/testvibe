@@ -5,8 +5,8 @@ import {
   adminDeleteEvent,
 } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
-import { notFound } from "next/navigation";
+import { redirect, notFound } from "next/navigation";
+import { updateEventAction } from "./actions";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -28,12 +28,17 @@ async function createEventAction(formData: FormData) {
   const label = formData.get("label")?.toString().trim() || null;
   const eventDate = formData.get("eventDate")?.toString().trim() || null;
   const description = formData.get("description")?.toString().trim() || null;
+  const place = formData.get("place")?.toString().trim() || null;
+  const latStr = formData.get("latitude")?.toString().trim();
+  const lngStr = formData.get("longitude")?.toString().trim();
+  const latitude = latStr ? Number(latStr) : null;
+  const longitude = lngStr ? Number(lngStr) : null;
 
   if (!personId || !type) {
     redirect(`/admin/persons/${personId}/events?error=champs_requis`);
   }
   try {
-    await adminCreateEvent({ personId, type, label, eventDate, description });
+    await adminCreateEvent({ personId, type, label, eventDate, description, place, latitude, longitude });
   } catch {
     redirect(`/admin/persons/${personId}/events?error=validation`);
   }
@@ -124,7 +129,8 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
             <input
               id="eventDate"
               name="eventDate"
-              type="date"
+              type="text"
+              placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ"
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -151,6 +157,48 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
+          <div>
+            <label htmlFor="place" className="mb-1 block text-sm font-medium text-slate-700">
+              Lieu
+            </label>
+            <input
+              id="place"
+              name="place"
+              type="text"
+              placeholder="Ex: Paris, France"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="latitude" className="mb-1 block text-sm font-medium text-slate-700">
+              Latitude
+            </label>
+            <input
+              id="latitude"
+              name="latitude"
+              type="number"
+              step="any"
+              min="-90"
+              max="90"
+              placeholder="Ex: 48.8566"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
+          <div>
+            <label htmlFor="longitude" className="mb-1 block text-sm font-medium text-slate-700">
+              Longitude
+            </label>
+            <input
+              id="longitude"
+              name="longitude"
+              type="number"
+              step="any"
+              min="-180"
+              max="180"
+              placeholder="Ex: 2.3522"
+              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            />
+          </div>
           <div className="flex items-end">
             <button
               type="submit"
@@ -172,20 +220,47 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
         ) : (
           <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
             {events.map((ev) => (
-              <li key={ev.id} className="flex items-start justify-between px-4 py-3">
-                <div>
-                  <span className="font-medium text-slate-900">
-                    {EVENT_TYPE_LABELS[ev.type] ?? ev.type}
-                    {ev.label ? ` — ${ev.label}` : ""}
-                  </span>
-                  {ev.eventDate && (
-                    <span className="ml-2 text-sm text-slate-500">{ev.eventDate}</span>
-                  )}
-                  {ev.description && (
-                    <p className="mt-0.5 text-sm text-slate-600">{ev.description}</p>
-                  )}
-                </div>
-                <form action={deleteEventAction}>
+              <li key={ev.id} className="px-4 py-4">
+                <form action={updateEventAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <input type="hidden" name="id" value={ev.id} />
+                  <input type="hidden" name="personId" value={id} />
+                  <label className="text-xs font-medium text-slate-700">
+                    Type *
+                    <select name="type" defaultValue={ev.type} required className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                      {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Date
+                    <input name="eventDate" type="text" placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Libellé
+                    <input name="label" type="text" defaultValue={ev.label ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Description
+                    <textarea name="description" rows={2} defaultValue={ev.description ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700 sm:col-span-2">
+                    Lieu
+                    <input name="place" type="text" defaultValue={ev.place ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Latitude
+                    <input name="latitude" type="number" step="any" min="-90" max="90" defaultValue={ev.latitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Longitude
+                    <input name="longitude" type="number" step="any" min="-180" max="180" defaultValue={ev.longitude ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <button type="submit" className="w-fit rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">
+                    Modifier
+                  </button>
+                </form>
+                <form action={deleteEventAction} className="mt-2">
                   <input type="hidden" name="id" value={ev.id} />
                   <input type="hidden" name="personId" value={id} />
                   <button

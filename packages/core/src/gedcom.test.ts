@@ -13,6 +13,7 @@ import { importGedcom, exportGedcom } from "./gedcom.js";
 import { listPersons } from "./person.js";
 import { listUnions } from "./union.js";
 import { listFiliations } from "./filiation.js";
+import { listAllEvents } from "./event.js";
 import { ValidationError } from "./errors.js";
 
 // ─── Fixture GEDCOM multi-générations ────────────────────────────────────────
@@ -31,6 +32,7 @@ const VALID_GEDCOM = `0 HEAD
 1 SEX M
 1 BIRT
 2 DATE 15 MAR 1940
+2 PLAC Paris, France
 0 @I2@ INDI
 1 NAME Marie /DUPONT/
 1 NAME Marie /DURAND/
@@ -40,6 +42,11 @@ const VALID_GEDCOM = `0 HEAD
 2 DATE 20 JUN 1945
 1 DEAT
 2 DATE 10 NOV 2020
+2 PLAC Lyon, France
+1 EVEN
+2 TYPE Déménagement
+2 DATE 15 JAN 1970
+2 PLAC Bordeaux, France
 0 @I3@ INDI
 1 NAME Louis /MARTIN/
 1 SEX M
@@ -60,6 +67,7 @@ const VALID_GEDCOM = `0 HEAD
 1 WIFE @I2@
 1 MARR
 2 DATE 10 JUN 1965
+2 PLAC Mairie de Paris
 1 CHIL @I3@
 0 @F2@ FAM
 1 HUSB @I3@
@@ -141,6 +149,41 @@ describe("importGedcom", () => {
     expect(filiations).toHaveLength(0);
   });
 
+  it("preserve le libellé d'un EVEN porté par 2 TYPE, et retombe sur 1 EVEN sinon", async () => {
+    // 2 TYPE doit primer sur une éventuelle valeur de 1 EVEN.
+    const withType = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Henri /MARTIN/
+1 SEX M
+1 EVEN Fallback
+2 TYPE Déménagement
+2 PLAC Bordeaux, France
+0 TRLR
+`;
+    await importGedcom(db, withType);
+    let events = await listAllEvents(db);
+    const typeEv = events.find((e) => e.type === "libre" && e.place === "Bordeaux, France");
+    expect(typeEv?.label).toBe("Déménagement");
+
+    // Sans 2 TYPE, la valeur portée par 1 EVEN sert de libellé (fallback).
+    const withoutType = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I2@ INDI
+1 NAME Marie /DUPONT/
+1 SEX F
+1 EVEN Voyage à Rome
+2 PLAC Rome, Italie
+0 TRLR
+`;
+    await importGedcom(db, withoutType);
+    events = await listAllEvents(db);
+    const fallbackEv = events.find((e) => e.type === "libre" && e.place === "Rome, Italie");
+    expect(fallbackEv?.label).toBe("Voyage à Rome");
+  });
+
   it("rejette un GEDCOM vide (sans individus ni familles)", async () => {
     const emptyGedcom = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR\n";
     await expect(importGedcom(db, emptyGedcom)).rejects.toBeInstanceOf(ValidationError);
@@ -174,9 +217,18 @@ describe("exportGedcom", () => {
     const personsAfterFirstImport = await listPersons(db);
     const unionsAfterFirstImport = await listUnions(db);
     const filiationsAfterFirstImport = await listFiliations(db);
+    const moveAfterFirstImport = (await listAllEvents(db)).find(
+      (event) => event.type === "libre" && event.place === "Bordeaux, France",
+    );
+    expect(moveAfterFirstImport).toMatchObject({
+      label: "Déménagement",
+      eventDate: "1970-01-15",
+      place: "Bordeaux, France",
+    });
 
     // Export
     const exported = await exportGedcom(db);
+    expect(exported).toContain("1 EVEN\n2 TYPE Déménagement\n2 DATE 15 JAN 1970\n2 PLAC Bordeaux, France");
 
     // Second import dans une base fraîche
     const db2 = await createTestDb();
@@ -184,6 +236,14 @@ describe("exportGedcom", () => {
     const personsAfterSecondImport = await listPersons(db2);
     const unionsAfterSecondImport = await listUnions(db2);
     const filiationsAfterSecondImport = await listFiliations(db2);
+    const moveAfterSecondImport = (await listAllEvents(db2)).find(
+      (event) => event.type === "libre" && event.place === "Bordeaux, France",
+    );
+    expect(moveAfterSecondImport).toMatchObject({
+      label: "Déménagement",
+      eventDate: "1970-01-15",
+      place: "Bordeaux, France",
+    });
 
     // Vérifie la préservation des données clés (noms, dates, liens)
     expect(personsAfterSecondImport).toHaveLength(personsAfterFirstImport.length);
@@ -201,5 +261,52 @@ describe("exportGedcom", () => {
     const marie2 = personsAfterSecondImport.find((p) => p.firstName === "Marie");
     expect(marie2?.lastName).toBe("DUPONT");
     expect(marie2?.birthName).toBe("DURAND");
+  });
+
+  it("préserve le lieu propre à chaque mariage quand une personne a plusieurs unions", async () => {
+    const multipleMarriages = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alex /MARTIN/
+0 @I2@ INDI
+1 NAME Camille /DUPONT/
+0 @I3@ INDI
+1 NAME Sam /BERNARD/
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1 JAN 1980
+2 PLAC Paris
+0 @F2@ FAM
+1 HUSB @I1@
+1 WIFE @I3@
+1 MARR
+2 DATE 2 FEB 1990
+2 PLAC Lyon
+0 TRLR
+`;
+
+    await importGedcom(db, multipleMarriages);
+    const importedMarriageEvents = (await listAllEvents(db)).filter(
+      (event) => event.type === "mariage",
+    );
+    expect(importedMarriageEvents).toHaveLength(4);
+    expect(importedMarriageEvents.every((event) => event.unionId !== null)).toBe(true);
+    expect(new Set(importedMarriageEvents.map((event) => event.unionId)).size).toBe(2);
+
+    const exported = await exportGedcom(db);
+    expect(exported).toMatch(/0 @F1@ FAM[\s\S]*?2 PLAC Paris/);
+    expect(exported).toMatch(/0 @F2@ FAM[\s\S]*?2 PLAC Lyon/);
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    const roundTripPlaces = (await listAllEvents(db2))
+      .filter((event) => event.type === "mariage")
+      .map((event) => `${event.unionId}:${event.place}`);
+    expect(new Set(roundTripPlaces).size).toBe(2);
+    expect(roundTripPlaces.filter((value) => value.endsWith(":Paris"))).toHaveLength(2);
+    expect(roundTripPlaces.filter((value) => value.endsWith(":Lyon"))).toHaveLength(2);
   });
 });
