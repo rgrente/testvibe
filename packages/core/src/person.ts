@@ -4,8 +4,8 @@
  * `@testvibe/db` (type `Database`).
  */
 import { eq } from "drizzle-orm";
-import { person, type Database } from "@testvibe/db";
-import type { Person, PersonInput } from "./types.js";
+import { person, event, type Database } from "@testvibe/db";
+import type { Person, PersonInput, EventType } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 
 function isValidDate(value: string): boolean {
@@ -48,6 +48,62 @@ function toPerson(row: typeof person.$inferSelect): Person {
   };
 }
 
+/**
+ * Synchronisation naissance/décès (choix d'architecture : vit dans person.ts,
+ * car il est déclenché à la création/maJ d'une Person — la source canonique de
+ * la date — et non dans event.ts, pour éviter tout doublon manuel).
+ *
+ * Garantit pour chaque `birthDate`/`deathDate` présent exactement UN événement
+ * `naissance`/`décès` rangé `event` pour cette Person (idempotent) :
+ * - aucun événement du type → création avec `eventDate` = date de la Person ;
+ * - événement existant → mise à jour de sa date si écart (la date affichée de
+ *   l'événement suit toujours la source canonique Person) ;
+ * - jamais de doublon par (person, type), même si un événement manuel du même
+ *   type existait déjà.
+ * Une Person sans date ⇒ aucun événement auto. Aucune suppression automatique :
+ * un événement préexistant (avec un lieu saisi en admin) reste intact.
+ */
+export async function syncBiographicalEvents(
+  db: Database,
+  personId: number,
+  birthDate: string | null,
+  deathDate: string | null,
+): Promise<void> {
+  const typed: Array<{ type: EventType; date: string | null }> = [
+    { type: "naissance", date: birthDate },
+    { type: "décès", date: deathDate },
+  ];
+
+  const existingRows = await db.select().from(event).where(eq(event.personId, personId));
+  const byType = new Map<EventType, (typeof event.$inferSelect)[]>();
+  for (const row of existingRows) {
+    const type = row.type as EventType;
+    const arr = byType.get(type) ?? [];
+    arr.push(row);
+    byType.set(type, arr);
+  }
+
+  for (const { type, date } of typed) {
+    if (!date) continue;
+    const matches = byType.get(type) ?? [];
+    if (matches.length === 0) {
+      await db.insert(event).values({
+        personId,
+        type,
+        label: null,
+        eventDate: date,
+        description: null,
+        unionId: null,
+        place: null,
+        latitude: null,
+        longitude: null,
+      });
+    } else if (matches[0].eventDate !== date) {
+      await db.update(event).set({ eventDate: date }).where(eq(event.id, matches[0].id));
+    }
+  }
+}
+
 export async function createPerson(db: Database, input: PersonInput): Promise<Person> {
   assertValidPersonInput(input);
   const [row] = await db
@@ -61,6 +117,7 @@ export async function createPerson(db: Database, input: PersonInput): Promise<Pe
       gender: input.gender ?? null,
     })
     .returning();
+  await syncBiographicalEvents(db, row.id, input.birthDate ?? null, input.deathDate ?? null);
   return toPerson(row);
 }
 
@@ -104,6 +161,7 @@ export async function updatePerson(
     })
     .where(eq(person.id, id))
     .returning();
+  await syncBiographicalEvents(db, row.id, merged.birthDate ?? null, merged.deathDate ?? null);
   return toPerson(row);
 }
 

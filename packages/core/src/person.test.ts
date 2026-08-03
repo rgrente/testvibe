@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import type { Database } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
 import { createPerson, getPersonById, listPersons, updatePerson, deletePerson } from "./person.js";
+import { createEvent, listEventsByPerson } from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 
 describe("Person CRUD", () => {
@@ -85,5 +86,90 @@ describe("Person CRUD", () => {
         deathDate: "1899-01-01",
       }),
     ).rejects.toBeInstanceOf(ValidationError);
+  });
+});
+
+describe("Auto-sync naissance/décès (syncBiographicalEvents)", () => {
+  let db: Database;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+  });
+
+  it("crée automatiquement un événement naissance et décès pour une Person datée", async () => {
+    const person = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+      deathDate: "1852-11-27",
+    });
+
+    const events = await listEventsByPerson(db, person.id);
+    expect(events).toHaveLength(2);
+    expect(events.map((e) => e.type).sort()).toEqual(["décès", "naissance"]);
+    const birth = events.find((e) => e.type === "naissance");
+    const death = events.find((e) => e.type === "décès");
+    expect(birth?.eventDate).toBe("1815-12-10");
+    expect(death?.eventDate).toBe("1852-11-27");
+  });
+
+  it("ne crée aucun événement pour une Person sans date", async () => {
+    const person = await createPerson(db, { firstName: "Diane", lastName: "X" });
+    expect(await listEventsByPerson(db, person.id)).toHaveLength(0);
+  });
+
+  it("ne crée qu'un seul événement si une date seule est présente", async () => {
+    const person = await createPerson(db, {
+      firstName: "Alan",
+      lastName: "Turing",
+      birthDate: "1912-06-23",
+    });
+    const events = await listEventsByPerson(db, person.id);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("naissance");
+  });
+
+  it("synchronise la date de l'événement quand la Person est mise à jour (idempotent, sans doublon)", async () => {
+    const person = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+    });
+    expect(await listEventsByPerson(db, person.id)).toHaveLength(1);
+
+    // Mise à jour de la date de naissance → l'événement suit, sans doublon.
+    await updatePerson(db, person.id, { birthDate: "1815-12-12" });
+    const events = await listEventsByPerson(db, person.id);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("naissance");
+    expect(events[0].eventDate).toBe("1815-12-12");
+  });
+
+  it("crée l'événement lorsqu'une date est ajoutée à une Person sans date", async () => {
+    const person = await createPerson(db, { firstName: "Marie", lastName: "Curie" });
+    expect(await listEventsByPerson(db, person.id)).toHaveLength(0);
+
+    await updatePerson(db, person.id, { deathDate: "1934-07-04" });
+    const events = await listEventsByPerson(db, person.id);
+    expect(events).toHaveLength(1);
+    expect(events[0].type).toBe("décès");
+    expect(events[0].eventDate).toBe("1934-07-04");
+  });
+
+  it("ne duplique pas quand un événement manuel du même type existe déjà", async () => {
+    const person = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    // Un événement naissance manuel (saisi en admin) préexiste, sans date Person.
+    await createEvent(db, { personId: person.id, type: "naissance", place: "Londres" });
+    expect((await listEventsByPerson(db, person.id)).filter((e) => e.type === "naissance")).toHaveLength(1);
+
+    // On renseigne ensuite la date de naissance : l'auto-sync doit mettre à jour
+    // l'événement existant, jamais en créer un second.
+    await updatePerson(db, person.id, { birthDate: "1815-12-10" });
+    const naissances = (await listEventsByPerson(db, person.id)).filter(
+      (e) => e.type === "naissance",
+    );
+    expect(naissances).toHaveLength(1);
+    expect(naissances[0].eventDate).toBe("1815-12-10");
+    expect(naissances[0].place).toBe("Londres"); // le lieu saisi est conservé
   });
 });
