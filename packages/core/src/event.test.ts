@@ -248,13 +248,15 @@ describe("listFamilyTimeline", () => {
     expect(timeline.map(({ person }) => person.firstName)).toEqual(["Bob", "Alice", "Alice", "Bob"]);
   });
 
-  it("départage de façon stable les événements et dates biographiques identiques", async () => {
+  it("départage de façon stable les événements de même date (naissance auto incluse)", async () => {
     const alice = await createPerson(db, {
       firstName: "Alice",
       lastName: "Martin",
       birthDate: "1985-03-10",
     });
     const bob = await createPerson(db, { firstName: "Bob", lastName: "Dupont" });
+    // L'auto-sync crée un événement naissance réel dès la création de la Person.
+    const [autoBirth] = await listEventsByPerson(db, alice.id);
     const sameDayEvent = await createEvent(db, {
       personId: bob.id,
       type: "libre",
@@ -264,8 +266,8 @@ describe("listFamilyTimeline", () => {
     const timeline = await listFamilyTimeline(db);
 
     expect(timeline.map(({ key }) => key)).toEqual([
+      `event:${autoBirth.id}`,
       `event:${sameDayEvent.id}`,
-      `person:${alice.id}:naissance`,
     ]);
   });
 });

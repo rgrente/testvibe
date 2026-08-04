@@ -14,7 +14,7 @@ import { ValidationError } from "./errors.js";
 import { createPerson, listPersons, deletePerson } from "./person.js";
 import { createUnion, listUnions, deleteUnion } from "./union.js";
 import { createFiliation, listFiliations, deleteFiliation } from "./filiation.js";
-import { createEvent, deleteEvent, listAllEvents } from "./event.js";
+import { createEvent, updateEvent, deleteEvent, listAllEvents, listEventsByPerson } from "./event.js";
 import type { FiliationRole } from "./types.js";
 
 // ─── Types internes ───────────────────────────────────────────────────────────
@@ -386,27 +386,49 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
       insertedPersonIds.push(person.id);
     }
 
-    // 1b. Créer les événements de naissance/décès avec lieu pour chaque INDI
+    // 1b. Attacher le lieu (PLAC) aux événements naissance/décès. Grâce à
+    // l'auto-sync (createPerson → syncBiographicalEvents), les événements
+    // naissance/décès existent déjà pour toute Person avec une date. On met ici
+    // à jour leur `place` (sans créer de doublon). Une Person avec un lieu mais
+    // SANS date n'a pas d'événement auto : on le crée alors à la volée.
     for (const indi of indis) {
       const personId = xrefToId.get(indi.xref);
       if (!personId) continue;
       if (indi.birthPlace) {
-        const ev = await createEvent(db, {
-          personId,
-          type: "naissance",
-          eventDate: indi.birthDate ?? null,
-          place: indi.birthPlace,
-        });
-        insertedEventIds.push(ev.id);
+        const existing = (await listEventsByPerson(db, personId)).find(
+          (e) => e.type === "naissance",
+        );
+        if (existing) {
+          if (existing.place !== indi.birthPlace) {
+            await updateEvent(db, existing.id, { place: indi.birthPlace });
+          }
+        } else {
+          const ev = await createEvent(db, {
+            personId,
+            type: "naissance",
+            eventDate: indi.birthDate ?? null,
+            place: indi.birthPlace,
+          });
+          insertedEventIds.push(ev.id);
+        }
       }
       if (indi.deathPlace) {
-        const ev = await createEvent(db, {
-          personId,
-          type: "décès",
-          eventDate: indi.deathDate ?? null,
-          place: indi.deathPlace,
-        });
-        insertedEventIds.push(ev.id);
+        const existing = (await listEventsByPerson(db, personId)).find(
+          (e) => e.type === "décès",
+        );
+        if (existing) {
+          if (existing.place !== indi.deathPlace) {
+            await updateEvent(db, existing.id, { place: indi.deathPlace });
+          }
+        } else {
+          const ev = await createEvent(db, {
+            personId,
+            type: "décès",
+            eventDate: indi.deathDate ?? null,
+            place: indi.deathPlace,
+          });
+          insertedEventIds.push(ev.id);
+        }
       }
     }
 

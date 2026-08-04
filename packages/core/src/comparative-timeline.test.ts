@@ -38,10 +38,13 @@ describe("listComparativeTimeline", () => {
     const rows = await listComparativeTimeline(db);
 
     expect(rows).toHaveLength(2);
-    expect(rows.find(({ person }) => person.id === ada.id)).toEqual({
-      person: ada,
-      events: [diploma],
-    });
+    const adaRow = rows.find(({ person }) => person.id === ada.id)!;
+    // Les événements naissance/décès sont auto-générés à partir des dates de la
+    // Person (auto-sync), avant l'événement libre saisi manuellement.
+    expect(adaRow.events).toHaveLength(3);
+    expect(adaRow.events.map((e) => e.type)).toEqual(["naissance", "décès", "libre"]);
+    expect(adaRow.events.map((e) => e.eventDate)).toEqual(["1815-12-10", "1852-11-27", "1843"]);
+    expect(adaRow.events[2]).toEqual(diploma);
     expect(rows.find(({ person }) => person.id === charles.id)).toEqual({
       person: charles,
       events: [undated],

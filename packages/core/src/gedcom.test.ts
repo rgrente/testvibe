@@ -310,3 +310,84 @@ describe("exportGedcom", () => {
     expect(roundTripPlaces.filter((value) => value.endsWith(":Lyon"))).toHaveLength(2);
   });
 });
+
+describe("GEDCOM naissance/décès : auto-sync + PLAC aller-retour", () => {
+  let db: Database;
+
+  beforeEach(async () => {
+    db = await createTestDb();
+  });
+
+  it("crée les événements naissance/décès à partir des dates et garde le PLAC à l'aller-retour", async () => {
+    const ged = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Henri /MARTIN/
+1 SEX M
+1 BIRT
+2 DATE 15 MAR 1940
+2 PLAC Paris, France
+1 DEAT
+2 DATE 10 NOV 2020
+2 PLAC Lyon, France
+0 @I2@ INDI
+1 NAME Louis /MARTIN/
+1 SEX M
+1 BIRT
+2 DATE 5 APR 1968
+0 TRLR
+`;
+    // Import initial : l'auto-sync (via createPerson) crée naissance/décès pour
+    // toute Person datée ; le PLAC est attaché au bon événement, sans doublon.
+    await importGedcom(db, ged);
+    let events = await listAllEvents(db);
+    const henriNaissance = events.find((e) => e.personId === 1 && e.type === "naissance");
+    const henriDeces = events.find((e) => e.personId === 1 && e.type === "décès");
+    const louisNaissance = events.find((e) => e.personId === 2 && e.type === "naissance");
+    expect(henriNaissance).toMatchObject({ eventDate: "1940-03-15", place: "Paris, France" });
+    expect(henriDeces).toMatchObject({ eventDate: "2020-11-10", place: "Lyon, France" });
+    // Louis (date sans PLAC) a bien un événement naissance auto, sans lieu.
+    expect(louisNaissance).toMatchObject({ eventDate: "1968-04-05", place: null });
+    // Exactement un naissance par personne datée, jamais de doublon.
+    expect(events.filter((e) => e.type === "naissance")).toHaveLength(2);
+
+    // Aller-retour import → export → import sans perte.
+    const exported = await exportGedcom(db);
+    expect(exported).toContain("1 BIRT\n2 DATE 15 MAR 1940\n2 PLAC Paris, France");
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    events = await listAllEvents(db2);
+    const henriNaissance2 = events.find((e) => e.type === "naissance" && e.place === "Paris, France");
+    const henriDeces2 = events.find((e) => e.type === "décès" && e.place === "Lyon, France");
+    expect(henriNaissance2).toMatchObject({ eventDate: "1940-03-15", place: "Paris, France" });
+    expect(henriDeces2).toMatchObject({ eventDate: "2020-11-10", place: "Lyon, France" });
+    // Deux personnes datées à la naissance → toujours exactement 2 naissances.
+    expect(events.filter((e) => e.type === "naissance" && e.place)).toHaveLength(1);
+  });
+
+  it("préserve un PLAC naissance même sans date (événement non-auto créé à la volée)", async () => {
+    const ged = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Marie /MARTIN/
+1 SEX F
+1 BIRT
+2 PLAC Rome, Italie
+0 TRLR
+`;
+    await importGedcom(db, ged);
+    const birth = (await listAllEvents(db)).find((e) => e.type === "naissance");
+    expect(birth).toMatchObject({ eventDate: null, place: "Rome, Italie" });
+
+    const exported = await exportGedcom(db);
+    expect(exported).toContain("1 BIRT\n2 PLAC Rome, Italie");
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    const roundTrip = (await listAllEvents(db2)).find((e) => e.type === "naissance");
+    expect(roundTrip).toMatchObject({ eventDate: null, place: "Rome, Italie" });
+  });
+});
