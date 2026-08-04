@@ -292,7 +292,7 @@ describe("deleteEvent", () => {
 });
 
 describe("listMapLocations", () => {
-  it("retourne uniquement les événements avec coordonnées et personne décédée", async () => {
+  it("retourne les événements avec coordonnées et lieu, personnes vivantes incluses", async () => {
     const alive = await createPerson(db, { firstName: "Vivant", lastName: "X" }); // pas de deathDate
     const dead = await createPerson(db, { firstName: "Mort", lastName: "Y", deathDate: "2000-01-01" });
     await createEvent(db, {
@@ -316,7 +316,7 @@ describe("listMapLocations", () => {
       latitude: 43.3,
       longitude: 5.4,
     });
-    // Événement sans coordonnées (ignoré)
+    // Événement sans coordonnées ni lieu (ignoré)
     await createEvent(db, {
       personId: dead.id,
       type: "libre",
@@ -324,12 +324,13 @@ describe("listMapLocations", () => {
     });
 
     const locations = await listMapLocations(db);
-    expect(locations).toHaveLength(2);
+    expect(locations).toHaveLength(3);
     const places = locations.map((l) => l.event.place);
+    expect(places).toContain("Paris");
     expect(places).toContain("Lyon");
     expect(places).toContain("Marseille");
-    // Aucun événement de la personne vivante
-    expect(places).not.toContain("Paris");
+    // Aucun lieu sans coordonnées
+    expect(places).not.toContain("Sans lieu");
   });
 
   it("retourne un tableau vide si aucun événement n'a de coordonnées", async () => {

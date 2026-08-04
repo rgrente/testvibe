@@ -75,8 +75,7 @@ export async function getPersonForWeb(personId: number): Promise<Person> {
 }
 
 /**
- * Retourne les événements géolocalisés pour la carte publique,
- * filtrés par confidentialité (exclusion des personnes sans deathDate).
+ * Retourne les événements géolocalisés pour la carte publique.
  * Phase 6 (tâche lieux/carte).
  */
 export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
