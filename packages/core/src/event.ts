@@ -240,8 +240,8 @@ export async function deleteEvent(db: Database, id: number): Promise<void> {
 
 /**
  * Retourne les événements géolocalisés (avec latitude ET longitude) destinés
- * à la carte publique. Exclut tout événement lié à une personne sans deathDate
- * (présumée vivante, règle de confidentialité MVP).
+ * à la carte publique. Conserve uniquement les événements ayant à la fois des
+ * coordonnées et un lieu.
  */
 export async function listMapLocations(
   db: Database,
@@ -257,9 +257,6 @@ export async function listMapLocations(
       if (ev.latitude == null || ev.longitude == null) return false;
       // Doit avoir une place
       if (!ev.place) return false;
-      // La personne doit avoir un deathDate (présumée décédée)
-      const person = personsById.get(ev.personId);
-      if (!person || !person.deathDate) return false;
       return true;
     })
     .map((ev) => {
