@@ -12,6 +12,7 @@ export * from "./person.js";
 export * from "./union.js";
 export * from "./filiation.js";
 export * from "./tree.js";
+export * from "./kinship.js";
 export * from "./demo.js";
 export * from "./web-api.js";
 export * from "./admin-api.js";

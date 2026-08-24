@@ -132,6 +132,44 @@ export interface MediaInput {
   size: number;
 }
 
+export type KinshipRelation =
+  | "same"
+  | "ascendant"
+  | "descendant"
+  | "frere-soeur"
+  | "collateral"
+  | "unrelated";
+
+export interface KinshipStep {
+  personId: number;
+  name: string;
+  /** Rôle de l'arête reliant cette personne à la précédente (chemin ordonné fromId→toId). */
+  edgeRole?: FiliationRole;
+}
+
+export interface KinshipPath {
+  steps: KinshipStep[];
+  commonAncestorId: number;
+}
+
+export interface KinshipLink {
+  label: string;
+  relation: KinshipRelation;
+  degree: number;
+  generationGap: number;
+}
+
+export interface KinshipResult {
+  fromId: number;
+  toId: number;
+  samePerson: boolean;
+  unrelated: boolean;
+  link: KinshipLink | null;
+  commonAncestors: { id: number; name: string }[];
+  paths: KinshipPath[];
+  multipleRelationships: boolean;
+}
+
 /** Événement géolocalisé pour la carte publique (filtré par confidentialité). */
 export interface MapLocation {
   eventId: number;

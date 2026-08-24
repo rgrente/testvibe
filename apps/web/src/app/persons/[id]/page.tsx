@@ -66,12 +66,20 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
             {person.deathDate && ` · décédé·e le ${person.deathDate}`}
           </p>
         </div>
-        <Link
-          href={`/?personId=${person.id}`}
-          className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
-        >
-          Voir dans l&apos;arbre
-        </Link>
+        <div className="flex flex-wrap justify-end gap-2">
+          <Link
+            href={`/?personId=${person.id}`}
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+          >
+            Voir dans l&apos;arbre
+          </Link>
+          <Link
+            href={`/parente?de=${person.id}`}
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+          >
+            Lien de parenté
+          </Link>
+        </div>
       </div>
 
       {/* Photos */}

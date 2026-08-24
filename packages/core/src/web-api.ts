@@ -14,8 +14,10 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, Media, MapLocation } from "./types.js";
+import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, Media, MapLocation, KinshipResult } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
+import { listFiliations } from "./filiation.js";
+import { computeKinship } from "./kinship.js";
 import { getFamilyTree, getAncestorIds, getDescendantIds, type FamilyTree } from "./tree.js";
 import { listEventsByPerson, listFamilyTimeline, listMapLocations } from "./event.js";
 import { listMediaByPerson } from "./media.js";
@@ -91,6 +93,15 @@ export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
     latitude: event.latitude!,
     longitude: event.longitude!,
   }));
+}
+
+/**
+ * Calcule le lien de parenté orienté entre deux personnes.
+ * Phase 7 (tâche carte de parenté).
+ */
+export async function computeKinshipForWeb(fromId: number, toId: number): Promise<KinshipResult> {
+  const [persons, filiations] = await Promise.all([listPersons(defaultDb), listFiliations(defaultDb)]);
+  return computeKinship(persons, filiations, fromId, toId);
 }
 
 /**
