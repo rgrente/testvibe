@@ -6,14 +6,10 @@ import { eq } from "drizzle-orm";
 import { unions, unionPartner, person, type Database } from "@testvibe/db";
 import type { Union, UnionInput } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { normalizePlace, assertValidCoordinates } from "./geo.js";
 
 function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
-}
-
-function normalizePlace(place: string | null | undefined): string | null {
-  const normalized = place?.trim();
-  return normalized ? normalized : null;
 }
 
 async function assertPersonsExist(db: Database, personIds: number[]): Promise<void> {
@@ -41,20 +37,7 @@ function assertValidUnionInput(input: UnionInput): void {
   if (input.type != null && !["mariage", "pacs", "libre"].includes(input.type)) {
     throw new ValidationError(`type d'union invalide : ${input.type}`);
   }
-  if ((input.latitude == null) !== (input.longitude == null)) {
-    throw new ValidationError("latitude et longitude doivent être renseignées ensemble.");
-  }
-  for (const [name, value] of [["latitude", input.latitude], ["longitude", input.longitude]] as const) {
-    if (value != null && !Number.isFinite(value)) {
-      throw new ValidationError(`${name} doit être un nombre fini.`);
-    }
-  }
-  if (input.latitude != null && (input.latitude < -90 || input.latitude > 90)) {
-    throw new ValidationError("latitude doit être comprise entre -90 et 90.");
-  }
-  if (input.longitude != null && (input.longitude < -180 || input.longitude > 180)) {
-    throw new ValidationError("longitude doit être comprise entre -180 et 180.");
-  }
+  assertValidCoordinates(input.latitude, input.longitude);
   if (input.latitude != null && !input.place?.trim()) {
     throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
   }

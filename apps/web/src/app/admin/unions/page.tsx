@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import type { UnionType } from "@testvibe/core";
+import UnionPersonSearch from "@/components/UnionPersonSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ async function createUnionAction(formData: FormData) {
   const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
   const personIds = personIdsRaw.filter((id) => !Number.isNaN(id) && id > 0);
 
-  if (personIds.length === 0) {
+  if (personIds.length !== 2 || new Set(personIds).size !== 2) {
     redirect("/admin/unions?error=personnes_requises");
   }
 
@@ -73,7 +74,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
         {error && (
           <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error === "personnes_requises"
-              ? "Sélectionnez au moins une personne."
+              ? "Sélectionnez deux personnes différentes."
               : "Données invalides."}
           </p>
         )}
@@ -114,23 +115,8 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
           </div>
           <div className="sm:col-span-2">
             <fieldset>
-              <legend className="mb-1 block text-sm font-medium text-slate-700">
-                Personnes liées *
-              </legend>
-              {persons.length === 0 ? (
-                <p className="text-sm text-slate-500">
-                  Aucune personne disponible — créez d&apos;abord des personnes.
-                </p>
-              ) : (
-                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-                  {persons.map((p) => (
-                    <label key={p.id} className="flex items-center gap-2 text-sm text-slate-700">
-                      <input type="checkbox" name="personIds" value={p.id} />
-                      {p.firstName} {p.lastName}
-                    </label>
-                  ))}
-                </div>
-              )}
+              <legend className="sr-only">Personnes liées</legend>
+              <UnionPersonSearch persons={persons} />
             </fieldset>
           </div>
           <div>
