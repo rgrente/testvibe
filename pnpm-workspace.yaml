@@ -5,3 +5,7 @@ allowBuilds:
   esbuild: true
   sharp: false
   unrs-resolver: false
+# The Orca environment enforces an organization-level release-age policy.
+# Allow the exact React 19 type version paired with this upgrade through its cooldown.
+minimumReleaseAgeExclude:
+  - '@types/react-dom@19.2.5'

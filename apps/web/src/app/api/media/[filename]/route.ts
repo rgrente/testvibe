@@ -22,11 +22,11 @@ export async function GET(
   if (safe !== filename) {
     return NextResponse.json({ error: "Nom de fichier invalide." }, { status: 400 });
   }
-  const filePath = join(UPLOAD_DIR, safe);
-  if (!existsSync(filePath)) {
+  const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, safe);
+  if (!existsSync(/* turbopackIgnore: true */ filePath)) {
     return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
   }
-  const stream = createReadStream(filePath);
+  const stream = createReadStream(/* turbopackIgnore: true */ filePath);
   const webStream = Readable.toWeb(stream) as ReadableStream;
   const ext = safe.split(".").pop()?.toLowerCase() ?? "";
   const mimeMap: Record<string, string> = {
@@ -64,8 +64,8 @@ export async function DELETE(
   try {
     const mediaRecord = await adminGetMedia(id);
     await adminDeleteMedia(id);
-    const filePath = join(UPLOAD_DIR, mediaRecord.filename);
-    if (existsSync(filePath)) {
+    const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, mediaRecord.filename);
+    if (existsSync(/* turbopackIgnore: true */ filePath)) {
       await unlink(filePath);
     }
     return NextResponse.json({ success: true });

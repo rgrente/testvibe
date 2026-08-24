@@ -51,14 +51,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure upload directory exists
-    if (!existsSync(UPLOAD_DIR)) {
+    if (!existsSync(/* turbopackIgnore: true */ UPLOAD_DIR)) {
       await mkdir(UPLOAD_DIR, { recursive: true });
     }
 
     // Generate unique filename to avoid collisions
     const ext = file.name.split(".").pop() ?? "bin";
     const filename = `${randomUUID()}.${ext}`;
-    const filePath = join(UPLOAD_DIR, filename);
+    const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, filename);
 
     const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);

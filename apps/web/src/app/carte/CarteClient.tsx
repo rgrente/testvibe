@@ -56,14 +56,14 @@ export default function CarteClient({
     router.push(`/carte?${params.toString()}`, { scroll: false });
   };
 
-  // Reload page when branch needs server-side resolution
+  // Navigate so the server resolves the selected branch
   const loadBranch = (
     person: number | null,
     branch: "none" | "ancestors" | "descendants",
   ) => {
     if (branch !== "none" && person) {
-      // Reload the page with the branch param so the server resolves it
-      window.location.href = `/carte?person=${person}&branche=${branch}&from=${dateFrom}&to=${dateTo}`;
+      // Include the branch param to trigger server-side resolution
+      router.push(`/carte?person=${person}&branche=${branch}&from=${dateFrom}&to=${dateTo}`);
     } else {
       // Clear branch filter client-side
       setSelectedPersonIds([]);

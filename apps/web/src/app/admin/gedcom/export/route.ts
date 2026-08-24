@@ -1,7 +1,7 @@
 /**
  * Route GET /admin/gedcom/export — téléchargement du fichier GEDCOM.
  *
- * Protégé par le middleware admin (Phase 3, tâche #22) : seuls les
+ * Protégé par le proxy admin (Phase 3, tâche #22) : seuls les
  * utilisateurs avec un cookie de session valide peuvent accéder à
  * cette route.
  */

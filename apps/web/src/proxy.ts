@@ -1,5 +1,5 @@
 /**
- * Middleware Next.js — protection des routes /admin (Phase 3, tâche #22).
+ * Proxy Next.js — protection des routes /admin (Phase 3, tâche #22).
  *
  * Toute requête vers /admin/* est vérifiée :
  * - Si le cookie de session est valide → laissée passer.
@@ -8,16 +8,15 @@
  * La route /admin/login elle-même est toujours accessible (sinon on
  * crée une boucle de redirection infinie).
  *
- * Ce fichier tourne dans le runtime Edge de Next.js (pas de Node.js
- * APIs). Il ne doit donc pas importer de module Node-only.
+ * Next.js 16 exécute ce fichier dans le runtime Node.js.
  */
 import { type NextRequest, NextResponse } from "next/server";
 import { SESSION_COOKIE_NAME, isValidSession, getAdminSecret } from "./lib/session";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Les routes hors /admin ne sont pas concernées par ce middleware.
+  // Les routes hors /admin ne sont pas concernées par ce proxy.
   if (!pathname.startsWith("/admin")) {
     return NextResponse.next();
   }

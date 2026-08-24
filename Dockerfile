@@ -1,14 +1,8 @@
 # Image de production pour apps/web (Next.js), à partir du monorepo pnpm complet.
 #
-# Choix volontaire de ne PAS utiliser `next build` en mode `output: "standalone"` :
-# le traçage de fichiers de Next.js (@vercel/nft) ne suit pas correctement, à
-# travers les symlinks pnpm de ce monorepo, les dépendances de @testvibe/db
-# forcées en externals CommonJS (cf. apps/web/next.config.mjs) — le dossier
-# `dist` compilé de @testvibe/db ainsi que ses node_modules runtime
-# (@libsql/client, drizzle-orm...) se retrouvent absents du build autonome.
-# On construit et copie donc l'arbre du monorepo tel quel, et on démarre via
-# `next start` classique : plus simple et fiable, au prix d'une image plus
-# volumineuse (devDependencies incluses).
+# L'image conserve l'arbre du monorepo pour que les packages workspace externes
+# au bundle serveur (notamment @testvibe/db et libSQL) restent disponibles au
+# runtime. Elle démarre avec `next start` plutôt qu'en mode standalone.
 
 FROM node:22-alpine AS base
 RUN corepack enable

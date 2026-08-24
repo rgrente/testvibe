@@ -20,6 +20,9 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
     label: null,
     eventDate: null,
     description: null,
+    place: null,
+    latitude: null,
+    longitude: null,
     ...overrides,
   };
 }

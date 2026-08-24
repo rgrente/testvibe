@@ -1,12 +1,12 @@
 /**
- * Tests automatisés pour le middleware de protection des routes /admin.
+ * Tests automatisés pour le proxy de protection des routes /admin.
  * Vérifie qu'une requête sans cookie de session valide est redirigée,
  * et qu'une requête avec un cookie valide est laissée passer.
  */
 import { describe, it, expect } from "vitest";
 
-// On importe uniquement les helpers purs, pas le middleware Next.js
-// (qui dépend du runtime Edge). Le comportement est testé via la
+// On importe uniquement les helpers purs, pas le proxy Next.js
+// (qui dépend du runtime Next.js). Le comportement est testé via la
 // logique de session.
 import { isValidSession, SESSION_COOKIE_NAME } from "./lib/session.js";
 
