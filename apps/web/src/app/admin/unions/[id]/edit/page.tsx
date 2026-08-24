@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import type { UnionType } from "@testvibe/core";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,12 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
     "use server";
     const startDate = formData.get("startDate")?.toString().trim() || null;
     const endDate = formData.get("endDate")?.toString().trim() || null;
+    const type = formData.get("type")?.toString() as UnionType;
+    const place = formData.get("place")?.toString().trim() || null;
+    const latitudeRaw = formData.get("latitude")?.toString().trim();
+    const longitudeRaw = formData.get("longitude")?.toString().trim();
+    const latitude = latitudeRaw ? Number(latitudeRaw) : null;
+    const longitude = longitudeRaw ? Number(longitudeRaw) : null;
     const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
     const personIds = personIdsRaw.filter((pid) => !Number.isNaN(pid) && pid > 0);
 
@@ -39,7 +47,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
     }
 
     try {
-      await adminUpdateUnion(id, { startDate, endDate, personIds });
+      await adminUpdateUnion(id, { type, startDate, endDate, place, latitude, longitude, personIds });
     } catch {
       redirect(`/admin/unions/${id}/edit?error=validation`);
     }
@@ -60,6 +68,14 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
       )}
 
       <form action={updateUnionAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <label htmlFor="type" className="mb-1 block text-sm font-medium text-slate-700">Type d&apos;union</label>
+          <select id="type" name="type" defaultValue={union.type} className="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            <option value="mariage">Mariage</option>
+            <option value="pacs">Pacs</option>
+            <option value="libre">Union libre</option>
+          </select>
+        </div>
         <div>
           <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-slate-700">
             Date de début
@@ -71,6 +87,10 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
             defaultValue={union.startDate ?? ""}
             className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
           />
+        </div>
+        <div className="sm:col-span-2">
+          <label htmlFor="union-place" className="mb-1 block text-sm font-medium text-slate-700">Ville ou lieu</label>
+          <PlaceAutocomplete inputId="union-place" defaultPlace={union.place ?? ""} defaultLatitude={union.latitude} defaultLongitude={union.longitude} placeholder="Rechercher une ville…" />
         </div>
         <div>
           <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-slate-700">

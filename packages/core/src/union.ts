@@ -11,6 +11,11 @@ function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
 }
 
+function normalizePlace(place: string | null | undefined): string | null {
+  const normalized = place?.trim();
+  return normalized ? normalized : null;
+}
+
 async function assertPersonsExist(db: Database, personIds: number[]): Promise<void> {
   for (const id of personIds) {
     const [row] = await db.select().from(person).where(eq(person.id, id));
@@ -32,6 +37,26 @@ function assertValidUnionInput(input: UnionInput): void {
   }
   if (input.endDate != null && !isValidDate(input.endDate)) {
     throw new ValidationError(`endDate invalide : ${input.endDate}`);
+  }
+  if (input.type != null && !["mariage", "pacs", "libre"].includes(input.type)) {
+    throw new ValidationError(`type d'union invalide : ${input.type}`);
+  }
+  if ((input.latitude == null) !== (input.longitude == null)) {
+    throw new ValidationError("latitude et longitude doivent être renseignées ensemble.");
+  }
+  for (const [name, value] of [["latitude", input.latitude], ["longitude", input.longitude]] as const) {
+    if (value != null && !Number.isFinite(value)) {
+      throw new ValidationError(`${name} doit être un nombre fini.`);
+    }
+  }
+  if (input.latitude != null && (input.latitude < -90 || input.latitude > 90)) {
+    throw new ValidationError("latitude doit être comprise entre -90 et 90.");
+  }
+  if (input.longitude != null && (input.longitude < -180 || input.longitude > 180)) {
+    throw new ValidationError("longitude doit être comprise entre -180 et 180.");
+  }
+  if (input.latitude != null && !input.place?.trim()) {
+    throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
   }
   if (
     input.startDate != null &&
@@ -55,8 +80,12 @@ async function loadUnion(db: Database, id: number): Promise<Union> {
     .where(eq(unionPartner.unionId, id));
   return {
     id: row.id,
+    type: row.type,
     startDate: row.startDate,
     endDate: row.endDate,
+    place: row.place,
+    latitude: row.latitude,
+    longitude: row.longitude,
     personIds: partners.map((p) => p.personId),
   };
 }
@@ -67,8 +96,12 @@ export async function createUnion(db: Database, input: UnionInput): Promise<Unio
   const [row] = await db
     .insert(unions)
     .values({
+      type: input.type ?? "libre",
       startDate: input.startDate ?? null,
       endDate: input.endDate ?? null,
+      place: normalizePlace(input.place),
+      latitude: input.latitude ?? null,
+      longitude: input.longitude ?? null,
     })
     .returning();
   await db.insert(unionPartner).values(
@@ -93,8 +126,12 @@ export async function updateUnion(
 ): Promise<Union> {
   const existing = await loadUnion(db, id); // lève NotFoundError si absent
   const merged: UnionInput = {
+    type: input.type !== undefined ? input.type : existing.type,
     startDate: input.startDate !== undefined ? input.startDate : existing.startDate,
     endDate: input.endDate !== undefined ? input.endDate : existing.endDate,
+    place: input.place !== undefined ? input.place : existing.place,
+    latitude: input.latitude !== undefined ? input.latitude : existing.latitude,
+    longitude: input.longitude !== undefined ? input.longitude : existing.longitude,
     personIds: input.personIds ?? existing.personIds,
   };
   assertValidUnionInput(merged);
@@ -103,8 +140,12 @@ export async function updateUnion(
   await db
     .update(unions)
     .set({
+      type: merged.type ?? "libre",
       startDate: merged.startDate ?? null,
       endDate: merged.endDate ?? null,
+      place: normalizePlace(merged.place),
+      latitude: merged.latitude ?? null,
+      longitude: merged.longitude ?? null,
     })
     .where(eq(unions.id, id));
 

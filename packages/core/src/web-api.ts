@@ -21,6 +21,7 @@ import { listEventsByPerson, listFamilyTimeline, listMapLocations } from "./even
 import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
+import { listUnions } from "./union.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
@@ -79,10 +80,16 @@ export async function getPersonForWeb(personId: number): Promise<Person> {
  * Phase 6 (tâche lieux/carte).
  */
 export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
-  const locations = await listMapLocations(defaultDb);
-  return locations.map(({ event, person }) => ({
+  const [locations, unions, persons] = await Promise.all([
+    listMapLocations(defaultDb),
+    listUnions(defaultDb),
+    listPersons(defaultDb),
+  ]);
+  const eventLocations: MapLocation[] = locations.map(({ event, person }) => ({
     eventId: event.id,
+    source: "event",
     personId: person.id,
+    personIds: [person.id],
     personName: `${person.firstName} ${person.lastName}`,
     type: event.type,
     label: event.label,
@@ -91,6 +98,28 @@ export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
     latitude: event.latitude!,
     longitude: event.longitude!,
   }));
+  const personsById = new Map(persons.map((person) => [person.id, person]));
+  const unionLocations: MapLocation[] = unions
+    .filter((union) => union.place && union.latitude != null && union.longitude != null && union.personIds.length > 0)
+    .map((union) => ({
+      // Les ids d'événement sont positifs ; un id négatif forme une clé stable sans collision.
+      eventId: -union.id,
+      source: "union",
+      personId: union.personIds[0],
+      personIds: union.personIds,
+      personName: union.personIds
+        .map((id) => personsById.get(id))
+        .filter((person): person is Person => person !== undefined)
+        .map((person) => `${person.firstName} ${person.lastName}`)
+        .join(" & "),
+      type: union.type,
+      label: null,
+      eventDate: union.startDate,
+      place: union.place!,
+      latitude: union.latitude!,
+      longitude: union.longitude!,
+    }));
+  return [...eventLocations, ...unionLocations];
 }
 
 /**

@@ -7,6 +7,8 @@ import {
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import type { UnionType } from "@testvibe/core";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,12 @@ async function createUnionAction(formData: FormData) {
   "use server";
   const startDate = formData.get("startDate")?.toString().trim() || null;
   const endDate = formData.get("endDate")?.toString().trim() || null;
+  const type = formData.get("type")?.toString() as UnionType;
+  const place = formData.get("place")?.toString().trim() || null;
+  const latitudeRaw = formData.get("latitude")?.toString().trim();
+  const longitudeRaw = formData.get("longitude")?.toString().trim();
+  const latitude = latitudeRaw ? Number(latitudeRaw) : null;
+  const longitude = longitudeRaw ? Number(longitudeRaw) : null;
   const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
   const personIds = personIdsRaw.filter((id) => !Number.isNaN(id) && id > 0);
 
@@ -24,7 +32,7 @@ async function createUnionAction(formData: FormData) {
   }
 
   try {
-    await adminCreateUnion({ startDate, endDate, personIds });
+    await adminCreateUnion({ type, startDate, endDate, place, latitude, longitude, personIds });
   } catch {
     redirect("/admin/unions?error=validation");
   }
@@ -70,6 +78,14 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
           </p>
         )}
         <form action={createUnionAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label htmlFor="type" className="mb-1 block text-sm font-medium text-slate-700">Type d&apos;union</label>
+            <select id="type" name="type" defaultValue="libre" className="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+              <option value="mariage">Mariage</option>
+              <option value="pacs">Pacs</option>
+              <option value="libre">Union libre</option>
+            </select>
+          </div>
           <div>
             <label htmlFor="startDate" className="mb-1 block text-sm font-medium text-slate-700">
               Date de début
@@ -80,6 +96,10 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
               type="date"
               className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
             />
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor="union-place" className="mb-1 block text-sm font-medium text-slate-700">Ville ou lieu</label>
+            <PlaceAutocomplete inputId="union-place" placeholder="Rechercher une ville…" />
           </div>
           <div>
             <label htmlFor="endDate" className="mb-1 block text-sm font-medium text-slate-700">
@@ -141,10 +161,11 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
               return (
                 <li key={u.id} className="flex items-center justify-between px-4 py-3">
                   <div>
-                    <span className="font-medium text-slate-900">Union #{u.id}</span>
+                    <span className="font-medium text-slate-900">{u.type === "mariage" ? "Mariage" : u.type === "pacs" ? "Pacs" : "Union libre"} #{u.id}</span>
                     <span className="ml-2 text-sm text-slate-500">
                       {partners}
                       {u.startDate ? ` (depuis ${u.startDate})` : ""}
+                      {u.place ? ` — ${u.place}` : ""}
                     </span>
                   </div>
                   <div className="flex gap-2">

@@ -44,9 +44,14 @@ interface GedcomFam {
   xref: string;
   husbXref: string | null;
   wifeXref: string | null;
+  hasMarriage: boolean;
   marriageDate: string | null;
   /** Lieu du mariage (PLAC sous MARR). */
   marriagePlace: string | null;
+  /** Type explicite porté par un événement familial EVEN. */
+  partnershipType: "pacs" | "libre" | null;
+  partnershipDate: string | null;
+  partnershipPlace: string | null;
   childXrefs: string[];
 }
 
@@ -273,8 +278,12 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
       const xref = line.xref;
       let husbXref: string | null = null;
       let wifeXref: string | null = null;
+      let hasMarriage = false;
       let marriageDate: string | null = null;
       let marriagePlace: string | null = null;
+      let partnershipType: "pacs" | "libre" | null = null;
+      let partnershipDate: string | null = null;
+      let partnershipPlace: string | null = null;
       const childXrefs: string[] = [];
       let inMarr = false;
 
@@ -291,7 +300,29 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
           childXrefs.push(sub.value);
           inMarr = false;
         } else if (sub.level === 1 && sub.tag === "MARR") {
+          hasMarriage = true;
           inMarr = true;
+        } else if (sub.level === 1 && sub.tag === "EVEN") {
+          inMarr = false;
+          let eventType: string | null = null;
+          let eventDate: string | null = null;
+          let eventPlace: string | null = null;
+          let eventIndex = i + 1;
+          while (eventIndex < parsed.length && parsed[eventIndex].level > 1) {
+            const eventSub = parsed[eventIndex];
+            if (eventSub.level === 2 && eventSub.tag === "TYPE") eventType = eventSub.value;
+            if (eventSub.level === 2 && eventSub.tag === "DATE") eventDate = parseGedcomDate(eventSub.value);
+            if (eventSub.level === 2 && eventSub.tag === "PLAC") eventPlace = eventSub.value || null;
+            eventIndex++;
+          }
+          const normalizedType = eventType?.trim().toUpperCase();
+          if (normalizedType === "PACS" || normalizedType === "UNION LIBRE") {
+            partnershipType = normalizedType === "PACS" ? "pacs" : "libre";
+            partnershipDate = eventDate;
+            partnershipPlace = eventPlace;
+          }
+          i = eventIndex;
+          continue;
         } else if (sub.level === 2 && sub.tag === "DATE" && inMarr) {
           marriageDate = parseGedcomDate(sub.value);
         } else if (sub.level === 2 && sub.tag === "PLAC" && inMarr) {
@@ -302,7 +333,18 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
         i++;
       }
 
-      fams.push({ xref, husbXref, wifeXref, marriageDate, marriagePlace, childXrefs });
+      fams.push({
+        xref,
+        husbXref,
+        wifeXref,
+        hasMarriage,
+        marriageDate,
+        marriagePlace,
+        partnershipType,
+        partnershipDate,
+        partnershipPlace,
+        childXrefs,
+      });
       continue;
     }
 
@@ -460,14 +502,19 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
 
       // Crée l'union si elle a au moins un partenaire
       if (personIds.length > 0) {
+        const unionType = fam.hasMarriage ? "mariage" : (fam.partnershipType ?? "libre");
+        const unionDate = fam.hasMarriage ? fam.marriageDate : fam.partnershipDate;
+        const unionPlace = fam.hasMarriage ? fam.marriagePlace : fam.partnershipPlace;
         const union = await createUnion(db, {
-          startDate: fam.marriageDate ?? null,
+          type: unionType,
+          startDate: unionDate,
           endDate: null,
+          place: unionPlace,
           personIds,
         });
         insertedUnionIds.push(union.id);
 
-        if (fam.marriagePlace) {
+        if (fam.hasMarriage && fam.marriagePlace) {
           for (const personId of personIds) {
             const ev = await createEvent(db, {
               personId,
@@ -672,20 +719,19 @@ export async function exportGedcom(db: Database): Promise<string> {
       if (xref) lines.push(`1 WIFE ${xref}`);
     }
 
-    if (union.startDate) {
-      const gDate = toGedcomDate(union.startDate);
-      if (gDate) {
-        lines.push("1 MARR");
-        lines.push(`2 DATE ${gDate}`);
-        const marriagePlace = marriageEventPlaceByUnionId.get(union.id);
-        if (marriagePlace) lines.push(`2 PLAC ${marriagePlace}`);
-      }
+    const unionDate = union.startDate ? toGedcomDate(union.startDate) : null;
+    if (union.type === "mariage") {
+      lines.push("1 MARR");
+      if (unionDate) lines.push(`2 DATE ${unionDate}`);
+      const marriagePlace = union.place ?? marriageEventPlaceByUnionId.get(union.id);
+      if (marriagePlace) lines.push(`2 PLAC ${marriagePlace}`);
     } else {
-      const marriagePlace = marriageEventPlaceByUnionId.get(union.id);
-      if (marriagePlace) {
-        lines.push("1 MARR");
-        lines.push(`2 PLAC ${marriagePlace}`);
-      }
+      // GEDCOM 5.5.1 n'a pas de balise dédiée au PACS ou à l'union libre.
+      // Un événement familial EVEN + TYPE préserve explicitement leur nature.
+      lines.push("1 EVEN");
+      lines.push(`2 TYPE ${union.type === "pacs" ? "PACS" : "UNION LIBRE"}`);
+      if (unionDate) lines.push(`2 DATE ${unionDate}`);
+      if (union.place) lines.push(`2 PLAC ${union.place}`);
     }
 
     // Enfants : filiations où parentId ∈ union.personIds

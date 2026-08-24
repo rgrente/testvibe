@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MapLocation } from "@testvibe/core";
-import { filterMapLocations, getEventDateRange } from "./MapClient";
+import { filterMapLocations, getEventDateRange, getMapLocationTypeLabel } from "./MapClient";
 
 function location(
   eventId: number,
@@ -9,6 +9,7 @@ function location(
 ): MapLocation {
   return {
     eventId,
+    source: "event",
     personId,
     personName: `Personne ${personId}`,
     type: "libre",
@@ -49,5 +50,20 @@ describe("filterMapLocations", () => {
   it("inclut la personne racine avec sa branche et exclut les dates absentes", () => {
     expect(filterMapLocations(locations, [2, 3], 1, "descendants", "1900-01-01", "1900-12-31"))
       .toEqual([locations[1], locations[2]]);
+  });
+});
+
+describe("getMapLocationTypeLabel", () => {
+  it("distingue une union libre d'un événement libre", () => {
+    const freeEvent = location(1, 1, null);
+    const freeUnion: MapLocation = {
+      ...freeEvent,
+      eventId: -1,
+      source: "union",
+      personIds: [1, 2],
+    };
+
+    expect(getMapLocationTypeLabel(freeEvent)).toBe("Événement");
+    expect(getMapLocationTypeLabel(freeUnion)).toBe("Union libre");
   });
 });
