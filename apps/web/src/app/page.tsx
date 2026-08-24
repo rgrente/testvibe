@@ -1,7 +1,6 @@
 import { getFamilyAnniversariesForWeb, listAllPersonsForWeb, localCalendarDate, searchPersonsForWeb } from "@testvibe/core";
 import Link from "next/link";
-import { FamilyTreeCanvas } from "../components/FamilyTreeCanvas";
-import { FamilyTreeMobileList } from "../components/FamilyTreeMobileList";
+import { FamilyTreeViews } from "../components/FamilyTreeViews";
 import { RootPersonSelect } from "../components/RootPersonSelect";
 import { getFamilyTreeForWeb } from "@testvibe/core";
 import { FamilyAnniversaries } from "../components/FamilyAnniversaries";
@@ -147,8 +146,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             — {tree.nodes.length} personne(s) affichée(s).
           </p>
           <RootPersonSelect persons={persons} selectedId={rootId} />
-          <FamilyTreeCanvas tree={tree} />
-          <FamilyTreeMobileList tree={tree} />
+          <FamilyTreeViews tree={tree} />
         </>
       )}
 

@@ -25,6 +25,18 @@ function personData(node: ReturnType<typeof buildReactFlowGraph>["nodes"][number
 }
 
 describe("buildReactFlowGraph", () => {
+  it("utilise un profil mobile compact sans changer la sémantique du graphe", () => {
+    const desktop = buildReactFlowGraph(makeTree(), "desktop");
+    const mobile = buildReactFlowGraph(makeTree(), "mobile");
+    const x = (graph: typeof desktop, id: string) => graph.nodes.find((node) => node.id === id)!.position.x;
+    const y = (graph: typeof desktop, id: string) => graph.nodes.find((node) => node.id === id)!.position.y;
+
+    expect(x(mobile, "3") - x(mobile, "2")).toBe(210);
+    expect(x(desktop, "3") - x(desktop, "2")).toBe(300);
+    expect(Math.abs(y(mobile, "1"))).toBeLessThan(Math.abs(y(desktop, "1")));
+    expect(mobile.edges.map((edge) => edge.id)).toEqual(desktop.edges.map((edge) => edge.id));
+    expect(personData(mobile.nodes.find((node) => node.id === "2")!).layoutProfile).toBe("mobile");
+  });
   it("crée un noeud react-flow par Person avec sa génération et si c'est la racine", () => {
     const graph = buildReactFlowGraph(makeTree());
     const personNodes = graph.nodes.filter((n) => n.type === "person");

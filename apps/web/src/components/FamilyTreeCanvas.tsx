@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Background, Controls, ReactFlow, type NodeTypes } from "@xyflow/react";
+import { Background, ReactFlow, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
-import { buildReactFlowGraph } from "../lib/family-tree-layout";
+import { buildReactFlowGraph, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
 import { UnionJunctionNode } from "./UnionJunctionNode";
 
@@ -13,35 +13,66 @@ const nodeTypes: NodeTypes = { person: PersonNode, unionJunction: UnionJunctionN
 
 export interface FamilyTreeCanvasProps {
   tree: FamilyTree;
+  profile?: FamilyTreeLayoutProfile;
+  className?: string;
 }
 
-/**
- * Vue desktop de l'arbre généalogique : canevas react-flow interactif
- * (pan/zoom) affichant une ligne par génération. Masquée sur petits
- * écrans au profit de FamilyTreeMobileList (cf. page.tsx).
- */
-export function FamilyTreeCanvas({ tree }: FamilyTreeCanvasProps) {
+export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: FamilyTreeCanvasProps) {
   const router = useRouter();
-  const graph = useMemo(() => buildReactFlowGraph(tree), [tree]);
+  const instanceRef = useRef<ReactFlowInstance<ReactFlowGraphNode> | null>(null);
+  const graph = useMemo(() => buildReactFlowGraph(tree, profile), [tree, profile]);
+
+  const centerRoot = useCallback(() => {
+    const root = graph.nodes.find((node) => node.id === String(tree.rootId));
+    if (!root || !instanceRef.current) return;
+    const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    const width = profile === "mobile" ? 150 : (root.measured?.width ?? 180);
+    const height = root.measured?.height ?? 64;
+    void instanceRef.current.setCenter(root.position.x + width / 2, root.position.y + height / 2, {
+      zoom: profile === "mobile" ? 1 : 0.9,
+      duration: reducedMotion ? 0 : 250,
+    });
+  }, [graph.nodes, profile, tree.rootId]);
+
+  useEffect(() => {
+    if (!instanceRef.current) return;
+    const frame = window.requestAnimationFrame(centerRoot);
+    window.addEventListener("resize", centerRoot);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", centerRoot);
+    };
+  }, [centerRoot]);
 
   return (
-    <div
-      data-testid="family-tree-canvas"
-      className="hidden h-[70vh] w-full rounded-lg border border-slate-200 md:block"
-    >
+    <div data-testid={`family-tree-canvas-${profile}`} className={`relative h-[65vh] min-h-[440px] w-full rounded-lg border border-slate-200 ${className}`}>
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}
         nodeTypes={nodeTypes}
+        onInit={(instance) => {
+          instanceRef.current = instance;
+          window.requestAnimationFrame(centerRoot);
+        }}
         onNodeClick={(_event, node) => {
           if (node.type === "person") router.push(`/?personId=${node.id}`);
         }}
-        fitView
+        panOnDrag
+        zoomOnPinch
+        zoomOnDoubleClick={false}
+        zoomOnScroll={profile === "desktop"}
+        preventScrolling={profile === "desktop"}
+        minZoom={0.45}
+        maxZoom={1.8}
         proOptions={{ hideAttribution: true }}
       >
         <Background />
-        <Controls />
       </ReactFlow>
+      <div className="absolute bottom-3 right-3 z-10 flex gap-2" aria-label="Contrôles de l’arbre">
+        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-sm hover:bg-slate-50" onClick={() => instanceRef.current?.zoomIn({ duration: 150 })} aria-label="Zoom avant">+</button>
+        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-sm hover:bg-slate-50" onClick={() => instanceRef.current?.zoomOut({ duration: 150 })} aria-label="Zoom arrière">−</button>
+        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50" onClick={centerRoot}>Recentrer</button>
+      </div>
     </div>
   );
 }

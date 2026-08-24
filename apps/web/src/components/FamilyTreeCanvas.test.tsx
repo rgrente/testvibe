@@ -4,7 +4,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { FamilyTree } from "@testvibe/core";
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
+const { push, setCenter, zoomIn, zoomOut } = vi.hoisted(() => ({
+  push: vi.fn(),
+  setCenter: vi.fn(),
+  zoomIn: vi.fn(),
+  zoomOut: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push }),
@@ -19,11 +24,14 @@ interface MockReactFlowProps {
   nodes: MockNode[];
   edges: Array<{ id: string }>;
   onNodeClick?: (event: MouseEvent<HTMLButtonElement>, node: MockNode) => void;
+  onInit?: (instance: unknown) => void;
   children?: ReactNode;
 }
 
 vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({ nodes, edges, onNodeClick, children }: MockReactFlowProps) => (
+  ReactFlow: ({ nodes, edges, onNodeClick, onInit, children }: MockReactFlowProps) => {
+    onInit?.({ setCenter, zoomIn, zoomOut });
+    return (
     <div>
       {nodes.map((node) => (
         <button
@@ -42,7 +50,8 @@ vi.mock("@xyflow/react", () => ({
       ))}
       {children}
     </div>
-  ),
+    );
+  },
   Background: () => <button type="button" data-testid="flow-background">Fond</button>,
   Controls: () => <button type="button" data-testid="flow-controls">Contrôles</button>,
 }));
@@ -85,6 +94,9 @@ function makeTree(): FamilyTree {
 describe("FamilyTreeCanvas", () => {
   beforeEach(() => {
     push.mockReset();
+    setCenter.mockReset();
+    zoomIn.mockReset();
+    zoomOut.mockReset();
   });
 
   it("navigue vers la personne cliquée pour la choisir comme racine", () => {
@@ -102,8 +114,20 @@ describe("FamilyTreeCanvas", () => {
     fireEvent.click(screen.getByTestId("flow-node-union-10"));
     fireEvent.click(screen.getAllByTestId(/^flow-edge-/)[0]);
     fireEvent.click(screen.getByTestId("flow-background"));
-    fireEvent.click(screen.getByTestId("flow-controls"));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
 
     expect(push).not.toHaveBeenCalled();
+  });
+
+  it("recentre la racine et expose des contrôles de zoom tactiles", () => {
+    render(<FamilyTreeCanvas tree={makeTree()} profile="mobile" />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Zoom avant" }));
+    fireEvent.click(screen.getByRole("button", { name: "Zoom arrière" }));
+    fireEvent.click(screen.getByRole("button", { name: "Recentrer" }));
+
+    expect(zoomIn).toHaveBeenCalledOnce();
+    expect(zoomOut).toHaveBeenCalledOnce();
+    expect(setCenter).toHaveBeenCalledWith(75, 32, expect.objectContaining({ zoom: 1 }));
   });
 });

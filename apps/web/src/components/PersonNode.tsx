@@ -1,6 +1,7 @@
 "use client";
 
 import { memo } from "react";
+import Link from "next/link";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { PersonFlowNode } from "../lib/family-tree-layout";
 
@@ -31,7 +32,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   return (
     <div
       data-testid={`person-node-${data.personId}`}
-      className={`cursor-pointer rounded-lg border px-4 py-2 text-sm shadow-sm ${
+      className={`cursor-pointer rounded-lg border text-sm shadow-sm ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "px-4 py-2"} ${
         data.isRoot
           ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
           : "border-slate-300 bg-white text-slate-800"
@@ -66,6 +67,14 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
           {data.deathDate && <span>† {formatDate(data.deathDate)}</span>}
         </div>
       )}
+      <Link
+        href={`/persons/${data.personId}`}
+        className="nodrag nopan mt-1 inline-flex min-h-11 items-center text-xs font-medium text-blue-700 underline-offset-2 hover:underline focus:outline-none focus:ring-2 focus:ring-blue-500"
+        onClick={(event) => event.stopPropagation()}
+        aria-label={`Voir la fiche de ${data.label}`}
+      >
+        Voir la fiche
+      </Link>
       <Handle id="bottom" type="source" position={Position.Bottom} />
     </div>
   );

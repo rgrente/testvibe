@@ -2,8 +2,8 @@
  * Fonctions pures de mise en page pour la visualisation de l'arbre
  * généalogique (Phase 2, tâche #21). Ne dépend d'aucun framework UI :
  * transforme un `FamilyTree` (@testvibe/core, lecture seule) en
- * structures prêtes à consommer par react-flow (desktop) ou par la
- * vue liste hiérarchique (mobile).
+ * structures prêtes à consommer par React Flow selon un profil desktop
+ * ou mobile, ainsi que par la vue liste accessible.
  */
 import type { FamilyTree } from "@testvibe/core";
 import type { Edge, Node } from "@xyflow/react";
@@ -17,6 +17,7 @@ export interface PersonNodeData extends Record<string, unknown> {
   gender: string | null;
   birthDate: string | null;
   deathDate: string | null;
+  layoutProfile?: FamilyTreeLayoutProfile;
 }
 
 export interface UnionJunctionNodeData extends Record<string, unknown> {
@@ -34,12 +35,12 @@ export interface ReactFlowGraph {
   edges: ReactFlowGraphEdge[];
 }
 
-const GENERATION_ROW_HEIGHT = 140;
-const NODE_COLUMN_WIDTH = 220;
-/** Écart horizontal dédié entre les deux membres d'un couple (> écart standard entre personnes sans lien direct). */
-const UNION_PARTNER_GAP = 300;
-/** Demi-largeur approximative d'une carte Person, pour centrer le point de jonction d'union. */
-const PERSON_NODE_HALF_WIDTH = 90;
+export type FamilyTreeLayoutProfile = "desktop" | "mobile";
+
+const LAYOUT = {
+  desktop: { generationRowHeight: 140, nodeColumnWidth: 220, unionPartnerGap: 300, personNodeHalfWidth: 90 },
+  mobile: { generationRowHeight: 112, nodeColumnWidth: 170, unionPartnerGap: 210, personNodeHalfWidth: 75 },
+} as const;
 /**
  * Décalage vertical fixe des handles latéraux d'une carte Person (cf.
  * `PersonNode`, `style={{ top: 20 }}`) : le point de jonction d'union
@@ -110,7 +111,11 @@ function orderCoupleLeftToRight(a: FamilyTreeNode, b: FamilyTreeNode): [FamilyTr
  * commun aux deux partenaires partent de ce point unique plutôt que
  * de chaque parent séparément, pour éviter les traits dupliqués.
  */
-export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
+export function buildReactFlowGraph(
+  tree: FamilyTree,
+  layoutProfile: FamilyTreeLayoutProfile = "desktop",
+): ReactFlowGraph {
+  const { generationRowHeight, nodeColumnWidth, unionPartnerGap, personNodeHalfWidth } = LAYOUT[layoutProfile];
   const sortedByGeneration = [...tree.nodes].sort(compareSiblingOrder);
 
   // Partenaire d'Union à deux membres, pour un placement adjacent garanti
@@ -164,7 +169,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     personNodes.push({
       id: String(n.person.id),
       type: "person",
-      position: { x, y: n.generation * GENERATION_ROW_HEIGHT },
+      position: { x, y: n.generation * generationRowHeight },
       data: {
         personId: n.person.id,
         label: `${n.person.firstName} ${n.person.lastName}`.trim(),
@@ -174,6 +179,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
         gender: n.person.gender,
         birthDate: n.person.birthDate,
         deathDate: n.person.deathDate,
+        layoutProfile,
       },
     });
   };
@@ -181,11 +187,11 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
   type Unit = { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] };
 
   /** Largeur (écart entre le premier membre et son partenaire) occupée par l'unité ; 0 pour une personne seule. */
-  const widthOf = (unit: Unit) => (unit.partner ? UNION_PARTNER_GAP : 0);
+  const widthOf = (unit: Unit) => (unit.partner ? unionPartnerGap : 0);
 
   const placeUnit = (unit: Unit, x: number) => {
     placeNode(unit.first, x);
-    if (unit.partner) placeNode(unit.partner, x + UNION_PARTNER_GAP);
+    if (unit.partner) placeNode(unit.partner, x + unionPartnerGap);
   };
 
   for (const generation of generationOrder) {
@@ -215,7 +221,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       let cursorX = 0;
       for (const unit of units) {
         placeUnit(unit, cursorX);
-        cursorX += widthOf(unit) + NODE_COLUMN_WIDTH;
+        cursorX += widthOf(unit) + nodeColumnWidth;
       }
       continue;
     }
@@ -259,14 +265,14 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     }
 
     const clusterWidthOf = (cluster: (typeof clusters)[number]) =>
-      cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * NODE_COLUMN_WIDTH;
+      cluster.units.reduce((sum, u) => sum + widthOf(u), 0) + (cluster.units.length - 1) * nodeColumnWidth;
 
     const placeSequence = (clustersToPlace: typeof clusters, startX: number) => {
       let x = startX;
       for (const cluster of clustersToPlace) {
         for (const unit of cluster.units) {
           placeUnit(unit, x);
-          x += widthOf(unit) + NODE_COLUMN_WIDTH;
+          x += widthOf(unit) + nodeColumnWidth;
         }
       }
       return x;
@@ -296,7 +302,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       for (const cluster of anchoredClusters) {
         const width = clusterWidthOf(cluster);
         const ideal = cluster.anchor! - width / 2;
-        const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + NODE_COLUMN_WIDTH) : ideal;
+        const start = Number.isFinite(prevEnd) ? Math.max(ideal, prevEnd + nodeColumnWidth) : ideal;
         leftPass.push(start);
         prevEnd = start + width;
       }
@@ -309,7 +315,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
         const cluster = anchoredClusters[i];
         const width = clusterWidthOf(cluster);
         const ideal = cluster.anchor! - width / 2;
-        const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - NODE_COLUMN_WIDTH - width) : ideal;
+        const start = Number.isFinite(nextStart) ? Math.min(ideal, nextStart - nodeColumnWidth - width) : ideal;
         rightPass[i] = start;
         nextStart = start;
       }
@@ -320,19 +326,19 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
     let prevEnd = Number.NEGATIVE_INFINITY;
     anchoredClusters.forEach((cluster, i) => {
       const averaged = (leftPass[i] + rightPass[i]) / 2;
-      const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + NODE_COLUMN_WIDTH) : averaged;
+      const start = Number.isFinite(prevEnd) ? Math.max(averaged, prevEnd + nodeColumnWidth) : averaged;
       prevEnd = start + clusterWidthOf(cluster);
 
       let x = start;
       for (const unit of cluster.units) {
         placeUnit(unit, x);
-        x += widthOf(unit) + NODE_COLUMN_WIDTH;
+        x += widthOf(unit) + nodeColumnWidth;
       }
     });
 
     // Les unités sans ancrage viennent enfin s'enchaîner après le dernier
     // groupe ancré (ou depuis 0 si la génération n'en a aucun).
-    placeSequence(trailingUnanchoredClusters, Number.isFinite(prevEnd) ? prevEnd + NODE_COLUMN_WIDTH : 0);
+    placeSequence(trailingUnanchoredClusters, Number.isFinite(prevEnd) ? prevEnd + nodeColumnWidth : 0);
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
@@ -364,7 +370,7 @@ export function buildReactFlowGraph(tree: FamilyTree): ReactFlowGraph {
       id: junctionId,
       type: "unionJunction",
       position: {
-        x: (posA.x + posB.x) / 2 + PERSON_NODE_HALF_WIDTH,
+        x: (posA.x + posB.x) / 2 + personNodeHalfWidth,
         // Même partenaires nécessairement à la même génération (donc même y) :
         // aligné sur l'offset fixe des handles latéraux pour un lien horizontal.
         y: posA.y + PERSON_HANDLE_Y_OFFSET - JUNCTION_HALF_SIZE,

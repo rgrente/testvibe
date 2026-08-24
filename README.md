@@ -40,6 +40,16 @@ pnpm test
 pnpm build
 ```
 
+### Contrôle tactile de l’arbre
+
+Sur iOS Safari et Android Chrome, vérifier à 320 px et après rotation que :
+
+- l’arbre est le mode initial et reste centré sur la racine ;
+- le déplacement à un doigt et le zoom par pincement fonctionnent dans le canevas ;
+- le défilement vertical de la page fonctionne hors du canevas ;
+- les boutons `+`, `−`, `Recentrer`, le changement de racine et le lien `Voir la fiche` répondent au toucher ;
+- le choix `Arbre | Liste` est conservé après une navigation ou un rechargement.
+
 ## Convention de nommage des personnes
 
 - `lastName` est le nom principal/courant affiché avec le prénom.
