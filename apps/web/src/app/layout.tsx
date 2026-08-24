@@ -24,6 +24,9 @@ export default function RootLayout({
               <Link href="/timeline" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Timeline
               </Link>
+              <Link href="/ce-jour-la" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+                Ce jour-là
+              </Link>
               <Link href="/carte" className="text-sm font-medium text-slate-600 hover:text-slate-900">
                 Carte
               </Link>
