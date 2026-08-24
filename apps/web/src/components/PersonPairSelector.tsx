@@ -16,7 +16,7 @@ function matchesQuery(person: Person, query: string): boolean {
   const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return true;
 
-  return [person.firstName, person.lastName, person.birthName]
+  return [person.firstName, person.lastName, person.birthName, displayName(person)]
     .filter(Boolean)
     .some((value) => value!.toLocaleLowerCase().includes(normalizedQuery));
 }

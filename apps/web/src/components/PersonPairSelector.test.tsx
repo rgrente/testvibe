@@ -22,6 +22,18 @@ describe("PersonPairSelector", () => {
     expect(select).not.toHaveTextContent("Alan Turing");
   });
 
+  it("filtre aussi avec le prénom et le nom combinés", () => {
+    render(<PersonPairSelector persons={persons} />);
+
+    fireEvent.change(screen.getByRole("searchbox", { name: "Rechercher la personne 1" }), {
+      target: { value: "ADA love" },
+    });
+
+    const select = screen.getByRole("combobox", { name: "Personne 1" });
+    expect(select).toHaveTextContent("Ada Lovelace");
+    expect(select).not.toHaveTextContent("Grace Hopper");
+  });
+
   it("gère deux recherches indépendantes et interdit un partenaire en double", () => {
     render(<PersonPairSelector persons={persons} />);
     const first = screen.getByRole("combobox", { name: "Personne 1" });
