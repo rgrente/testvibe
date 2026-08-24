@@ -309,6 +309,82 @@ describe("exportGedcom", () => {
     expect(roundTripPlaces.filter((value) => value.endsWith(":Paris"))).toHaveLength(2);
     expect(roundTripPlaces.filter((value) => value.endsWith(":Lyon"))).toHaveLength(2);
   });
+
+  it("préserve les types mariage, PACS et union libre à l'aller-retour", async () => {
+    const unionTypes = `0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME Alice /A/
+0 @I2@ INDI
+1 NAME Bob /B/
+0 @I3@ INDI
+1 NAME Camille /C/
+0 @I4@ INDI
+1 NAME Dan /D/
+0 @I5@ INDI
+1 NAME Eve /E/
+0 @I6@ INDI
+1 NAME Fred /F/
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 MARR
+2 DATE 1 JAN 2000
+2 PLAC Paris
+0 @F2@ FAM
+1 HUSB @I3@
+1 WIFE @I4@
+1 EVEN
+2 TYPE PACS
+2 DATE 2 FEB 2002
+2 PLAC Lyon
+0 @F3@ FAM
+1 HUSB @I5@
+1 WIFE @I6@
+1 EVEN
+2 TYPE Union libre
+2 DATE 3 MAR 2003
+2 PLAC Lille
+0 TRLR
+`;
+
+    await importGedcom(db, unionTypes);
+    const importedByPlace = new Map((await listUnions(db)).map((union) => [union.place, union]));
+    expect(importedByPlace.get("Paris")).toMatchObject({ type: "mariage", startDate: "2000-01-01" });
+    expect(importedByPlace.get("Lyon")).toMatchObject({ type: "pacs", startDate: "2002-02-02" });
+    expect(importedByPlace.get("Lille")).toMatchObject({ type: "libre", startDate: "2003-03-03" });
+
+    const exported = await exportGedcom(db);
+    expect(exported.match(/^1 MARR$/gm)).toHaveLength(1);
+    expect(exported).toContain("1 EVEN\n2 TYPE PACS\n2 DATE 2 FEB 2002\n2 PLAC Lyon");
+    expect(exported).toContain("1 EVEN\n2 TYPE UNION LIBRE\n2 DATE 3 MAR 2003\n2 PLAC Lille");
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    const roundTripByPlace = new Map((await listUnions(db2)).map((union) => [union.place, union]));
+    expect(roundTripByPlace.get("Paris")?.type).toBe("mariage");
+    expect(roundTripByPlace.get("Lyon")?.type).toBe("pacs");
+    expect(roundTripByPlace.get("Lille")?.type).toBe("libre");
+  });
+
+  it("importe une famille sans événement comme union libre", async () => {
+    const bareFamily = `0 HEAD
+0 @I1@ INDI
+1 NAME Alice /A/
+0 @I2@ INDI
+1 NAME Bob /B/
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+0 TRLR
+`;
+
+    await importGedcom(db, bareFamily);
+    expect(await listUnions(db)).toMatchObject([
+      { type: "libre", startDate: null, place: null },
+    ]);
+  });
 });
 
 describe("GEDCOM naissance/décès : auto-sync + PLAC aller-retour", () => {

@@ -8,6 +8,7 @@
 export type FiliationRole = "biologique" | "adopte" | "beau-parent";
 
 export type EventType = "naissance" | "décès" | "mariage" | "libre";
+export type UnionType = "mariage" | "pacs" | "libre";
 
 export interface Person {
   id: number;
@@ -30,15 +31,23 @@ export interface PersonInput {
 
 export interface Union {
   id: number;
+  type: UnionType;
   startDate: string | null;
   endDate: string | null;
+  place: string | null;
+  latitude: number | null;
+  longitude: number | null;
   /** Identifiants des personnes liées à cette union (ordre non garanti). */
   personIds: number[];
 }
 
 export interface UnionInput {
+  type?: UnionType;
   startDate?: string | null;
   endDate?: string | null;
+  place?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
   personIds: number[];
 }
 
@@ -135,9 +144,13 @@ export interface MediaInput {
 /** Événement géolocalisé pour la carte publique (filtré par confidentialité). */
 export interface MapLocation {
   eventId: number;
+  /** Origine métier du point, nécessaire car certains types sont partagés. */
+  source: "event" | "union";
   personId: number;
+  /** Toutes les personnes concernées (notamment pour un lieu porté par une union). */
+  personIds?: number[];
   personName: string;
-  type: EventType;
+  type: EventType | UnionType;
   label: string | null;
   eventDate: string | null;
   place: string;

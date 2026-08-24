@@ -22,6 +22,15 @@ export interface EventDateRange {
   end: number;
 }
 
+export function getMapLocationTypeLabel(location: MapLocation): string {
+  if (location.type === "naissance") return "Naissance";
+  if (location.type === "décès") return "Décès";
+  if (location.type === "mariage") return "Mariage";
+  if (location.type === "pacs") return "Pacs";
+  if (location.source === "union" && location.type === "libre") return "Union libre";
+  return location.label || "Événement";
+}
+
 /** Interprète les dates partielles du domaine comme un intervalle inclusif. */
 export function getEventDateRange(date: string | null): EventDateRange | null {
   if (!date) return null;
@@ -68,8 +77,8 @@ export function filterMapLocations(
         ...selectedPersonIds,
         ...(selectedPersonId == null ? [] : [selectedPersonId]),
       ]);
-      if (!branchIds.has(loc.personId)) return false;
-    } else if (selectedPersonId != null && loc.personId !== selectedPersonId) {
+      if (!(loc.personIds ?? [loc.personId]).some((id) => branchIds.has(id))) return false;
+    } else if (selectedPersonId != null && !(loc.personIds ?? [loc.personId]).includes(selectedPersonId)) {
       return false;
     }
 
@@ -208,13 +217,7 @@ export default function MapClient({
                 {selectedMarker.personName}
               </p>
               <p className="text-sm text-slate-600">
-                {selectedMarker.type === "naissance"
-                  ? "Naissance"
-                  : selectedMarker.type === "décès"
-                    ? "Décès"
-                    : selectedMarker.type === "mariage"
-                      ? "Mariage"
-                      : selectedMarker.label || "Événement"}
+                {getMapLocationTypeLabel(selectedMarker)}
                 {selectedMarker.eventDate
                   ? ` — ${selectedMarker.eventDate}`
                   : ""}
@@ -253,13 +256,7 @@ export default function MapClient({
                   {loc.personName}
                 </span>
                 <span className="ml-2 text-sm text-slate-600">
-                  {loc.type === "naissance"
-                    ? "Naissance"
-                    : loc.type === "décès"
-                      ? "Décès"
-                      : loc.type === "mariage"
-                        ? "Mariage"
-                        : loc.label || "Événement"}
+                  {getMapLocationTypeLabel(loc)}
                 </span>
                 {loc.eventDate && (
                   <span className="ml-1 text-sm text-slate-500">

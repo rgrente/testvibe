@@ -28,8 +28,12 @@ export const person = sqliteTable("person", {
 // ambiguïté de parsing selon les dialectes/outils.
 export const unions = sqliteTable("unions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
+  type: text("type", { enum: ["mariage", "pacs", "libre"] }).notNull().default("libre"),
   startDate: text("start_date"),
   endDate: text("end_date"),
+  place: text("place"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
 });
 
 // Table de jonction : personnes appartenant à une union (typiquement 2,
