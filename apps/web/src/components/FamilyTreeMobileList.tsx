@@ -6,15 +6,13 @@ export interface FamilyTreeMobileListProps {
 }
 
 /**
- * Vue mobile simplifiée de l'arbre généalogique : liste hiérarchique
- * indentée (sans pan/zoom), affichée uniquement sur petits écrans —
- * react-flow n'est pas adapté au tactile sur un écran étroit.
+ * Alternative linéaire et accessible à la vue graphique mobile.
  */
 export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
   const rows = buildHierarchyRows(tree);
 
   return (
-    <ul data-testid="family-tree-mobile-list" className="block space-y-1 md:hidden">
+    <ul data-testid="family-tree-mobile-list" className="space-y-1">
       {rows.map((row) => (
         <li
           key={row.personId}
