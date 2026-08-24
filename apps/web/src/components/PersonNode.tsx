@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "reactflow";
-import type { PersonNodeData } from "../lib/family-tree-layout";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
+import type { PersonFlowNode } from "../lib/family-tree-layout";
 
 const GENDER_STYLES: Record<string, { symbol: string; className: string }> = {
   M: { symbol: "♂", className: "border-sky-300 bg-sky-50 text-sky-700" },
@@ -24,7 +24,7 @@ function formatDate(value: string): string {
  * le genre par un badge coloré, et les dates de naissance/décès
  * apparaissent en sous-titre lorsqu'elles sont renseignées.
  */
-function PersonNodeComponent({ data }: NodeProps<PersonNodeData>) {
+function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   const genderStyle = data.gender ? GENDER_STYLES[data.gender] : undefined;
   const hasDates = Boolean(data.birthDate || data.deathDate);
 

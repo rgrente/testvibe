@@ -1,8 +1,8 @@
 "use client";
 
 import { memo } from "react";
-import { Handle, Position, type NodeProps } from "reactflow";
-import type { UnionJunctionNodeData } from "../lib/family-tree-layout";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
+import type { UnionJunctionFlowNode } from "../lib/family-tree-layout";
 
 /**
  * Point de jonction discret représentant une Union dans le canevas
@@ -10,7 +10,7 @@ import type { UnionJunctionNodeData } from "../lib/family-tree-layout";
  * leurs enfants communs en repartent, pour éviter un trait dupliqué
  * par parent vers chaque enfant.
  */
-function UnionJunctionNodeComponent({ data }: NodeProps<UnionJunctionNodeData>) {
+function UnionJunctionNodeComponent({ data }: NodeProps<UnionJunctionFlowNode>) {
   return (
     <div
       data-testid={`union-junction-${data.unionId}`}

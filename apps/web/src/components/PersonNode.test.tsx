@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
-vi.mock("reactflow", () => ({
+vi.mock("@xyflow/react", () => ({
   Handle: () => null,
   Position: { Top: "top", Left: "left", Right: "right", Bottom: "bottom" },
 }));
@@ -22,7 +22,22 @@ function renderNode(overrides: Partial<PersonNodeData> = {}) {
     deathDate: null,
     ...overrides,
   };
-  render(<PersonNode data={data} id="1" type="person" selected={false} zIndex={0} isConnectable={false} xPos={0} yPos={0} dragging={false} />);
+  render(
+    <PersonNode
+      data={data}
+      id="1"
+      type="person"
+      selected={false}
+      zIndex={0}
+      isConnectable={false}
+      positionAbsoluteX={0}
+      positionAbsoluteY={0}
+      dragging={false}
+      selectable
+      deletable
+      draggable
+    />,
+  );
 }
 
 describe("PersonNode", () => {

@@ -22,8 +22,8 @@ interface MockReactFlowProps {
   children?: ReactNode;
 }
 
-vi.mock("reactflow", () => ({
-  default: ({ nodes, edges, onNodeClick, children }: MockReactFlowProps) => (
+vi.mock("@xyflow/react", () => ({
+  ReactFlow: ({ nodes, edges, onNodeClick, children }: MockReactFlowProps) => (
     <div>
       {nodes.map((node) => (
         <button
