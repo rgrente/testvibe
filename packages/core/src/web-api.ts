@@ -80,11 +80,11 @@ export async function getPersonForWeb(personId: number): Promise<Person> {
  * Phase 6 (tâche lieux/carte).
  */
 export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
-  const [locations, unions, persons] = await Promise.all([
-    listMapLocations(defaultDb),
+  const [unions, persons] = await Promise.all([
     listUnions(defaultDb),
     listPersons(defaultDb),
   ]);
+  const locations = await listMapLocations(defaultDb, persons);
   const eventLocations: MapLocation[] = locations.map(({ event, person }) => ({
     eventId: event.id,
     source: "event",

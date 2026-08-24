@@ -4,7 +4,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
-import type { UnionType } from "@testvibe/core";
+import type { Union, UnionType } from "@testvibe/core";
+import UnionPersonSearch from "@/components/UnionPersonSearch";
 
 export const dynamic = "force-dynamic";
 
@@ -20,7 +21,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
 
   if (Number.isNaN(id)) notFound();
 
-  let union;
+  let union: Union;
   try {
     union = await adminGetUnion(id);
   } catch {
@@ -42,7 +43,12 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
     const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
     const personIds = personIdsRaw.filter((pid) => !Number.isNaN(pid) && pid > 0);
 
-    if (personIds.length === 0) {
+    const distinctPersonCount = new Set(personIds).size;
+    const hasValidPartners = union.personIds.length === 2
+      ? personIds.length === 2 && distinctPersonCount === 2
+      : personIds.length > 0 && distinctPersonCount === personIds.length;
+
+    if (!hasValidPartners) {
       redirect(`/admin/unions/${id}/edit?error=personnes_requises`);
     }
 
@@ -62,7 +68,9 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
       {error && (
         <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error === "personnes_requises"
-            ? "Sélectionnez au moins une personne."
+            ? union.personIds.length === 2
+              ? "Sélectionnez deux personnes différentes."
+              : "Sélectionnez au moins une personne, sans doublon."
             : "Données invalides."}
         </p>
       )}
@@ -106,22 +114,31 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
         </div>
         <div className="sm:col-span-2">
           <fieldset>
-            <legend className="mb-1 block text-sm font-medium text-slate-700">
-              Personnes liées *
+            <legend className={union.personIds.length === 2 ? "sr-only" : "mb-1 block text-sm font-medium text-slate-700"}>
+              Personnes liées
             </legend>
-            <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-              {persons.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    name="personIds"
-                    value={p.id}
-                    defaultChecked={union.personIds.includes(p.id)}
-                  />
-                  {p.firstName} {p.lastName}
-                </label>
-              ))}
-            </div>
+            {union.personIds.length === 2 ? (
+              <UnionPersonSearch persons={persons} defaultPersonIds={union.personIds} />
+            ) : (
+              <>
+                <p className="mb-2 text-sm text-slate-500">
+                  Cette ancienne union comporte {union.personIds.length} personne(s). Vous pouvez conserver ou modifier cette liste.
+                </p>
+                <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
+                  {persons.map((person) => (
+                    <label key={person.id} className="flex items-center gap-2 text-sm text-slate-700">
+                      <input
+                        type="checkbox"
+                        name="personIds"
+                        value={person.id}
+                        defaultChecked={union.personIds.includes(person.id)}
+                      />
+                      {person.firstName} {person.lastName}
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
           </fieldset>
         </div>
         <div className="flex items-end gap-2">
