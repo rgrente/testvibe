@@ -48,8 +48,21 @@ describe("RootLayout", () => {
       ["Arbre", "/"],
       ["Timeline", "/timeline"],
       ["Carte", "/carte"],
+      ["Parenté", "/parente"],
       ["Mode édition", "/admin"],
     ]);
+  });
+
+  it("propose le lien de parenté dans la navigation principale", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const parenteLink = document.querySelector('header nav a[href="/parente"]');
+
+    expect(parenteLink?.textContent).toBe("Parenté");
   });
 
   it("adapte la navigation aux petits écrans sans débordement horizontal", () => {
