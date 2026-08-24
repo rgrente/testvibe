@@ -18,6 +18,9 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
     label: null,
     eventDate: null,
     description: null,
+    place: null,
+    latitude: null,
+    longitude: null,
     ...overrides,
   };
 }
@@ -67,7 +70,7 @@ describe("prepareComparativeTimeline", () => {
         person: unknown,
         events: [
           event({ id: 11, personId: unknown.id, type: "libre", label: "Souvenir" }),
-          event({ id: 12, personId: unknown.id, eventDate: "2020-02-31", label: "Date invalide" }),
+          event({ id: 12, personId: unknown.id, type: "libre", eventDate: "2020-02-31", label: "Date invalide" }),
         ],
       },
       { person: known, events: [] },

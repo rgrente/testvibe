@@ -1,7 +1,7 @@
 /**
  * Route GET /admin/geocode — proxy de géocodage.
  *
- * Protégé par le middleware admin (tâche géocodage) : toute requête ici est
+ * Protégé par le proxy admin (tâche géocodage) : toute requête ici est
  * soumise à la vérification du cookie de session. Le client n'envoie donc
  * jamais de clé ni de secret : seul le serveur interroge le fournisseur
  * externe configuré (Nominatim ou Photon).

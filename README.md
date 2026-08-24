@@ -5,7 +5,7 @@ Monorepo pnpm workspaces pour le projet d'arbre généalogique personnel.
 ## Structure
 
 ```
-apps/web       Application Next.js 15 (App Router, TypeScript strict)
+apps/web       Application Next.js 16 (App Router, TypeScript strict)
 packages/core  Logique métier partagée (vide à ce stade — Phase 0)
 packages/db    Configuration Drizzle ORM + client SQLite (libSQL)
 ```

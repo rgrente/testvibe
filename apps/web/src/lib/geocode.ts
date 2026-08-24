@@ -15,8 +15,7 @@
  *   - Rate-limit : au maximum 1 requête/seconde vers Nominatim.
  *   - Cache en mémoire des réponses pour éviter les appels redondants.
  *
- * Ce module s'exécute dans le runtime Node (jamais importé par le middleware
- * Edge — `middleware.ts` reste exempt de toute dépendance Node-only).
+ * Ce module s'exécute dans le runtime Node (jamais importé par `proxy.ts`).
  */
 export type GeocodeProvider = "nominatim" | "photon";
 

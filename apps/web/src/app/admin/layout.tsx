@@ -12,7 +12,7 @@ async function logoutAction() {
 
 /**
  * Layout partagé pour toutes les pages /admin (sauf /admin/login qui
- * est exclu du middleware et n'a pas besoin de ce chrome).
+ * est exclu du proxy et n'a pas besoin de ce chrome).
  */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
