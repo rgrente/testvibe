@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { PersonPairSelector } from "@/components/PersonPairSelector";
 
 export const dynamic = "force-dynamic";
 
@@ -29,12 +30,16 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
 
   async function updateUnionAction(formData: FormData) {
     "use server";
+    const currentUnion = await adminGetUnion(id);
+    if (currentUnion.personIds.length !== 2) {
+      redirect(`/admin/unions/${id}/edit?error=historique_non_modifiable`);
+    }
     const startDate = formData.get("startDate")?.toString().trim() || null;
     const endDate = formData.get("endDate")?.toString().trim() || null;
     const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
-    const personIds = personIdsRaw.filter((pid) => !Number.isNaN(pid) && pid > 0);
+    const personIds = [...new Set(personIdsRaw.filter((pid) => !Number.isNaN(pid) && pid > 0))];
 
-    if (personIds.length === 0) {
+    if (personIds.length !== 2) {
       redirect(`/admin/unions/${id}/edit?error=personnes_requises`);
     }
 
@@ -54,8 +59,10 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
       {error && (
         <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error === "personnes_requises"
-            ? "Sélectionnez au moins une personne."
-            : "Données invalides."}
+            ? "Sélectionnez deux personnes distinctes."
+            : error === "historique_non_modifiable"
+              ? "Cette union historique ne peut pas être convertie implicitement en union de deux personnes."
+              : "Données invalides."}
         </p>
       )}
 
@@ -85,28 +92,19 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
           />
         </div>
         <div className="sm:col-span-2">
-          <fieldset>
-            <legend className="mb-1 block text-sm font-medium text-slate-700">
-              Personnes liées *
-            </legend>
-            <div className="grid grid-cols-2 gap-1 sm:grid-cols-3">
-              {persons.map((p) => (
-                <label key={p.id} className="flex items-center gap-2 text-sm text-slate-700">
-                  <input
-                    type="checkbox"
-                    name="personIds"
-                    value={p.id}
-                    defaultChecked={union.personIds.includes(p.id)}
-                  />
-                  {p.firstName} {p.lastName}
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          {union.personIds.length === 2 ? (
+            <PersonPairSelector persons={persons} defaultPersonIds={union.personIds} />
+          ) : (
+            <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              Cette union contient {union.personIds.length} partenaires. Elle ne peut pas être
+              modifiée ici sans choisir explicitement comment la convertir en union de deux personnes.
+            </p>
+          )}
         </div>
         <div className="flex items-end gap-2">
           <button
             type="submit"
+            disabled={union.personIds.length !== 2 || persons.length < 2}
             className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
           >
             Enregistrer
