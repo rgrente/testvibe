@@ -6,8 +6,9 @@
  * vue liste hiérarchique (mobile).
  */
 import type { FamilyTree } from "@testvibe/core";
+import type { Edge, Node } from "@xyflow/react";
 
-export interface PersonNodeData {
+export interface PersonNodeData extends Record<string, unknown> {
   personId: number;
   label: string;
   birthName: string | null;
@@ -18,36 +19,15 @@ export interface PersonNodeData {
   deathDate: string | null;
 }
 
-export interface UnionJunctionNodeData {
+export interface UnionJunctionNodeData extends Record<string, unknown> {
   unionId: number;
 }
 
-export type ReactFlowGraphNode =
-  | {
-      id: string;
-      type: "person";
-      position: { x: number; y: number };
-      data: PersonNodeData;
-    }
-  | {
-      id: string;
-      type: "unionJunction";
-      position: { x: number; y: number };
-      data: UnionJunctionNodeData;
-    };
+export type PersonFlowNode = Node<PersonNodeData, "person">;
+export type UnionJunctionFlowNode = Node<UnionJunctionNodeData, "unionJunction">;
+export type ReactFlowGraphNode = PersonFlowNode | UnionJunctionFlowNode;
 
-export interface ReactFlowGraphEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string;
-  targetHandle?: string;
-  label?: string;
-  style?: Record<string, unknown>;
-  animated?: boolean;
-  /** "straight" pour le lien d'union (ligne droite entre partenaires) ; par défaut (bézier) sinon. */
-  type?: string;
-}
+export type ReactFlowGraphEdge = Edge;
 
 export interface ReactFlowGraph {
   nodes: ReactFlowGraphNode[];

@@ -2,8 +2,8 @@
 
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
-import ReactFlow, { Background, Controls, type NodeTypes } from "reactflow";
-import "reactflow/dist/style.css";
+import { Background, Controls, ReactFlow, type NodeTypes } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
 import { buildReactFlowGraph } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
