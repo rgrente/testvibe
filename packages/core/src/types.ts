@@ -115,6 +115,16 @@ export interface FamilyTimelineItem {
   person: Person;
 }
 
+/** Anniversaire d'un événement familial pour une date de calendrier donnée. */
+export interface FamilyAnniversary {
+  key: string;
+  eventId: number | null;
+  event: FamilyTimelineEvent;
+  person: Person;
+  /** Nombre d'années révolues, seulement lorsque l'année est exploitable. */
+  yearsElapsed: number | null;
+}
+
 /** Ligne de la timeline comparative : une personne et ses événements métier. */
 export interface ComparativeTimelineRow {
   person: Person;

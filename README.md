@@ -26,6 +26,9 @@ pnpm test          # tests de tous les packages/apps
 pnpm db:migrate    # applique les migrations Drizzle sur la base SQLite locale
 ```
 
+La date du bloc « Ce jour-là dans la famille » est calculée dans le fuseau
+`FAMILY_TIME_ZONE` (identifiant IANA), avec `Europe/Paris` par défaut.
+
 ## Vérification locale
 
 Avant d'ouvrir une PR, exécutez ces commandes dans cet ordre :

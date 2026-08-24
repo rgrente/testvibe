@@ -1,9 +1,10 @@
-import { listAllPersonsForWeb, searchPersonsForWeb } from "@testvibe/core";
+import { getFamilyAnniversariesForWeb, listAllPersonsForWeb, localCalendarDate, searchPersonsForWeb } from "@testvibe/core";
 import Link from "next/link";
 import { FamilyTreeCanvas } from "../components/FamilyTreeCanvas";
 import { FamilyTreeMobileList } from "../components/FamilyTreeMobileList";
 import { RootPersonSelect } from "../components/RootPersonSelect";
 import { getFamilyTreeForWeb } from "@testvibe/core";
+import { FamilyAnniversaries } from "../components/FamilyAnniversaries";
 
 export const dynamic = "force-dynamic";
 
@@ -20,12 +21,28 @@ interface HomePageProps {
  */
 export default async function HomePage({ searchParams }: HomePageProps) {
   const { personId, q } = await searchParams;
-  const persons = await listAllPersonsForWeb();
+  const today = localCalendarDate(new Date(), process.env.FAMILY_TIME_ZONE ?? "Europe/Paris");
+  const [persons, anniversaries] = await Promise.all([
+    listAllPersonsForWeb(),
+    getFamilyAnniversariesForWeb(today),
+  ]);
+
+  const anniversaryBlock = (
+    <section className="mb-8 rounded-xl bg-amber-50 p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-amber-950">Ce jour-là dans la famille</h2>
+        <Link href="/ce-jour-la" className="text-sm font-medium text-amber-800 hover:underline">Parcourir une autre date</Link>
+      </div>
+      <FamilyAnniversaries anniversaries={anniversaries} compact />
+      {anniversaries.length > 4 && <p className="mt-3 text-right text-sm"><Link href="/ce-jour-la" className="text-amber-800 hover:underline">Voir les {anniversaries.length} anniversaires</Link></p>}
+    </section>
+  );
 
   if (persons.length === 0) {
     return (
       <main className="mx-auto max-w-2xl px-4 py-12">
         <h1 className="mb-4 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
+        {anniversaryBlock}
         <p className="text-slate-600">
           Aucune Person n&apos;a encore été créée. Lancez{" "}
           <code className="rounded bg-slate-100 px-1.5 py-0.5">
@@ -50,6 +67,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   return (
     <main className="mx-auto max-w-5xl px-4 py-8">
       <h1 className="mb-2 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
+      {anniversaryBlock}
 
       {/* Barre de recherche */}
       <form method="GET" className="mb-6 flex gap-2">

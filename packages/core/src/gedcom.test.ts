@@ -13,7 +13,8 @@ import { importGedcom, exportGedcom } from "./gedcom.js";
 import { listPersons } from "./person.js";
 import { listUnions } from "./union.js";
 import { listFiliations } from "./filiation.js";
-import { listAllEvents } from "./event.js";
+import { listAllEvents, listFamilyTimeline } from "./event.js";
+import { anniversariesForDate } from "./anniversary.js";
 import { ValidationError } from "./errors.js";
 
 // ─── Fixture GEDCOM multi-générations ────────────────────────────────────────
@@ -182,6 +183,37 @@ describe("importGedcom", () => {
     events = await listAllEvents(db);
     const fallbackEv = events.find((e) => e.type === "libre" && e.place === "Rome, Italie");
     expect(fallbackEv?.label).toBe("Voyage à Rome");
+  });
+
+  it("préserve la précision des dates partielles sans créer de faux anniversaire", async () => {
+    const partialDates = `0 HEAD
+0 @I1@ INDI
+1 NAME Année /SEULE/
+1 BIRT
+2 DATE 1980
+0 @I2@ INDI
+1 NAME Mois /SEUL/
+1 BIRT
+2 DATE AUG 1990
+1 EVEN
+2 TYPE Voyage
+2 DATE AUG 2010
+2 PLAC Paris
+0 TRLR
+`;
+
+    await importGedcom(db, partialDates);
+
+    const persons = await listPersons(db);
+    expect(persons.find((person) => person.firstName === "Année")?.birthDate).toBe("1980");
+    expect(persons.find((person) => person.firstName === "Mois")?.birthDate).toBe("1990-08");
+    expect((await listAllEvents(db)).find((event) => event.label === "Voyage")?.eventDate).toBe("2010-08");
+    expect(anniversariesForDate(await listFamilyTimeline(db), "2026-08-01")).toEqual([]);
+
+    const exported = await exportGedcom(db);
+    expect(exported).toContain("2 DATE 1980");
+    expect(exported.match(/2 DATE AUG 1990/g)).toHaveLength(1);
+    expect(exported.match(/2 DATE AUG 2010/g)).toHaveLength(1);
   });
 
   it("rejette un GEDCOM vide (sans individus ni familles)", async () => {

@@ -130,7 +130,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
         ) : (
           <ol className="relative border-l border-slate-200">
             {timeline.map((ev) => (
-              <li key={ev.id} className="mb-6 ml-6">
+              <li key={ev.id} id={`event-${ev.id}`} className="mb-6 ml-6 scroll-mt-4">
                 <span className="absolute -left-3 flex h-6 w-6 items-center justify-center rounded-full bg-white text-base ring-2 ring-slate-200">
                   {EVENT_TYPE_ICONS[ev.type] ?? "📌"}
                 </span>

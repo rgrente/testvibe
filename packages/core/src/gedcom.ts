@@ -86,7 +86,8 @@ function parseLine(raw: string): GedcomLine | null {
 }
 
 /**
- * Convertit une date GEDCOM (ex: "15 MAR 1940") en ISO 8601 (ex: "1940-03-15").
+ * Convertit une date GEDCOM en représentation ISO de même précision
+ * (ex: "15 MAR 1940" → "1940-03-15", "MAR 1940" → "1940-03").
  * Retourne null si la date ne peut pas être parsée.
  */
 function parseGedcomDate(raw: string): string | null {
@@ -111,13 +112,13 @@ function parseGedcomDate(raw: string): string | null {
   if (monthYear) {
     const month = MONTHS[monthYear[1]];
     if (!month) return null;
-    return `${monthYear[2]}-${month}-01`;
+    return `${monthYear[2]}-${month}`;
   }
 
   // Format "YYYY" seul
   const yearOnly = raw.match(/^(\d{4})$/);
   if (yearOnly) {
-    return `${yearOnly[1]}-01-01`;
+    return yearOnly[1];
   }
 
   // Format ISO direct
@@ -139,11 +140,12 @@ function toGedcomDate(isoDate: string | null): string | null {
     "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC",
   };
 
-  const m = isoDate.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const m = isoDate.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
   if (!m) return isoDate;
-  const day = parseInt(m[3], 10).toString();
   const month = MONTHS_REV[m[2]];
   if (!month) return isoDate;
+  if (!m[3]) return `${month} ${m[1]}`;
+  const day = parseInt(m[3], 10).toString();
   return `${day} ${month} ${m[1]}`;
 }
 
