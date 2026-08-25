@@ -18,8 +18,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <>
       <nav className="border-b border-slate-200 bg-white px-4 py-3">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
-          <div className="flex items-center gap-4 text-sm">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
             <Link href="/admin" className="font-semibold text-slate-900 hover:text-slate-600">
               Mode édition
             </Link>
