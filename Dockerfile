@@ -4,7 +4,7 @@
 # au bundle serveur (notamment @testvibe/db et libSQL) restent disponibles au
 # runtime. Elle démarre avec `next start` plutôt qu'en mode standalone.
 
-FROM node:22-alpine AS base
+FROM node:24.19.0-alpine AS base
 RUN corepack enable
 WORKDIR /app
 

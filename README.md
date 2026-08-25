@@ -12,8 +12,35 @@ packages/db    Configuration Drizzle ORM + client SQLite (libSQL)
 
 ## Prérequis
 
-- Node.js >= 20
-- pnpm >= 9 (`corepack enable` ou `npm install -g pnpm`)
+- Node.js 24 LTS (la version locale de référence est déclarée dans `.nvmrc`)
+- pnpm 11.17.0, fourni par Corepack depuis le champ `packageManager`
+
+Avec nvm, préparez l'environnement reproductible ainsi :
+
+```bash
+nvm install
+nvm use
+corepack enable
+pnpm --version # 11.17.0
+```
+
+`engines` déclare volontairement cette seule majeure de Node et cette version
+exacte de pnpm. La CI lit également `.nvmrc`, et l'image de production utilise la
+même version avec `node:24.19.0-alpine`.
+
+### Politique de support Node.js
+
+La production utilise uniquement la LTS active paire de Node.js : aucune version
+impaire ou non-LTS n'est admise. La montée de version est planifiée lorsque la
+LTS paire suivante devient active, après vérification des matrices officielles de
+Next.js, `@libsql/client`/Drizzle, Vitest et pnpm, puis validation de l'installation,
+du lint, des tests, du build et de l'image Alpine. La mise à jour doit rester
+atomique : `.nvmrc`, `engines.node`, les types Node, l'image du `Dockerfile` et la
+CI sont modifiés ensemble ; `packageManager` et `engines.pnpm` restent synchronisés.
+
+Node.js 24 respecte les minima des versions utilisées ici : Next.js 16 demande
+Node.js 20.9 ou supérieur, Vitest 2 et `@libsql/client` demandent Node.js 18 ou
+supérieur, et pnpm 11 prend en charge Node.js 24.
 
 ## Commandes
 
