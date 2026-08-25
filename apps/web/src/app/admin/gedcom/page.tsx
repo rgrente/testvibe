@@ -52,13 +52,13 @@ export default async function GedcomPage({
       </div>
 
       {params.error === "fichier_manquant" && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Veuillez sélectionner un fichier .ged avant de soumettre.
         </div>
       )}
 
       {params.error === "import_echoue" && (
-        <div className="mb-4 rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           <p className="font-semibold">Échec de l&apos;import GEDCOM</p>
           {params.detail && (
             <p className="mt-1 font-mono text-xs">{decodeURIComponent(params.detail)}</p>
@@ -68,7 +68,7 @@ export default async function GedcomPage({
       )}
 
       {params.success === "import" && (
-        <div className="mb-4 rounded border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="mb-4 rounded-sm border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700">
           Import GEDCOM réussi. Les données ont été ajoutées à la base.
         </div>
       )}
@@ -77,7 +77,7 @@ export default async function GedcomPage({
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
         <h2 className="mb-4 text-lg font-semibold text-slate-800">Importer un fichier GEDCOM</h2>
         <p className="mb-4 text-sm text-slate-600">
-          Sélectionnez un fichier <code className="rounded bg-slate-100 px-1 py-0.5 text-xs">.ged</code>{" "}
+          Sélectionnez un fichier <code className="rounded-sm bg-slate-100 px-1 py-0.5 text-xs">.ged</code>{" "}
           au format GEDCOM 5.5.1. L&apos;import est atomique : en cas d&apos;erreur, aucune donnée
           existante ne sera modifiée.
         </p>
@@ -87,12 +87,12 @@ export default async function GedcomPage({
             name="gedcom"
             accept=".ged,.gedcom"
             required
-            className="block w-full text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded file:border file:border-slate-200 file:bg-white file:px-4 file:py-2 file:text-sm file:text-slate-700 hover:file:bg-slate-50"
+            className="block w-full text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded-sm file:border file:border-slate-200 file:bg-white file:px-4 file:py-2 file:text-sm file:text-slate-700 hover:file:bg-slate-50"
           />
           <div>
             <button
               type="submit"
-              className="rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
+              className="rounded-sm bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
             >
               Importer
             </button>
@@ -109,7 +109,7 @@ export default async function GedcomPage({
         </p>
         <Link
           href="/admin/gedcom/export"
-          className="inline-block rounded bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
+          className="inline-block rounded-sm bg-slate-800 px-4 py-2 text-sm text-white hover:bg-slate-700"
         >
           Télécharger le fichier .ged
         </Link>

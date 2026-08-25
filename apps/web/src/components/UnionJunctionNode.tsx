@@ -20,19 +20,19 @@ function UnionJunctionNodeComponent({ data }: NodeProps<UnionJunctionFlowNode>) 
         id="target-left"
         type="target"
         position={Position.Left}
-        className="!h-2 !w-2 !border-none !bg-transparent"
+        className="h-2! w-2! border-none! bg-transparent!"
       />
       <Handle
         id="target-right"
         type="target"
         position={Position.Right}
-        className="!h-2 !w-2 !border-none !bg-transparent"
+        className="h-2! w-2! border-none! bg-transparent!"
       />
       <Handle
         id="bottom"
         type="source"
         position={Position.Bottom}
-        className="!h-2 !w-2 !border-none !bg-transparent"
+        className="h-2! w-2! border-none! bg-transparent!"
       />
     </div>
   );

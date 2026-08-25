@@ -137,7 +137,7 @@ export default function MapClient({
             type="date"
             value={dateFrom}
             onChange={(e) => onDateFromChange(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
           />
         </div>
         <div>
@@ -146,7 +146,7 @@ export default function MapClient({
             type="date"
             value={dateTo}
             onChange={(e) => onDateToChange(e.target.value)}
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
           />
         </div>
         <div>
@@ -156,7 +156,7 @@ export default function MapClient({
             onChange={(e) =>
               onSelectPerson(e.target.value ? Number(e.target.value) : null)
             }
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
           >
             <option value="">Toutes</option>
             {allPersons.map((p) => (
@@ -175,7 +175,7 @@ export default function MapClient({
                 e.target.value as "none" | "ancestors" | "descendants",
               )
             }
-            className="w-full rounded border border-slate-300 px-2 py-1.5 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
             disabled={!selectedPersonId}
           >
             <option value="none">Aucune</option>
@@ -210,7 +210,7 @@ export default function MapClient({
 
       {/* Popup d'info */}
       {selectedMarker && (
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow">
+        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-start justify-between">
             <div>
               <p className="font-semibold text-slate-900">

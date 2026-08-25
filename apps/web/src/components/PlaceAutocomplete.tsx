@@ -153,7 +153,7 @@ export default function PlaceAutocomplete({
   };
 
   const inputClass =
-    "w-full rounded border border-slate-300 px-3 py-2 text-sm";
+    "w-full rounded-sm border border-slate-300 px-3 py-2 text-sm";
 
   return (
     <div className={className}>
@@ -179,7 +179,7 @@ export default function PlaceAutocomplete({
           <div
             id="place-suggestions"
             role="listbox"
-            className="mt-1 overflow-hidden rounded border border-slate-200 bg-white shadow"
+            className="mt-1 overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm"
           >
             {loading && (
               <p className="px-3 py-2 text-sm text-slate-400">
@@ -234,7 +234,7 @@ export default function PlaceAutocomplete({
               value={latitudeValue}
               onChange={(e) => setLatitudeValue(e.target.value)}
               placeholder="Ex: 48.8566"
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </label>
           <label className="block text-sm font-medium text-slate-700">
@@ -248,7 +248,7 @@ export default function PlaceAutocomplete({
               value={longitudeValue}
               onChange={(e) => setLongitudeValue(e.target.value)}
               placeholder="Ex: 2.3522"
-              className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </label>
         </div>

@@ -74,7 +74,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
     <main className="mx-auto max-w-3xl px-4 py-8">
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Filiations</h1>
       {success === "creation" && (
-        <p className="mb-4 rounded bg-green-50 px-4 py-3 text-sm text-green-800">
+        <p className="mb-4 rounded-sm bg-green-50 px-4 py-3 text-sm text-green-800">
           Filiations créées avec succès.
         </p>
       )}
@@ -83,7 +83,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
         <h2 className="mb-4 font-semibold text-slate-800">Créer une filiation</h2>
         {error && (
-          <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error === "champs_requis"
               ? "Parent, enfant et rôle sont obligatoires."
               : "Données invalides (ex. : parentId = childId ?)."}
@@ -100,7 +100,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
               required
               multiple
               size={Math.min(6, Math.max(2, persons.length))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             >
               {sortedPersons.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -120,7 +120,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
               required
               multiple
               size={Math.min(6, Math.max(2, persons.length))}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             >
               {sortedPersons.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -138,7 +138,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
               id="role"
               name="role"
               required
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="">—</option>
               {(Object.entries(ROLE_LABELS) as [FiliationRole, string][]).map(([val, label]) => (
@@ -151,7 +151,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
           <div className="flex items-end">
             <button
               type="submit"
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
             >
               Créer
             </button>
@@ -181,7 +181,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
                 <div className="flex gap-2">
                   <Link
                     href={`/admin/filiations/${f.id}/edit`}
-                    className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                    className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                   >
                     Modifier
                   </Link>
@@ -189,7 +189,7 @@ export default async function FiliationsPage({ searchParams }: FiliationsPagePro
                     <input type="hidden" name="id" value={f.id} />
                     <button
                       type="submit"
-                      className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                      className="rounded-sm border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
                     >
                       Supprimer
                     </button>

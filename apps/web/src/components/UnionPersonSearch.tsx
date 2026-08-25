@@ -93,7 +93,7 @@ function PersonField({
             setActiveIndex(-1);
           }
         }}
-        className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+        className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
       />
       {selectedId !== null && <input type="hidden" name="personIds" value={selectedId} />}
       <noscript>
@@ -101,7 +101,7 @@ function PersonField({
           name="personIds"
           defaultValue={selectedId ?? ""}
           aria-label={`Personne ${index}`}
-          className="mt-1 w-full rounded border border-slate-300 px-3 py-2 text-sm"
+          className="mt-1 w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
         >
           <option value="" disabled>
             Choisir…
@@ -119,7 +119,7 @@ function PersonField({
         <ul
           id={listboxId}
           role="listbox"
-          className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded border border-slate-200 bg-white py-1 shadow-lg"
+          className="absolute z-20 mt-1 max-h-52 w-full overflow-auto rounded-sm border border-slate-200 bg-white py-1 shadow-lg"
         >
           {suggestions.map((person, suggestionIndex) => (
             <li

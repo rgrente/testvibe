@@ -43,7 +43,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
       <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-slate-600" aria-label="Légende">
         <span className="inline-flex items-center gap-2">
           <span
-            className="h-1 w-8 rounded"
+            className="h-1 w-8 rounded-sm"
             style={{ background: "linear-gradient(to right, #f43f5e, #f59e0b, #10b981, #3b82f6, #8b5cf6)" }}
             aria-hidden="true"
           /> Barre de vie (couleur par personne)
@@ -57,7 +57,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
 
       <div
         data-testid="timeline-scroll"
-        className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-sm"
+        className="overflow-x-auto rounded-lg border border-slate-200 bg-white shadow-xs"
         tabIndex={0}
         aria-label="Timeline comparative, défilement horizontal"
       >
@@ -140,7 +140,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                       }}
                     />
                   ) : (
-                    <p className="relative z-[1] text-sm text-slate-500">
+                    <p className="relative z-1 text-sm text-slate-500">
                       Naissance inconnue : durée de vie non positionnée.
                     </p>
                   )}
@@ -160,11 +160,11 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                         key={event.id}
                         aria-label={accessibleLabel}
                         title={accessibleLabel}
-                        className={`absolute z-[2] flex flex-col ${horizontalAlignment}`}
+                        className={`absolute z-2 flex flex-col ${horizontalAlignment}`}
                         style={{ left: `${event.position}%`, top: `${event.lane * 1.5 + 1.5}rem` }}
                       >
-                        <span className="h-4 w-4 rounded-full border-2 border-white bg-amber-500 shadow ring-1 ring-amber-600" aria-hidden="true" />
-                        <span className="mt-1 whitespace-nowrap rounded bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-950 shadow-sm">
+                        <span className="h-4 w-4 rounded-full border-2 border-white bg-amber-500 shadow-sm ring-1 ring-amber-600" aria-hidden="true" />
+                        <span className="mt-1 whitespace-nowrap rounded-sm bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-950 shadow-xs">
                           {label} · {typeLabel} · {event.displayDate}
                         </span>
                       </span>
@@ -173,12 +173,12 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
 
                   {row.undatedEvents.length > 0 && (
                     <ul
-                      className="relative z-[1] flex flex-wrap gap-2"
+                      className="relative z-1 flex flex-wrap gap-2"
                       style={{ marginTop: `${Math.max(3, row.maxLanes * 1.5 + 2)}rem` }}
                       aria-label={`Événements non datés de ${fullName}`}
                     >
                       {row.undatedEvents.map((event) => (
-                        <li key={event.id} className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
+                        <li key={event.id} className="rounded-sm bg-slate-100 px-2 py-1 text-xs text-slate-600">
                           {event.label ?? EVENT_TYPE_LABELS[event.type]} · {EVENT_TYPE_LABELS[event.type]} · date inconnue
                         </li>
                       ))}

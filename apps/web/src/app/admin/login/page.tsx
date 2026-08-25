@@ -39,7 +39,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Mode édition — connexion</h1>
 
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           Secret incorrect. Réessayez.
         </p>
       )}
@@ -54,12 +54,12 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           type="password"
           required
           autoComplete="current-password"
-          className="rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+          className="rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-slate-500"
           placeholder="Entrez le secret défini dans ADMIN_SECRET"
         />
         <button
           type="submit"
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+          className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
         >
           Se connecter
         </button>

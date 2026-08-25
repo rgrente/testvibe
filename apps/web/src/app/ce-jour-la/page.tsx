@@ -17,9 +17,9 @@ export default async function OnThisDayPage({ searchParams }: { searchParams: Pr
       <p className="mb-6 mt-2 text-slate-600">Anniversaires du {formattedDate}.</p>
       <form method="GET" className="mb-8 flex flex-wrap items-end gap-3">
         <label className="text-sm font-medium text-slate-700">Parcourir une autre date
-          <input name="date" type="date" defaultValue={date} className="mt-1 block rounded border border-slate-300 px-3 py-2" />
+          <input name="date" type="date" defaultValue={date} className="mt-1 block rounded-sm border border-slate-300 px-3 py-2" />
         </label>
-        <button type="submit" className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Afficher</button>
+        <button type="submit" className="rounded-sm bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">Afficher</button>
         {date !== today && <Link href="/ce-jour-la" className="py-2 text-sm text-blue-700 hover:underline">Revenir à aujourd’hui</Link>}
       </form>
       <FamilyAnniversaries anniversaries={anniversaries} />

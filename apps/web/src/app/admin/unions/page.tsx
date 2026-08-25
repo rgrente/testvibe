@@ -72,7 +72,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
         <h2 className="mb-4 font-semibold text-slate-800">Créer une union</h2>
         {error && (
-          <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error === "personnes_requises"
               ? "Sélectionnez deux personnes différentes."
               : "Données invalides."}
@@ -81,7 +81,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
         <form action={createUnionAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
             <label htmlFor="type" className="mb-1 block text-sm font-medium text-slate-700">Type d&apos;union</label>
-            <select id="type" name="type" defaultValue="libre" className="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+            <select id="type" name="type" defaultValue="libre" className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
               <option value="mariage">Mariage</option>
               <option value="pacs">Pacs</option>
               <option value="libre">Union libre</option>
@@ -95,7 +95,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
               id="startDate"
               name="startDate"
               type="date"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -110,7 +110,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
               id="endDate"
               name="endDate"
               type="date"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -122,7 +122,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
           <div>
             <button
               type="submit"
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
             >
               Créer
             </button>
@@ -157,7 +157,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
                   <div className="flex gap-2">
                     <Link
                       href={`/admin/unions/${u.id}/edit`}
-                      className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                      className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                     >
                       Modifier
                     </Link>
@@ -165,7 +165,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
                       <input type="hidden" name="id" value={u.id} />
                       <button
                         type="submit"
-                        className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                        className="rounded-sm border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
                       >
                         Supprimer
                       </button>
