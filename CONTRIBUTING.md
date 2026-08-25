@@ -19,6 +19,8 @@ This repository uses semantic-release rather than Changesets. Semantic-release f
 
 After the build, lint, and test checks pass on `main`, semantic-release updates `package.json`, `VERSION`, and `CHANGELOG.md`, creates a `v<version>` git tag, and pushes a release commit. The Docker job then checks out the updated `main` branch and publishes `ghcr.io/rgrente/testvibe:<version>` and `latest`. A non-release commit type intentionally does not rebuild an existing version tag.
 
+The release commit is the only intentional direct push to `main`. It authenticates with the `RELEASE_TOKEN` Actions secret described below; the default `GITHUB_TOKEN` cannot bypass the pull-request requirement.
+
 ### One-time release bootstrap (repository admin)
 
 Before merging the semantic-release workflow for the first time, an administrator must tag the current pre-workflow `main` revision as `v0.1.0`. Without a matching existing tag, semantic-release treats the repository as unreleased, scans its entire history, and forces its first release to `1.0.0` even when commit analysis calls for a smaller bump. Run these commands while `main` still points to the code whose `package.json` and `VERSION` both contain `0.1.0`:
@@ -37,7 +39,9 @@ Verify with `git ls-remote --exit-code --tags origin refs/tags/v0.1.0` before me
 
 ### Required checks on `main` (repository admin)
 
-The workflow only gates merges when branch protection makes its jobs required. After the workflow has run on a pull request at least once (so GitHub knows the check names), an administrator must protect `main`, require pull requests, require the branch to be up to date, and require both `build` and `lint-pr-title`. The following command applies those settings while preserving the repository's existing squash-merge policy:
+The workflow only gates merges when branch protection makes its jobs required. Before enabling protection, create a fine-grained personal access token owned by the repository administrator with access limited to this repository and **Contents: Read and write** permission. Store it as the `RELEASE_TOKEN` Actions repository secret. Do not grant it administration, workflows, packages, or access to other repositories. The release job is the only job that receives this token.
+
+After the workflow has run on a pull request at least once (so GitHub knows the check names), protect `main`, require pull requests, require the branch to be up to date, and require both `build` and `lint-pr-title`. Administrator enforcement must remain disabled: GitHub only supports named pull-request bypass actors for organization-owned repositories, while this repository is user-owned. With enforcement disabled, the administrator-owned `RELEASE_TOKEN` can push the generated release commit; other collaborators must still use an approved pull request. The following command applies those settings while preserving the repository's existing squash-merge policy:
 
 ```sh
 gh api --method PUT repos/rgrente/testvibe/branches/main/protection \
@@ -47,7 +51,7 @@ gh api --method PUT repos/rgrente/testvibe/branches/main/protection \
     "strict": true,
     "contexts": ["build", "lint-pr-title"]
   },
-  "enforce_admins": true,
+  "enforce_admins": false,
   "required_pull_request_reviews": {
     "dismiss_stale_reviews": false,
     "require_code_owner_reviews": false,
@@ -66,4 +70,6 @@ gh api --method PUT repos/rgrente/testvibe/branches/main/protection \
 JSON
 ```
 
-Alternatively, in GitHub open **Settings → Branches → Add branch protection rule**, target `main`, enable **Require a pull request before merging**, **Require status checks to pass before merging**, and **Require branches to be up to date before merging**, then select `build` and `lint-pr-title` as required checks. Enabling administrator enforcement prevents privileged merges from bypassing these gates. The pull-request workflow listens for title edits, so correcting an invalid title in the GitHub UI automatically reruns the title check.
+Alternatively, in GitHub open **Settings → Branches → Add branch protection rule**, target `main`, enable **Require a pull request before merging**, **Require status checks to pass before merging**, and **Require branches to be up to date before merging**, then select `build` and `lint-pr-title` as required checks. Leave **Do not allow bypassing the above settings** disabled so the release token can push. The pull-request workflow listens for title edits, so correcting an invalid title in the GitHub UI automatically reruns the title check.
+
+After applying protection, verify the release path with an eligible `fix:` or `feat:` merge. The `release` job must create the release commit and tag, and the dependent `docker` job must publish the matching version. If `RELEASE_TOKEN` is missing, expired, or owned by an account that cannot bypass the rule, the release job fails instead of silently skipping the image.
