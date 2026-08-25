@@ -1,8 +1,9 @@
 # Image de production pour apps/web (Next.js), à partir du monorepo pnpm complet.
 #
-# L'image conserve l'arbre du monorepo pour que les packages workspace externes
-# au bundle serveur (notamment @testvibe/db et libSQL) restent disponibles au
-# runtime. Elle démarre avec `next start` plutôt qu'en mode standalone.
+# L'image conserve l'arbre du monorepo et les node_modules de packages/db :
+# @testvibe/db est externalisé par Next, donc @libsql/client et ses dépendances
+# doivent être résolus par Node au runtime. Elle démarre avec `next start`
+# plutôt qu'en mode standalone.
 
 FROM node:24.19.0-alpine AS base
 RUN corepack enable
