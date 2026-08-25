@@ -14,7 +14,7 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, FamilyAnniversary, Media, MapLocation } from "./types.js";
+import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, FamilyAnniversary, UpcomingFamilyAnniversary, Media, MapLocation } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
 import { getFamilyTree, getAncestorIds, getDescendantIds, type FamilyTree } from "./tree.js";
 import { listEventsByPerson, listFamilyTimeline, listMapLocations } from "./event.js";
@@ -22,7 +22,7 @@ import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
 import { listUnions } from "./union.js";
-import { listFamilyAnniversaries } from "./anniversary.js";
+import { listFamilyAnniversaries, listUpcomingFamilyAnniversaries } from "./anniversary.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
@@ -58,6 +58,11 @@ export async function getFamilyTimelineForWeb(): Promise<FamilyTimelineItem[]> {
 /** Anniversaires familiaux publics correspondant à une date de calendrier. */
 export async function getFamilyAnniversariesForWeb(targetDate: string): Promise<FamilyAnniversary[]> {
   return listFamilyAnniversaries(defaultDb, targetDate);
+}
+
+/** Anniversaires de naissance et de mariage à venir. */
+export async function getUpcomingFamilyAnniversariesForWeb(targetDate: string, days: number): Promise<UpcomingFamilyAnniversary[]> {
+  return listUpcomingFamilyAnniversaries(defaultDb, targetDate, days);
 }
 
 /** Retourne une ligne par personne pour la timeline horizontale comparative. */

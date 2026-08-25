@@ -1,14 +1,19 @@
-import { getFamilyAnniversariesForWeb, isCompleteCalendarDate, localCalendarDate } from "@testvibe/core";
+import { getFamilyAnniversariesForWeb, getUpcomingFamilyAnniversariesForWeb, isCompleteCalendarDate, localCalendarDate } from "@testvibe/core";
 import Link from "next/link";
 import { FamilyAnniversaries } from "../../components/FamilyAnniversaries";
+import { UpcomingFamilyAnniversaries } from "../../components/UpcomingFamilyAnniversaries";
 
 export const dynamic = "force-dynamic";
+const UPCOMING_DAYS = 30;
 export default async function OnThisDayPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
   const timeZone = process.env.FAMILY_TIME_ZONE ?? "Europe/Paris";
   const today = localCalendarDate(new Date(), timeZone);
   const requestedDate = (await searchParams).date;
   const date = requestedDate && isCompleteCalendarDate(requestedDate) ? requestedDate : today;
-  const anniversaries = await getFamilyAnniversariesForWeb(date);
+  const [anniversaries, upcomingAnniversaries] = await Promise.all([
+    getFamilyAnniversariesForWeb(date),
+    getUpcomingFamilyAnniversariesForWeb(date, UPCOMING_DAYS),
+  ]);
   const formattedDate = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 
   return (
@@ -23,6 +28,11 @@ export default async function OnThisDayPage({ searchParams }: { searchParams: Pr
         {date !== today && <Link href="/ce-jour-la" className="py-2 text-sm text-blue-700 hover:underline">Revenir à aujourd’hui</Link>}
       </form>
       <FamilyAnniversaries anniversaries={anniversaries} />
+      <section className="mt-10">
+        <h2 className="text-2xl font-semibold text-slate-900">Prochains anniversaires</h2>
+        <p className="mb-4 mt-1 text-sm text-slate-600">Naissances et mariages dans les {UPCOMING_DAYS} prochains jours.</p>
+        <UpcomingFamilyAnniversaries anniversaries={upcomingAnniversaries} />
+      </section>
       <p className="mt-6 text-xs text-slate-500">Les dates incomplètes ou approximatives sont exclues. Les anniversaires du 29 février sont affichés le 28 février les années non bissextiles.</p>
     </main>
   );

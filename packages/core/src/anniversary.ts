@@ -1,6 +1,8 @@
-import type { FamilyAnniversary, FamilyTimelineItem } from "./types.js";
+import type { FamilyAnniversary, FamilyTimelineItem, Person, Union, UpcomingFamilyAnniversary } from "./types.js";
 import type { Database } from "@testvibe/db";
 import { listFamilyTimeline } from "./event.js";
+import { listPersons } from "./person.js";
+import { listUnions } from "./union.js";
 
 const COMPLETE_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -77,4 +79,67 @@ export async function listFamilyAnniversaries(
   targetDate: string,
 ): Promise<FamilyAnniversary[]> {
   return anniversariesForDate(await listFamilyTimeline(db), targetDate);
+}
+
+/** Retourne les anniversaires de naissance et de mariage des prochains jours, hors aujourd'hui. */
+export function upcomingFamilyAnniversaries(
+  persons: Person[],
+  unions: Union[],
+  fromDate: string,
+  days: number,
+): UpcomingFamilyAnniversary[] {
+  const from = parseCompleteDate(fromDate);
+  if (!from || !Number.isInteger(days) || days < 1) return [];
+  const peopleById = new Map(persons.map((person) => [person.id, person]));
+  const sources = [
+    ...persons.map((person) => ({ key: `person:${person.id}:naissance`, type: "naissance" as const, date: person.birthDate, persons: [person] })),
+    ...unions
+      .filter((union) => union.type === "mariage")
+      .map((union) => ({
+        key: `union:${union.id}:mariage`,
+        type: "mariage" as const,
+        date: union.startDate,
+        persons: union.personIds.flatMap((id) => peopleById.get(id) ?? []),
+      })),
+  ];
+  const start = new Date(Date.UTC(from.year, from.month - 1, from.day));
+  const results: UpcomingFamilyAnniversary[] = [];
+
+  for (let daysUntil = 1; daysUntil <= days; daysUntil += 1) {
+    const occurrence = new Date(start);
+    occurrence.setUTCDate(occurrence.getUTCDate() + daysUntil);
+    const occurrenceDate = occurrence.toISOString().slice(0, 10);
+    const matchingKeys = new Set(anniversariesForDate(
+      sources.map((source) => ({
+        key: source.key,
+        person: source.persons[0] ?? { id: 0, firstName: "", lastName: "", birthName: null, birthDate: null, deathDate: null, gender: null },
+        event: { type: source.type, eventDate: source.date, label: null, description: null },
+      })),
+      occurrenceDate,
+    ).map((item) => item.key));
+
+    for (const source of sources) {
+      const parsed = source.date ? parseCompleteDate(source.date) : null;
+      if (!parsed || !matchingKeys.has(source.key)) continue;
+      results.push({
+        key: source.key,
+        type: source.type,
+        occurrenceDate,
+        daysUntil,
+        yearsElapsed: occurrence.getUTCFullYear() - parsed.year,
+        persons: source.persons,
+      });
+    }
+  }
+
+  return results.sort((left, right) => left.daysUntil - right.daysUntil || left.key.localeCompare(right.key));
+}
+
+export async function listUpcomingFamilyAnniversaries(
+  db: Database,
+  fromDate: string,
+  days: number,
+): Promise<UpcomingFamilyAnniversary[]> {
+  const [persons, unions] = await Promise.all([listPersons(db), listUnions(db)]);
+  return upcomingFamilyAnniversaries(persons, unions, fromDate, days);
 }

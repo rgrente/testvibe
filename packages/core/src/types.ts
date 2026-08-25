@@ -125,6 +125,16 @@ export interface FamilyAnniversary {
   yearsElapsed: number | null;
 }
 
+/** Anniversaire de naissance ou de mariage à venir. */
+export interface UpcomingFamilyAnniversary {
+  key: string;
+  type: "naissance" | "mariage";
+  occurrenceDate: string;
+  daysUntil: number;
+  yearsElapsed: number;
+  persons: Person[];
+}
+
 /** Ligne de la timeline comparative : une personne et ses événements métier. */
 export interface ComparativeTimelineRow {
   person: Person;
