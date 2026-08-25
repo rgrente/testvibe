@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <form action={logoutAction}>
             <button
               type="submit"
-              className="rounded border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
+              className="rounded-sm border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50"
             >
               Déconnexion
             </button>

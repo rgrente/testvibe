@@ -69,9 +69,9 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
         <Background />
       </ReactFlow>
       <div className="absolute bottom-3 right-3 z-10 flex gap-2" aria-label="Contrôles de l’arbre">
-        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-sm hover:bg-slate-50" onClick={() => instanceRef.current?.zoomIn({ duration: 150 })} aria-label="Zoom avant">+</button>
-        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-sm hover:bg-slate-50" onClick={() => instanceRef.current?.zoomOut({ duration: 150 })} aria-label="Zoom arrière">−</button>
-        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-sm hover:bg-slate-50" onClick={centerRoot}>Recentrer</button>
+        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-xs hover:bg-slate-50" onClick={() => instanceRef.current?.zoomIn({ duration: 150 })} aria-label="Zoom avant">+</button>
+        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-xs hover:bg-slate-50" onClick={() => instanceRef.current?.zoomOut({ duration: 150 })} aria-label="Zoom arrière">−</button>
+        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-xs hover:bg-slate-50" onClick={centerRoot}>Recentrer</button>
       </div>
     </div>
   );

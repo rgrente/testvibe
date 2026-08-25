@@ -69,7 +69,7 @@ export default async function PersonMediaPage({ params }: PersonMediaPageProps) 
                   className="object-cover"
                   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
                 />
-                <div className="absolute inset-0 flex items-end justify-center bg-gradient-to-t from-black/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100 pb-2">
+                <div className="absolute inset-0 flex items-end justify-center bg-linear-to-t from-black/50 to-transparent opacity-0 transition-opacity group-hover:opacity-100 pb-2">
                   <MediaDeleteButton mediaId={m.id} filename={m.filename} />
                 </div>
               </div>
@@ -97,7 +97,7 @@ export default async function PersonMediaPage({ params }: PersonMediaPageProps) 
                     href={`/api/media/${m.filename}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                    className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                   >
                     Ouvrir
                   </a>

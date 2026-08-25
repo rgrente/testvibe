@@ -18,7 +18,7 @@ export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
           key={row.personId}
           data-testid={`mobile-row-${row.personId}`}
           style={{ paddingLeft: `${row.depth * 1.25}rem` }}
-          className={`rounded border px-3 py-2 text-sm ${
+          className={`rounded-sm border px-3 py-2 text-sm ${
             row.isRoot
               ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
               : "border-slate-200 bg-white text-slate-800"

@@ -54,7 +54,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
       </h1>
 
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error === "champs_requis" ? "Prénom et nom sont obligatoires." : "Données invalides."}
         </p>
       )}
@@ -70,7 +70,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             type="text"
             required
             defaultValue={person.firstName}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -83,7 +83,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             type="text"
             required
             defaultValue={person.lastName}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -95,7 +95,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             name="birthName"
             type="text"
             defaultValue={person.birthName ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -107,7 +107,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             name="birthDate"
             type="date"
             defaultValue={person.birthDate ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -119,7 +119,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             name="deathDate"
             type="date"
             defaultValue={person.deathDate ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div>
@@ -130,7 +130,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             id="gender"
             name="gender"
             defaultValue={person.gender ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           >
             <option value="">—</option>
             <option value="M">Masculin</option>
@@ -141,13 +141,13 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
         <div className="flex items-end gap-2">
           <button
             type="submit"
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
           >
             Enregistrer
           </button>
           <Link
             href="/admin/persons"
-            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
             Annuler
           </Link>
@@ -158,19 +158,19 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
       <div className="mt-6 flex flex-wrap gap-3">
         <Link
           href={`/admin/persons/${id}/events`}
-          className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
         >
           📅 Événements
         </Link>
         <Link
           href={`/admin/persons/${id}/media`}
-          className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
         >
           🖼 Médias
         </Link>
         <Link
           href={`/persons/${id}`}
-          className="rounded border border-blue-200 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
+          className="rounded-sm border border-blue-200 px-4 py-2 text-sm text-blue-700 hover:bg-blue-50"
         >
           Voir la fiche publique →
         </Link>

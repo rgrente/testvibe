@@ -60,7 +60,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Modifier la filiation #{id}</h1>
 
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error === "champs_requis"
             ? "Parent, enfant et rôle sont obligatoires."
             : "Données invalides."}
@@ -77,7 +77,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
             name="parentId"
             required
             defaultValue={filiation.parentId}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           >
             {sortedPersons.map((p) => (
               <option key={p.id} value={p.id}>
@@ -95,7 +95,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
             name="childId"
             required
             defaultValue={filiation.childId}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           >
             {sortedPersons.map((p) => (
               <option key={p.id} value={p.id}>
@@ -113,7 +113,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
             name="role"
             required
             defaultValue={filiation.role}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           >
             {(Object.entries(ROLE_LABELS) as [FiliationRole, string][]).map(([val, label]) => (
               <option key={val} value={val}>
@@ -125,13 +125,13 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
         <div className="flex items-end gap-2">
           <button
             type="submit"
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
           >
             Enregistrer
           </button>
           <Link
             href="/admin/filiations"
-            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
             Annuler
           </Link>

@@ -26,7 +26,7 @@ export function RootPersonSelect({ persons, selectedId }: RootPersonSelectProps)
         name="personId"
         value={String(selectedId)}
         onChange={(event) => router.push(`/?personId=${event.target.value}`)}
-        className="rounded border border-slate-300 px-3 py-1.5 text-sm"
+        className="rounded-sm border border-slate-300 px-3 py-1.5 text-sm"
       >
         {persons.map((p) => (
           <option key={p.id} value={p.id}>

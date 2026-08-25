@@ -56,7 +56,7 @@ export function MediaUploadForm({ personId, onUploadSuccess }: MediaUploadFormPr
           ref={fileRef}
           accept="image/jpeg,image/png,image/gif,image/webp,image/avif,application/pdf"
           required
-          className="block w-full text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-200"
+          className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-sm file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-200"
         />
       </div>
       {status === "error" && (
@@ -69,7 +69,7 @@ export function MediaUploadForm({ personId, onUploadSuccess }: MediaUploadFormPr
         <button
           type="submit"
           disabled={status === "uploading"}
-          className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
+          className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700 disabled:opacity-50"
         >
           {status === "uploading" ? "Upload en cours…" : "Uploader"}
         </button>

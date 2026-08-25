@@ -35,7 +35,7 @@ export function MediaDeleteButton({ mediaId, filename }: MediaDeleteButtonProps)
     <button
       onClick={handleDelete}
       disabled={status === "deleting"}
-      className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
+      className="rounded-sm border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50 disabled:opacity-50"
     >
       {status === "deleting" ? "…" : status === "error" ? "Erreur" : "Supprimer"}
     </button>

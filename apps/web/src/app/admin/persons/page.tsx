@@ -60,7 +60,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
         <h2 className="mb-4 font-semibold text-slate-800">Créer une personne</h2>
         {error && (
-          <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error === "champs_requis" ? "Prénom et nom sont obligatoires." : "Données invalides."}
           </p>
         )}
@@ -74,7 +74,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               name="firstName"
               type="text"
               required
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -86,7 +86,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               name="lastName"
               type="text"
               required
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -97,7 +97,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               id="birthName"
               name="birthName"
               type="text"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -108,7 +108,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               id="birthDate"
               name="birthDate"
               type="date"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -119,7 +119,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
               id="deathDate"
               name="deathDate"
               type="date"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div>
@@ -129,7 +129,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             <select
               id="gender"
               name="gender"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="">—</option>
               <option value="M">Masculin</option>
@@ -140,7 +140,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
           <div className="flex items-end">
             <button
               type="submit"
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
             >
               Créer
             </button>
@@ -171,7 +171,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
                 <div className="flex gap-2">
                   <Link
                     href={`/admin/persons/${p.id}/edit`}
-                    className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                    className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                   >
                     Modifier
                   </Link>
@@ -179,7 +179,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
                     <input type="hidden" name="id" value={p.id} />
                     <button
                       type="submit"
-                      className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                      className="rounded-sm border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
                     >
                       Supprimer
                     </button>

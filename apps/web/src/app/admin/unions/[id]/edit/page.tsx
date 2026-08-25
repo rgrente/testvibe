@@ -66,7 +66,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
       <h1 className="mb-6 text-2xl font-bold text-slate-900">Modifier l&apos;union #{id}</h1>
 
       {error && (
-        <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+        <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
           {error === "personnes_requises"
             ? union.personIds.length === 2
               ? "Sélectionnez deux personnes différentes."
@@ -78,7 +78,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
       <form action={updateUnionAction} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
           <label htmlFor="type" className="mb-1 block text-sm font-medium text-slate-700">Type d&apos;union</label>
-          <select id="type" name="type" defaultValue={union.type} className="w-full rounded border border-slate-300 px-3 py-2 text-sm">
+          <select id="type" name="type" defaultValue={union.type} className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
             <option value="mariage">Mariage</option>
             <option value="pacs">Pacs</option>
             <option value="libre">Union libre</option>
@@ -93,7 +93,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
             name="startDate"
             type="date"
             defaultValue={union.startDate ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div className="sm:col-span-2">
@@ -109,7 +109,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
             name="endDate"
             type="date"
             defaultValue={union.endDate ?? ""}
-            className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+            className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
         </div>
         <div className="sm:col-span-2">
@@ -144,13 +144,13 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
         <div className="flex items-end gap-2">
           <button
             type="submit"
-            className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+            className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
           >
             Enregistrer
           </button>
           <Link
             href="/admin/unions"
-            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
             Annuler
           </Link>
