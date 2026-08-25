@@ -178,13 +178,20 @@ describe("création de filiations par lot", () => {
       `CREATE TRIGGER fail_second_filiation BEFORE INSERT ON filiation
        WHEN NEW.child_id = ${child2.id} BEGIN SELECT RAISE(FAIL, 'échec simulé'); END`,
     ));
-    await expect(
-      createFiliations(db, {
-        parentIds: [parent.id],
-        childIds: [child1.id, child2.id],
-        role: "beau-parent",
-      }),
-    ).rejects.toThrow("échec simulé");
+    const failure = await createFiliations(db, {
+      parentIds: [parent.id],
+      childIds: [child1.id, child2.id],
+      role: "beau-parent",
+    }).catch((error: unknown) => error);
+    // Drizzle 0.45 enveloppe désormais l'erreur native libSQL dans une
+    // DrizzleQueryError ; le diagnostic du trigger reste disponible en cause.
+    const messages: string[] = [];
+    let current: unknown = failure;
+    while (current instanceof Error) {
+      messages.push(current.message);
+      current = current.cause;
+    }
+    expect(messages.join("\n")).toContain("échec simulé");
     expect(await listFiliations(db)).toHaveLength(0);
   });
 });
