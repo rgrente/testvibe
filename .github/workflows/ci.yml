@@ -2,10 +2,33 @@ name: CI
 
 on:
   push:
+    tags-ignore:
+      - "**"
   pull_request:
     branches: [main]
+    types: [opened, edited, reopened, synchronize]
 
 jobs:
+  lint-pr-title:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - name: Validate Conventional Commit PR title
+        uses: amannn/action-semantic-pull-request@v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            fix
+            feat
+            chore
+            docs
+            refactor
+            test
+            ci
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -32,15 +55,72 @@ jobs:
       - name: Test
         run: pnpm test
 
-  docker:
+  release:
     needs: build
-    if: github.event_name == 'push'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency:
+      group: release-main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      published: ${{ steps.release.outputs.published }}
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - name: Checkout full history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: ".nvmrc"
+
+      - name: Enable pinned pnpm through Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create semantic release
+        id: release
+        env:
+          GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          PREVIOUS_VERSION=$(node -p "require('./package.json').version")
+          pnpm exec semantic-release
+          RELEASED_VERSION=$(node -p "require('./package.json').version")
+          echo "version=$RELEASED_VERSION" >> "$GITHUB_OUTPUT"
+          if [ "$RELEASED_VERSION" != "$PREVIOUS_VERSION" ]; then
+            echo "published=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "published=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  docker:
+    needs: [build, release]
+    if: >-
+      always() &&
+      needs.build.result == 'success' &&
+      github.event_name == 'push' &&
+      ((github.ref == 'refs/heads/main' && needs.release.outputs.published == 'true') ||
+      (github.ref != 'refs/heads/main' && needs.release.result == 'skipped'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
-      - name: Checkout
+      - name: Checkout released main
+        if: github.ref == 'refs/heads/main'
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Checkout branch revision
+        if: github.ref != 'refs/heads/main'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
