@@ -68,7 +68,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
         </div>
         <Link
           href={`/?personId=${person.id}`}
-          className="rounded border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
+          className="rounded-sm border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50"
         >
           Voir dans l&apos;arbre
         </Link>
@@ -112,7 +112,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
                   href={`/api/media/${m.filename}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                  className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                 >
                   Ouvrir
                 </a>

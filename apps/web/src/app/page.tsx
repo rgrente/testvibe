@@ -44,7 +44,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         {anniversaryBlock}
         <p className="text-slate-600">
           Aucune Person n&apos;a encore été créée. Lancez{" "}
-          <code className="rounded bg-slate-100 px-1.5 py-0.5">
+          <code className="rounded-sm bg-slate-100 px-1.5 py-0.5">
             pnpm --filter @testvibe/core db:seed
           </code>{" "}
           pour charger un jeu de données de démonstration.
@@ -75,19 +75,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           name="q"
           defaultValue={searchQuery}
           placeholder="Rechercher une personne…"
-          className="flex-1 rounded border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400"
+          className="flex-1 rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-slate-400"
           aria-label="Rechercher par nom"
         />
         <button
           type="submit"
-          className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          className="rounded-sm bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
         >
           Rechercher
         </button>
         {searchQuery && (
           <Link
             href="/"
-            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
           >
             Effacer
           </Link>
@@ -117,13 +117,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
                   <div className="flex gap-2">
                     <Link
                       href={`/?personId=${p.id}`}
-                      className="rounded border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                      className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
                     >
                       Voir dans l&apos;arbre
                     </Link>
                     <Link
                       href={`/persons/${p.id}`}
-                      className="rounded border border-blue-200 px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
+                      className="rounded-sm border border-blue-200 px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
                     >
                       Détail
                     </Link>

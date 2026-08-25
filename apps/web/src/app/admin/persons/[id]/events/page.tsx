@@ -101,7 +101,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
       <section className="mb-8 rounded-lg border border-slate-200 p-6">
         <h2 className="mb-4 font-semibold text-slate-800">Ajouter un événement</h2>
         {error && (
-          <p className="mb-4 rounded border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="mb-4 rounded-sm border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-700">
             {error === "champs_requis" ? "Type obligatoire." : "Données invalides."}
           </p>
         )}
@@ -115,7 +115,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               id="type"
               name="type"
               required
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             >
               <option value="naissance">Naissance</option>
               <option value="décès">Décès</option>
@@ -132,7 +132,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               name="eventDate"
               type="text"
               placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -144,7 +144,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               name="label"
               type="text"
               placeholder="Ex: Voyage en Asie, Diplôme…"
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -155,7 +155,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               id="description"
               name="description"
               rows={2}
-              className="w-full rounded border border-slate-300 px-3 py-2 text-sm"
+              className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
           <div className="sm:col-span-2">
@@ -167,7 +167,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
           <div className="flex items-end">
             <button
               type="submit"
-              className="rounded bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
+              className="rounded-sm bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-700"
             >
               Ajouter
             </button>
@@ -191,7 +191,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   <input type="hidden" name="personId" value={id} />
                   <label className="text-xs font-medium text-slate-700">
                     Type *
-                    <select name="type" defaultValue={ev.type} required className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm">
+                    <select name="type" defaultValue={ev.type} required className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
                       {Object.entries(EVENT_TYPE_LABELS).map(([value, label]) => (
                         <option key={value} value={value}>{label}</option>
                       ))}
@@ -199,15 +199,15 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   </label>
                   <label className="text-xs font-medium text-slate-700">
                     Date
-                    <input name="eventDate" type="text" placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                    <input name="eventDate" type="text" placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Libellé
-                    <input name="label" type="text" defaultValue={ev.label ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                    <input name="label" type="text" defaultValue={ev.label ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Description
-                    <textarea name="description" rows={2} defaultValue={ev.description ?? ""} className="mt-1 block w-full rounded border border-slate-300 px-3 py-2 text-sm" />
+                    <textarea name="description" rows={2} defaultValue={ev.description ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                   <div className="sm:col-span-2">
                     <label htmlFor={`place-${ev.id}`} className="text-xs font-medium text-slate-700">
@@ -220,7 +220,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                       defaultLongitude={ev.longitude}
                     />
                   </div>
-                  <button type="submit" className="w-fit rounded bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">
+                  <button type="submit" className="w-fit rounded-sm bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-700">
                     Modifier
                   </button>
                 </form>
@@ -229,7 +229,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   <input type="hidden" name="personId" value={id} />
                   <button
                     type="submit"
-                    className="rounded border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
+                    className="rounded-sm border border-red-200 px-3 py-1 text-xs text-red-600 hover:bg-red-50"
                   >
                     Supprimer
                   </button>
