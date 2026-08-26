@@ -155,6 +155,7 @@ export default function PlaceAutocomplete({
     setLatitudeValue("");
     setLongitudeValue("");
     setOpen(true);
+    setActiveIndex(-1);
   };
 
   const inputClass =
@@ -193,6 +194,9 @@ export default function PlaceAutocomplete({
             } else if (event.key === "Enter" && activeSuggestion) {
               event.preventDefault();
               selectSuggestion(activeSuggestion);
+            } else if (event.key === "Escape") {
+              setOpen(false);
+              setActiveIndex(-1);
             }
           }}
           placeholder={placeholder}

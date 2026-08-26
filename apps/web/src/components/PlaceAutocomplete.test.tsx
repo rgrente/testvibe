@@ -185,6 +185,22 @@ describe("PlaceAutocomplete", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("retire l'option active quand la saisie change", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    render(<PlaceAutocomplete debounceMs={0} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    await screen.findAllByRole("option");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    fireEvent.change(input, { target: { value: "Lyo" } });
+
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+    for (const option of screen.getAllByRole("option")) {
+      expect(option).toHaveAttribute("aria-selected", "false");
+    }
+  });
+
   it("sélectionne l'option active avec Enter et ferme la liste", async () => {
     mockFetchSuccess(keyboardSuggestions);
     const onPlaceSelected = vi.fn();
@@ -208,5 +224,55 @@ describe("PlaceAutocomplete", () => {
     expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
     expect(input).not.toHaveAttribute("aria-activedescendant");
     expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("laisse Enter suivre le comportement du formulaire sans option active", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    const onPlaceSelected = vi.fn();
+    const { container } = render(
+      <PlaceAutocomplete debounceMs={0} onPlaceSelected={onPlaceSelected} />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    await screen.findAllByRole("option");
+
+    expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(true);
+    expect(input).toHaveValue("Par");
+    expect(fieldValue("latitude", container)).toBe("");
+    expect(fieldValue("longitude", container)).toBe("");
+    expect(onPlaceSelected).not.toHaveBeenCalled();
+  });
+
+  it("ferme la liste avec Escape sans modifier les valeurs ni notifier", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    const onPlaceSelected = vi.fn();
+    const { container } = render(
+      <PlaceAutocomplete
+        defaultPlace="Paris"
+        defaultLatitude={48.8566}
+        defaultLongitude={2.3522}
+        debounceMs={0}
+        onPlaceSelected={onPlaceSelected}
+      />,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.focus(input);
+    await screen.findAllByRole("option");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    fireEvent.keyDown(input, { key: "Escape" });
+
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+    expect(input).toHaveValue("Paris");
+    expect(fieldValue("latitude", container)).toBe("48.8566");
+    expect(fieldValue("longitude", container)).toBe("2.3522");
+    expect(onPlaceSelected).not.toHaveBeenCalled();
+
+    fireEvent.focus(input);
+    for (const option of await screen.findAllByRole("option")) {
+      expect(option).toHaveAttribute("aria-selected", "false");
+    }
+    expect(input).not.toHaveAttribute("aria-activedescendant");
   });
 });
