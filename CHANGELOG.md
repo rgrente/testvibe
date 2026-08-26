@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.2.0](https://github.com/rgrente/testvibe/compare/v1.1.0...v1.2.0) (2026-08-26)
+
+
+### Features
+
+* refonte de la timeline en vue ascendants ([#74](https://github.com/rgrente/testvibe/issues/74)) ([3e932d5](https://github.com/rgrente/testvibe/commit/3e932d540a14ee9c318ac503f0fa79ee9e44dd0e)), closes [#72](https://github.com/rgrente/testvibe/issues/72)
+
 # [1.1.0](https://github.com/rgrente/testvibe/compare/v1.0.0...v1.1.0) (2026-08-26)
 
 
