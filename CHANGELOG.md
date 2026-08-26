@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/rgrente/testvibe/compare/v1.2.0...v1.2.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* **web:** l'arbre occupe toute la largeur d'écran sur desktop ([#75](https://github.com/rgrente/testvibe/issues/75)) ([5aa6ca0](https://github.com/rgrente/testvibe/commit/5aa6ca0e7077616cb1aa53a2f3659c2120cb7eb4))
+
 # [1.2.0](https://github.com/rgrente/testvibe/compare/v1.1.0...v1.2.0) (2026-08-26)
 
 
