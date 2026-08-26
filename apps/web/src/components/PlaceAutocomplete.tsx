@@ -240,7 +240,9 @@ export default function PlaceAutocomplete({
                   e.preventDefault();
                   selectSuggestion(suggestion);
                 }}
-                className="block w-full px-3 py-2 text-left text-sm hover:bg-slate-100"
+                className={`block w-full px-3 py-2 text-left text-sm hover:bg-slate-100 ${
+                  index === activeIndex ? "bg-slate-100" : ""
+                }`}
               >
                 <span>{suggestion.label}</span>
                 <span className="ml-2 text-xs text-slate-400">

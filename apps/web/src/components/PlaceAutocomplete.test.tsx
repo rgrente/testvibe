@@ -191,6 +191,22 @@ describe("PlaceAutocomplete", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("déplace le style visuel de l'option active avec le clavier", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    render(<PlaceAutocomplete debounceMs={0} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    const options = await screen.findAllByRole("option");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(options[0]).toHaveClass("bg-slate-100");
+    expect(options[1]).not.toHaveClass("bg-slate-100");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(options[0]).not.toHaveClass("bg-slate-100");
+    expect(options[1]).toHaveClass("bg-slate-100");
+  });
+
   it("retire l'option active quand la saisie change", async () => {
     mockFetchSuccess(keyboardSuggestions);
     render(<PlaceAutocomplete debounceMs={0} />);
