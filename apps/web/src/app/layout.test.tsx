@@ -51,6 +51,7 @@ describe("RootLayout", () => {
       ["Timeline", "/timeline"],
       ["Ce jour-là", "/ce-jour-la"],
       ["Carte", "/carte"],
+      ["Statistiques", "/statistiques"],
       ["Mode édition", "/admin"],
     ]);
   });

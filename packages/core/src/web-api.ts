@@ -23,10 +23,16 @@ import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
 import { listUnions } from "./union.js";
 import { listFamilyAnniversaries, listUpcomingFamilyAnniversaries } from "./anniversary.js";
+import { getFamilyStatistics, type FamilyStatistics } from "./statistics.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
   return listPersons(defaultDb);
+}
+
+/** Agrège les statistiques publiques de l'ensemble de l'arbre familial. */
+export async function getFamilyStatisticsForWeb(): Promise<FamilyStatistics> {
+  return getFamilyStatistics(defaultDb);
 }
 
 /** Construit l'arbre généalogique complet visible depuis une Person racine. */

@@ -21,3 +21,4 @@ export * from "./media.js";
 export * from "./search.js";
 export * from "./comparative-timeline.js";
 export * from "./anniversary.js";
+export * from "./statistics.js";
