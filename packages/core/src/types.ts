@@ -7,8 +7,29 @@
 
 export type FiliationRole = "biologique" | "adopte" | "beau-parent";
 
-export type EventType = "naissance" | "décès" | "mariage" | "libre";
+export type EventType = "naissance" | "décès" | "mariage" | "résidence" | "libre";
 export type UnionType = "mariage" | "pacs" | "libre";
+
+export type FamilyFactCategory = EventType | "pacs" | "union libre";
+export type FamilyFactOwner = `person:${number}` | `union:${number}`;
+
+/** Fait familial canonique partagé par toutes les projections de lecture. */
+export interface FamilyFact {
+  identity: `person:${number}:naissance` | `person:${number}:décès` | `union:${number}` | `event:${number}`;
+  category: FamilyFactCategory;
+  owner: FamilyFactOwner;
+  personIds: number[];
+  date: string | null;
+  label: string | null;
+  description: string | null;
+  place: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  source: "person" | "union" | "event";
+  sourceEventId: number | null;
+  /** Lignes source divergentes d'un singleton, conservées pour diagnostic. */
+  conflicts: Event[];
+}
 
 export interface Person {
   id: number;
