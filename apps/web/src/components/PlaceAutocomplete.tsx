@@ -143,6 +143,7 @@ export default function PlaceAutocomplete({
     setLongitudeValue(toInputValue(suggestion.longitude));
     setSuggestions([]);
     setOpen(false);
+    setActiveIndex(-1);
     onPlaceSelected?.(suggestion.label, suggestion.latitude, suggestion.longitude);
   };
 
@@ -189,6 +190,9 @@ export default function PlaceAutocomplete({
               setActiveIndex((current) =>
                 current <= 0 ? suggestions.length - 1 : current - 1,
               );
+            } else if (event.key === "Enter" && activeSuggestion) {
+              event.preventDefault();
+              selectSuggestion(activeSuggestion);
             }
           }}
           placeholder={placeholder}

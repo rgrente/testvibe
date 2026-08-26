@@ -184,4 +184,29 @@ describe("PlaceAutocomplete", () => {
     expect(input).toHaveAttribute("aria-activedescendant", options[1].id);
     expect(onSubmit).not.toHaveBeenCalled();
   });
+
+  it("sélectionne l'option active avec Enter et ferme la liste", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    const onPlaceSelected = vi.fn();
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    const { container } = render(
+      <form onSubmit={onSubmit}>
+        <PlaceAutocomplete debounceMs={0} onPlaceSelected={onPlaceSelected} />
+      </form>,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    await screen.findAllByRole("option");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    expect(fireEvent.keyDown(input, { key: "Enter" })).toBe(false);
+    expect(input).toHaveValue("Lyon");
+    expect(fieldValue("latitude", container)).toBe("45.764");
+    expect(fieldValue("longitude", container)).toBe("4.8357");
+    expect(onPlaceSelected).toHaveBeenCalledWith("Lyon", 45.764, 4.8357);
+    expect(screen.queryByRole("listbox")).not.toBeInTheDocument();
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
 });
