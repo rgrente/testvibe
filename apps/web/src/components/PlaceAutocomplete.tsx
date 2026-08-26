@@ -19,7 +19,7 @@
  * d'événement que, à terme, dans l'édition d'union (une fois que le schéma
  * union portera place/coordonnées). Les noms de champs sont configurables.
  */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 
 export interface PlaceAutocompleteSuggestion {
   label: string;
@@ -87,8 +87,12 @@ export default function PlaceAutocomplete({
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [error, setError] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
 
   const requestId = useRef(0);
+  const listboxId = useId();
+  const activeSuggestion =
+    open && activeIndex >= 0 ? suggestions[activeIndex] : undefined;
 
   // Recherche avec debounce + garde anti-course (évite qu'une réponse lente
   // n'écrase une saisie plus récente).
@@ -163,7 +167,10 @@ export default function PlaceAutocomplete({
           type="text"
           role="combobox"
           aria-expanded={open}
-          aria-controls={open ? "place-suggestions" : undefined}
+          aria-controls={open ? listboxId : undefined}
+          aria-activedescendant={
+            activeSuggestion ? `${listboxId}-option-${activeIndex}` : undefined
+          }
           aria-autocomplete="list"
           autoComplete="off"
           name={placeName}
@@ -171,13 +178,26 @@ export default function PlaceAutocomplete({
           onChange={(e) => handlePlaceChange(e.target.value)}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
+          onKeyDown={(event) => {
+            if (event.key === "ArrowDown" && suggestions.length > 0) {
+              event.preventDefault();
+              setOpen(true);
+              setActiveIndex((current) => (current + 1) % suggestions.length);
+            } else if (event.key === "ArrowUp" && suggestions.length > 0) {
+              event.preventDefault();
+              setOpen(true);
+              setActiveIndex((current) =>
+                current <= 0 ? suggestions.length - 1 : current - 1,
+              );
+            }
+          }}
           placeholder={placeholder}
           className={inputClass}
         />
 
         {open && placeValue.trim().length >= minChars && (
           <div
-            id="place-suggestions"
+            id={listboxId}
             role="listbox"
             className="mt-1 overflow-hidden rounded-sm border border-slate-200 bg-white shadow-sm"
           >
@@ -199,10 +219,11 @@ export default function PlaceAutocomplete({
 
             {suggestions.map((suggestion, index) => (
               <button
+                id={`${listboxId}-option-${index}`}
                 key={`${suggestion.label}-${index}`}
                 type="button"
                 role="option"
-                aria-selected={false}
+                aria-selected={index === activeIndex}
                 onMouseDown={(e) => {
                   // onMouseDown pour sélectionner avant le blur du champ.
                   e.preventDefault();

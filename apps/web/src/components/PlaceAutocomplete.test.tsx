@@ -17,6 +17,11 @@ function fieldValue(name: string, container: HTMLElement): string | null {
   );
 }
 
+const keyboardSuggestions = [
+  { label: "Paris", latitude: 48.8566, longitude: 2.3522 },
+  { label: "Lyon", latitude: 45.764, longitude: 4.8357 },
+];
+
 describe("PlaceAutocomplete", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -130,5 +135,53 @@ describe("PlaceAutocomplete", () => {
 
     expect(globalThis.fetch).not.toHaveBeenCalled();
     expect(container.querySelector('[role="listbox"]')).toBeNull();
+  });
+
+  it("déplace l'option active avec ArrowDown et boucle sans soumettre", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <PlaceAutocomplete debounceMs={0} />
+      </form>,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    const options = await screen.findAllByRole("option");
+
+    expect(fireEvent.keyDown(input, { key: "ArrowDown" })).toBe(false);
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(input).toHaveAttribute("aria-activedescendant", options[0].id);
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("déplace l'option active avec ArrowUp et boucle sans soumettre", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
+    render(
+      <form onSubmit={onSubmit}>
+        <PlaceAutocomplete debounceMs={0} />
+      </form>,
+    );
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    const options = await screen.findAllByRole("option");
+
+    expect(fireEvent.keyDown(input, { key: "ArrowUp" })).toBe(false);
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(options[0]).toHaveAttribute("aria-selected", "true");
+
+    fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(options[1]).toHaveAttribute("aria-selected", "true");
+    expect(input).toHaveAttribute("aria-activedescendant", options[1].id);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 });
