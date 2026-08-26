@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.5.0](https://github.com/rgrente/testvibe/compare/v1.4.0...v1.5.0) (2026-08-26)
+
+
+### Features
+
+* **web:** add family statistics dashboard ([#78](https://github.com/rgrente/testvibe/issues/78)) ([6bdad5c](https://github.com/rgrente/testvibe/commit/6bdad5c71de4efb66d90068533288db8316b4435)), closes [#63](https://github.com/rgrente/testvibe/issues/63)
+
 # [1.4.0](https://github.com/rgrente/testvibe/compare/v1.3.0...v1.4.0) (2026-08-26)
 
 
