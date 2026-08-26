@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.1.0](https://github.com/rgrente/testvibe/compare/v1.0.0...v1.1.0) (2026-08-26)
+
+
+### Features
+
+* ajouter la version de release au footer ([#73](https://github.com/rgrente/testvibe/issues/73)) ([ff5d0b4](https://github.com/rgrente/testvibe/commit/ff5d0b4c46989b9e59a42b781513755cf2df2602)), closes [#71](https://github.com/rgrente/testvibe/issues/71)
+
 # 1.0.0 (2026-08-26)
 
 
