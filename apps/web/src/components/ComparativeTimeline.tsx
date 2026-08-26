@@ -1,6 +1,6 @@
 import type { ComparativeTimelineRow, EventType } from "@testvibe/core";
 import Link from "next/link";
-import { prepareComparativeTimeline } from "../lib/comparative-timeline";
+import { assignConnectionLanes, prepareComparativeTimeline, type TimelineConnection } from "../lib/comparative-timeline";
 
 const EVENT_TYPE_LABELS: Record<EventType, string> = {
   naissance: "Naissance",
@@ -19,7 +19,7 @@ function personColorDark(id: number): string {
   return `hsl(${hue}, 65%, 35%)`;
 }
 
-export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }) {
+export function ComparativeTimeline({ rows, connections = [], branchByPersonId, preserveRowOrder = false }: { rows: ComparativeTimelineRow[]; connections?: TimelineConnection[]; branchByPersonId?: Map<number, number>; preserveRowOrder?: boolean }) {
   if (rows.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center">
@@ -31,12 +31,32 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
     );
   }
 
-  const timeline = prepareComparativeTimeline(rows);
+  const timeline = prepareComparativeTimeline(rows, { preserveRowOrder });
   const span =
     timeline.startYear !== null && timeline.endYear !== null
       ? timeline.endYear - timeline.startYear
       : 0;
   const canvasWidth = Math.max(720, span * 8);
+  const routedConnections = connections.flatMap((connection) => {
+    const parentIndex = timeline.rows.findIndex((row) => row.person.id === connection.parentId);
+    const childIndex = timeline.rows.findIndex((row) => row.person.id === connection.childId);
+    const parent = timeline.rows[parentIndex];
+    const child = timeline.rows[childIndex];
+    if (parentIndex < 0 || childIndex < 0 || !parent?.life || !child?.life || parentIndex === childIndex) return [];
+    return [{
+      connection,
+      parentIndex,
+      childIndex,
+      parentStartPosition: parent.life.startPosition,
+      childStartPosition: child.life.startPosition,
+      firstRow: Math.min(parentIndex, childIndex) + 1,
+      lastRow: Math.max(parentIndex, childIndex) + 2,
+    }];
+  });
+  const connectionLanes = assignConnectionLanes(routedConnections);
+  const connectionLaneCount = connectionLanes.length > 0 ? Math.max(...connectionLanes) + 1 : 0;
+  const connectionGutterWidth = Math.max(48, connectionLaneCount * 8 + 16);
+  const gridTemplateColumns = `220px ${connectionGutterWidth}px minmax(0, 1fr)`;
 
   return (
     <div className="space-y-0">
@@ -46,7 +66,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
             className="h-1 w-8 rounded-sm"
             style={{ background: "linear-gradient(to right, #f43f5e, #f59e0b, #10b981, #3b82f6, #8b5cf6)" }}
             aria-hidden="true"
-          /> Barre de vie (couleur par personne)
+          /> Barre de vie ({branchByPersonId ? "couleur par lignée" : "couleur par personne"})
         </span>
         <span className="inline-flex items-center gap-2">
           <span className="h-3 w-3 rounded-full border-2 border-white bg-amber-500 ring-1 ring-amber-600" aria-hidden="true" />
@@ -64,11 +84,12 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
         <div data-testid="timeline-canvas" style={{ minWidth: `${canvasWidth}px` }}>
           <div
             className="sticky top-0 z-20 grid border-b border-slate-200 bg-slate-50/95"
-            style={{ gridTemplateColumns: "220px minmax(0, 1fr)" }}
+            style={{ gridTemplateColumns }}
           >
             <div className="sticky left-0 z-30 border-r border-slate-200 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
               Personne
             </div>
+            <div aria-hidden="true" className="border-r border-slate-200" />
             <div className="relative h-14">
               {timeline.ticks.map((year) => {
                 const tickPosition = ((year - timeline.startYear!) / (timeline.endYear! - timeline.startYear!)) * 100;
@@ -88,19 +109,62 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
             </div>
           </div>
 
-          {timeline.rows.map((row) => {
+          <div className="grid" style={{ gridTemplateColumns }}>
+          {routedConnections.map(({ connection, parentIndex, childIndex, parentStartPosition, childStartPosition, firstRow, lastRow }, connectionIndex) => {
+            const colorKey = branchByPersonId?.get(connection.parentId) ?? connection.parentId;
+            const color = branchByPersonId && colorKey < 0 ? "#475569" : personColor(colorKey + 1);
+            const laneOffset = 8 + connectionLanes[connectionIndex] * 8;
+            return (
+              <span
+                key={`${connection.parentId}-${connection.childId}`}
+                data-testid={`timeline-connection-${connection.parentId}-${connection.childId}`}
+                aria-label={`Lien parent-enfant${connection.age === null ? "" : `, parent âgé de ${connection.age} ans à la naissance`}`}
+                className="pointer-events-none contents"
+              >
+                <span
+                  data-testid={`timeline-connection-lane-${connection.parentId}-${connection.childId}`}
+                  className="relative z-5 my-3 border-l-2"
+                  style={{ gridColumn: 2, gridRow: `${firstRow} / ${lastRow}`, marginLeft: `${laneOffset}px`, borderColor: color }}
+                >
+                  <span className="absolute left-1 top-1/2 -translate-y-1/2 whitespace-nowrap rounded-sm bg-white/90 px-1 text-[10px] font-semibold shadow-xs" style={{ color }}>
+                    {connection.age === null ? "âge inconnu" : `${connection.age} ans`}
+                  </span>
+                </span>
+                {[
+                  { id: "parent", row: parentIndex + 1, position: parentStartPosition },
+                  { id: "child", row: childIndex + 1, position: childStartPosition },
+                ].map((endpoint) => (
+                  <span
+                    key={endpoint.id}
+                    data-testid={`timeline-connection-${endpoint.id}-arm-${connection.parentId}-${connection.childId}`}
+                    aria-hidden="true"
+                    className="relative z-5 mt-3 border-t-2"
+                    style={{
+                      gridColumn: "2 / 4",
+                      gridRow: endpoint.row,
+                      marginLeft: `${laneOffset}px`,
+                      width: `calc(${connectionGutterWidth - laneOffset}px + (100% - ${connectionGutterWidth}px) * ${endpoint.position / 100})`,
+                      borderColor: color,
+                    }}
+                  />
+                ))}
+              </span>
+            );
+          })}
+
+          {timeline.rows.map((row, rowIndex) => {
             const fullName = `${row.person.firstName} ${row.person.lastName}`;
-            const color = personColor(row.person.id);
-            const colorDark = personColorDark(row.person.id);
+            const colorKey = branchByPersonId?.get(row.person.id) ?? row.person.id;
+            const color = branchByPersonId && colorKey < 0 ? "#475569" : personColor(colorKey + 1);
+            const colorDark = branchByPersonId && colorKey < 0 ? "#334155" : personColorDark(colorKey + 1);
             return (
               <section
                 key={row.person.id}
                 role="group"
                 aria-label={`Timeline de ${fullName}`}
-                className="grid border-b border-slate-100 last:border-b-0"
-                style={{ gridTemplateColumns: "220px minmax(0, 1fr)" }}
+                className="contents"
               >
-                <div className="sticky left-0 z-10 border-r border-slate-200 bg-white px-4 py-1.5 shadow-[3px_0_5px_-5px_rgba(15,23,42,0.4)]">
+                <div className="sticky left-0 z-10 border-b border-r border-slate-200 bg-white px-4 py-1.5 shadow-[3px_0_5px_-5px_rgba(15,23,42,0.4)] last:border-b-0" style={{ gridColumn: 1, gridRow: rowIndex + 1 }}>
                   <Link
                     href={`/persons/${row.person.id}`}
                     className="font-semibold text-slate-900 hover:text-blue-700 hover:underline"
@@ -113,8 +177,8 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
                 </div>
 
                 <div
-                  className="relative px-3 py-1.5"
-                  style={{ minHeight: `${Math.max(3, row.maxLanes * 1.5 + 1.5)}rem` }}
+                  className="relative border-b border-slate-100 px-3 py-1.5 last:border-b-0"
+                  style={{ gridColumn: 3, gridRow: rowIndex + 1, minHeight: `${Math.max(3, row.maxLanes * 1.5 + 1.5)}rem` }}
                 >
                   {timeline.ticks.map((year) => {
                     const tickPosition = ((year - timeline.startYear!) / (timeline.endYear! - timeline.startYear!)) * 100;
@@ -188,6 +252,7 @@ export function ComparativeTimeline({ rows }: { rows: ComparativeTimelineRow[] }
               </section>
             );
           })}
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,16 @@
 import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
 
+export interface TimelineConnection {
+  parentId: number;
+  childId: number;
+  age: number | null;
+}
+
+export interface ConnectionRowRange {
+  firstRow: number;
+  lastRow: number;
+}
+
 export interface PositionedTimelineEvent {
   id: number;
   type: Event["type"];
@@ -84,7 +95,29 @@ function assignLanes(events: Array<{ position: number }>): number[] {
   return lanes;
 }
 
-export function prepareComparativeTimeline(rows: ComparativeTimelineRow[]): PreparedComparativeTimeline {
+export function assignConnectionLanes(ranges: ConnectionRowRange[]): number[] {
+  const lanes = new Array<number>(ranges.length);
+  const lastRowInLane: number[] = [];
+  const sortedRangeIndexes = ranges
+    .map((_range, index) => index)
+    .sort((a, b) => ranges[a].firstRow - ranges[b].firstRow || ranges[a].lastRow - ranges[b].lastRow || a - b);
+
+  for (const rangeIndex of sortedRangeIndexes) {
+    let lane = 0;
+    while (lastRowInLane[lane] !== undefined && lastRowInLane[lane] > ranges[rangeIndex].firstRow) {
+      lane++;
+    }
+    lanes[rangeIndex] = lane;
+    lastRowInLane[lane] = ranges[rangeIndex].lastRow;
+  }
+
+  return lanes;
+}
+
+export function prepareComparativeTimeline(
+  rows: ComparativeTimelineRow[],
+  { preserveRowOrder = false }: { preserveRowOrder?: boolean } = {},
+): PreparedComparativeTimeline {
   const values = rows.flatMap(({ person, events }) => [
     dateValue(person.birthDate),
     dateValue(person.deathDate),
@@ -95,7 +128,7 @@ export function prepareComparativeTimeline(rows: ComparativeTimelineRow[]): Prep
   let endYear = values.length > 0 ? Math.ceil(Math.max(...values) / 10) * 10 : null;
   if (startYear !== null && endYear === startYear) endYear += 10;
 
-  const preparedRows = rows
+  let preparedRows = rows
     .map(({ person, events }): PreparedTimelineRow & { birthValue: number | null } => {
       const birthValue = dateValue(person.birthDate);
       const deathValue = dateValue(person.deathDate);
@@ -146,19 +179,23 @@ export function prepareComparativeTimeline(rows: ComparativeTimelineRow[]): Prep
         undatedEvents,
         maxLanes,
       };
-    })
-    .sort((a, b) => {
+    });
+
+  if (!preserveRowOrder) {
+    preparedRows = preparedRows.sort((a, b) => {
       if (a.birthValue === null && b.birthValue !== null) return 1;
       if (a.birthValue !== null && b.birthValue === null) return -1;
       if (a.birthValue !== null && b.birthValue !== null && a.birthValue !== b.birthValue) {
         return a.birthValue - b.birthValue;
       }
       return personName(a.person).localeCompare(personName(b.person), "fr");
-    })
-    .map(({ birthValue: _birthValue, ...row }) => row);
+    });
+  }
+
+  const orderedRows = preparedRows.map(({ birthValue: _birthValue, ...row }) => row);
 
   if (startYear === null || endYear === null) {
-    return { startYear: null, endYear: null, ticks: [], rows: preparedRows };
+    return { startYear: null, endYear: null, ticks: [], rows: orderedRows };
   }
 
   const step = tickStep(endYear - startYear);
@@ -166,5 +203,5 @@ export function prepareComparativeTimeline(rows: ComparativeTimelineRow[]): Prep
   for (let year = startYear; year <= endYear; year += step) ticks.push(year);
   if (ticks.at(-1) !== endYear) ticks.push(endYear);
 
-  return { startYear, endYear, ticks, rows: preparedRows };
+  return { startYear, endYear, ticks, rows: orderedRows };
 }
