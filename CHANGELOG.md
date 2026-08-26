@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.4.0](https://github.com/rgrente/testvibe/compare/v1.3.0...v1.4.0) (2026-08-26)
+
+
+### Features
+
+* **web:** add keyboard navigation to place autocomplete ([#77](https://github.com/rgrente/testvibe/issues/77)) ([92c2472](https://github.com/rgrente/testvibe/commit/92c2472c616d04311e98924403458cab9d8639d9))
+
 # [1.3.0](https://github.com/rgrente/testvibe/compare/v1.2.1...v1.3.0) (2026-08-26)
 
 
