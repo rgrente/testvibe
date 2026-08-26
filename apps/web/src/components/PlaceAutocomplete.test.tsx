@@ -151,13 +151,16 @@ describe("PlaceAutocomplete", () => {
 
     expect(fireEvent.keyDown(input, { key: "ArrowDown" })).toBe(false);
     expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
     expect(input).toHaveAttribute("aria-activedescendant", options[0].id);
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
     expect(options[1]).toHaveAttribute("aria-selected", "true");
 
     fireEvent.keyDown(input, { key: "ArrowDown" });
     expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
@@ -174,12 +177,15 @@ describe("PlaceAutocomplete", () => {
     const options = await screen.findAllByRole("option");
 
     expect(fireEvent.keyDown(input, { key: "ArrowUp" })).toBe(false);
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
     expect(options[1]).toHaveAttribute("aria-selected", "true");
 
     fireEvent.keyDown(input, { key: "ArrowUp" });
     expect(options[0]).toHaveAttribute("aria-selected", "true");
+    expect(options[1]).toHaveAttribute("aria-selected", "false");
 
     fireEvent.keyDown(input, { key: "ArrowUp" });
+    expect(options[0]).toHaveAttribute("aria-selected", "false");
     expect(options[1]).toHaveAttribute("aria-selected", "true");
     expect(input).toHaveAttribute("aria-activedescendant", options[1].id);
     expect(onSubmit).not.toHaveBeenCalled();
