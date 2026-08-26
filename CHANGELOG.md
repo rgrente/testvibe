@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.3.0](https://github.com/rgrente/testvibe/compare/v1.2.1...v1.3.0) (2026-08-26)
+
+
+### Features
+
+* ajouter une vue arbre en éventail ([#76](https://github.com/rgrente/testvibe/issues/76)) ([cbf2c0f](https://github.com/rgrente/testvibe/commit/cbf2c0f79d0f4686dfca6d1b0731eab089410ca0)), closes [#65](https://github.com/rgrente/testvibe/issues/65)
+
 ## [1.2.1](https://github.com/rgrente/testvibe/compare/v1.2.0...v1.2.1) (2026-08-26)
 
 
