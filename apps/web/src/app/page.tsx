@@ -64,80 +64,79 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const root = tree.nodes.find((n) => n.person.id === rootId)!.person;
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
-      <h1 className="mb-2 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
-      {anniversaryBlock}
+    <main className="px-4 py-8 sm:px-6">
+      <div className="mx-auto max-w-5xl">
+        <h1 className="mb-2 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
+        {anniversaryBlock}
 
-      {/* Barre de recherche */}
-      <form method="GET" className="mb-6 flex gap-2">
-        <input
-          type="search"
-          name="q"
-          defaultValue={searchQuery}
-          placeholder="Rechercher une personne…"
-          className="flex-1 rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-slate-400"
-          aria-label="Rechercher par nom"
-        />
-        <button
-          type="submit"
-          className="rounded-sm bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
-        >
-          Rechercher
-        </button>
-        {searchQuery && (
-          <Link
-            href="/"
-            className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+        {/* Barre de recherche */}
+        <form method="GET" className="mb-6 flex gap-2">
+          <input
+            type="search"
+            name="q"
+            defaultValue={searchQuery}
+            placeholder="Rechercher une personne…"
+            className="flex-1 rounded-sm border border-slate-300 px-3 py-2 text-sm focus:outline-hidden focus:ring-2 focus:ring-slate-400"
+            aria-label="Rechercher par nom"
+          />
+          <button
+            type="submit"
+            className="rounded-sm bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
           >
-            Effacer
-          </Link>
-        )}
-      </form>
-
-      {/* Résultats de recherche */}
-      {searchResults !== null && (
-        <section className="mb-8">
-          <h2 className="mb-3 font-semibold text-slate-800">
-            {searchResults.length === 0
-              ? `Aucun résultat pour « ${searchQuery} »`
-              : `${searchResults.length} résultat(s) pour « ${searchQuery} »`}
-          </h2>
-          {searchResults.length > 0 && (
-            <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
-              {searchResults.map((p) => (
-                <li key={p.id} className="px-4 py-3 flex items-center justify-between">
-                  <div>
-                    <span className="font-medium text-slate-900">
-                      {p.firstName} {p.lastName}
-                    </span>
-                    {p.birthDate && (
-                      <span className="ml-2 text-sm text-slate-500">né·e {p.birthDate}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Link
-                      href={`/?personId=${p.id}`}
-                      className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
-                    >
-                      Voir dans l&apos;arbre
-                    </Link>
-                    <Link
-                      href={`/persons/${p.id}`}
-                      className="rounded-sm border border-blue-200 px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
-                    >
-                      Détail
-                    </Link>
-                  </div>
-                </li>
-              ))}
-            </ul>
+            Rechercher
+          </button>
+          {searchQuery && (
+            <Link
+              href="/"
+              className="rounded-sm border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            >
+              Effacer
+            </Link>
           )}
-        </section>
-      )}
+        </form>
 
-      {/* Arbre généalogique */}
-      {!searchQuery && (
-        <>
+        {/* Résultats de recherche */}
+        {searchResults !== null && (
+          <section className="mb-8">
+            <h2 className="mb-3 font-semibold text-slate-800">
+              {searchResults.length === 0
+                ? `Aucun résultat pour « ${searchQuery} »`
+                : `${searchResults.length} résultat(s) pour « ${searchQuery} »`}
+            </h2>
+            {searchResults.length > 0 && (
+              <ul className="divide-y divide-slate-100 rounded-lg border border-slate-200">
+                {searchResults.map((p) => (
+                  <li key={p.id} className="px-4 py-3 flex items-center justify-between">
+                    <div>
+                      <span className="font-medium text-slate-900">
+                        {p.firstName} {p.lastName}
+                      </span>
+                      {p.birthDate && (
+                        <span className="ml-2 text-sm text-slate-500">né·e {p.birthDate}</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Link
+                        href={`/?personId=${p.id}`}
+                        className="rounded-sm border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50"
+                      >
+                        Voir dans l&apos;arbre
+                      </Link>
+                      <Link
+                        href={`/persons/${p.id}`}
+                        className="rounded-sm border border-blue-200 px-3 py-1 text-xs text-blue-700 hover:bg-blue-50"
+                      >
+                        Détail
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        {!searchQuery && (
           <p className="mb-6 text-slate-600">
             Vue centrée sur{" "}
             <span className="font-medium text-slate-900">
@@ -145,12 +144,18 @@ export default async function HomePage({ searchParams }: HomePageProps) {
             </span>{" "}
             — {tree.nodes.length} personne(s) affichée(s).
           </p>
+        )}
+      </div>
+
+      {/* Arbre généalogique : pleine largeur pour exploiter tout l'écran sur desktop */}
+      {!searchQuery && (
+        <div className="mx-auto max-w-[1920px]">
           <RootPersonSelect persons={persons} selectedId={rootId} />
           <FamilyTreeViews tree={tree} />
-        </>
+        </div>
       )}
 
-      <p className="mt-8 text-right text-xs text-slate-400">
+      <p className="mx-auto mt-8 max-w-5xl text-right text-xs text-slate-400">
         <Link href="/admin" className="hover:text-slate-600">
           Mode édition
         </Link>
