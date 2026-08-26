@@ -179,7 +179,10 @@ export default function PlaceAutocomplete({
           value={placeValue}
           onChange={(e) => handlePlaceChange(e.target.value)}
           onFocus={() => setOpen(true)}
-          onBlur={() => setOpen(false)}
+          onBlur={() => {
+            setOpen(false);
+            setActiveIndex(-1);
+          }}
           onKeyDown={(event) => {
             if (event.key === "ArrowDown" && suggestions.length > 0) {
               event.preventDefault();

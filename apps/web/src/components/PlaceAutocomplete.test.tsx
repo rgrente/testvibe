@@ -201,6 +201,23 @@ describe("PlaceAutocomplete", () => {
     }
   });
 
+  it("retire l'option active quand la liste perd le focus", async () => {
+    mockFetchSuccess(keyboardSuggestions);
+    render(<PlaceAutocomplete debounceMs={0} />);
+    const input = screen.getByRole("combobox");
+    fireEvent.change(input, { target: { value: "Par" } });
+    await screen.findAllByRole("option");
+    fireEvent.keyDown(input, { key: "ArrowDown" });
+
+    fireEvent.blur(input);
+    fireEvent.focus(input);
+
+    for (const option of await screen.findAllByRole("option")) {
+      expect(option).toHaveAttribute("aria-selected", "false");
+    }
+    expect(input).not.toHaveAttribute("aria-activedescendant");
+  });
+
   it("sélectionne l'option active avec Enter et ferme la liste", async () => {
     mockFetchSuccess(keyboardSuggestions);
     const onPlaceSelected = vi.fn();
