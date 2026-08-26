@@ -87,4 +87,70 @@ describe("ComparativeTimeline", () => {
 
     expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
   });
+
+  it("préserve l'ordre d'ascendance, colore par branche et relie réellement les lignes", () => {
+    const child = person({ id: 10, firstName: "Enfant", lastName: "Test", birthDate: "1980" });
+    const parent = person({ id: 20, firstName: "Parent", lastName: "Test", birthDate: "1950" });
+    render(
+      <ComparativeTimeline
+        rows={[{ person: child, events: [] }, { person: parent, events: [] }]}
+        connections={[{ parentId: 20, childId: 10, age: 30 }]}
+        branchByPersonId={new Map([[10, -1], [20, 2]])}
+        preserveRowOrder
+      />,
+    );
+
+    const groups = screen.getAllByRole("group");
+    expect(groups[0]).toHaveAccessibleName("Timeline de Enfant Test");
+    expect(groups[1]).toHaveAccessibleName("Timeline de Parent Test");
+    expect(screen.getByText("Barre de vie (couleur par lignée)")).toBeInTheDocument();
+    const connector = screen.getByTestId("timeline-connection-20-10");
+    expect(connector).toHaveAccessibleName("Lien parent-enfant, parent âgé de 30 ans à la naissance");
+    expect(screen.getByTestId("timeline-connection-lane-20-10")).toHaveStyle({ gridColumn: "2", gridRow: "1 / 3" });
+    expect(screen.getByTestId("timeline-connection-parent-arm-20-10")).toHaveStyle({ gridRow: "2" });
+    expect(screen.getByTestId("timeline-connection-child-arm-20-10")).toHaveStyle({ gridRow: "1" });
+    expect(within(connector).getByText("30 ans")).toBeInTheDocument();
+    const parentLife = screen.getByLabelText(/Vie de Parent Test/);
+    expect(parentLife).toHaveStyle({ backgroundColor: "hsl(52.5, 65%, 55%)" });
+  });
+
+  it("route les liens de branches non adjacentes dans le couloir dédié", () => {
+    const rows = [4, 5, 6, 7, 2, 3, 1].map((id) => ({
+      person: person({ id, firstName: `Personne ${id}`, lastName: "Test", birthDate: `${1900 + id}` }),
+      events: [],
+    }));
+
+    render(
+      <ComparativeTimeline
+        rows={rows}
+        connections={[{ parentId: 4, childId: 2, age: 30 }]}
+        preserveRowOrder
+      />,
+    );
+
+    expect(screen.getByTestId("timeline-connection-lane-4-2")).toHaveStyle({ gridColumn: "2", gridRow: "1 / 6" });
+    expect(screen.getByTestId("timeline-connection-parent-arm-4-2")).toHaveStyle({ gridRow: "1" });
+    expect(screen.getByTestId("timeline-connection-child-arm-4-2")).toHaveStyle({ gridRow: "5" });
+  });
+
+  it("attribue des couloirs distincts aux liens dont les plages de lignes se chevauchent", () => {
+    const rows = [4, 5, 6, 7, 2, 3, 1].map((id) => ({
+      person: person({ id, firstName: `Personne ${id}`, lastName: "Test", birthDate: `${1900 + id}` }),
+      events: [],
+    }));
+
+    render(
+      <ComparativeTimeline
+        rows={rows}
+        connections={[
+          { parentId: 4, childId: 2, age: 30 },
+          { parentId: 7, childId: 5, age: 28 },
+        ]}
+        preserveRowOrder
+      />,
+    );
+
+    expect(screen.getByTestId("timeline-connection-lane-4-2")).toHaveStyle({ marginLeft: "8px" });
+    expect(screen.getByTestId("timeline-connection-lane-7-5")).toHaveStyle({ marginLeft: "16px" });
+  });
 });

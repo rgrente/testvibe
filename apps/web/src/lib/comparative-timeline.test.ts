@@ -26,6 +26,12 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
 }
 
 describe("prepareComparativeTimeline", () => {
+  it("peut préserver l'ordre fourni pour une vue d'ascendance", () => {
+    const recent = person({ id: 50, firstName: "Recent", lastName: "First", birthDate: "2000" });
+    const old = person({ id: 51, firstName: "Old", lastName: "Second", birthDate: "1900" });
+    expect(prepareComparativeTimeline([{ person: recent, events: [] }, { person: old, events: [] }], { preserveRowOrder: true }).rows.map((row) => row.person.id)).toEqual([50, 51]);
+    expect(prepareComparativeTimeline([{ person: recent, events: [] }, { person: old, events: [] }]).rows.map((row) => row.person.id)).toEqual([51, 50]);
+  });
   it("place les vies et événements sur une échelle commune", () => {
     const ada = person({
       id: 1,
