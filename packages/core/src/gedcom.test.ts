@@ -216,6 +216,32 @@ describe("importGedcom", () => {
     expect(exported.match(/2 DATE AUG 2010/g)).toHaveLength(1);
   });
 
+  it("préserve RESI comme résidence explicite à l'aller-retour", async () => {
+    const residenceGedcom = `0 HEAD
+0 @I1@ INDI
+1 NAME Alice /MARTIN/
+1 RESI
+2 DATE MAR 2005
+2 PLAC Lyon, France
+0 TRLR
+`;
+
+    await importGedcom(db, residenceGedcom);
+    expect(await listAllEvents(db)).toMatchObject([
+      { type: "résidence", label: null, eventDate: "2005-03", place: "Lyon, France" },
+    ]);
+
+    const exported = await exportGedcom(db);
+    expect(exported).toContain("1 RESI\n2 DATE MAR 2005\n2 PLAC Lyon, France");
+    expect(exported).not.toContain("2 TYPE Résidence");
+
+    const db2 = await createTestDb();
+    await importGedcom(db2, exported);
+    expect(await listAllEvents(db2)).toMatchObject([
+      { type: "résidence", label: null, eventDate: "2005-03", place: "Lyon, France" },
+    ]);
+  });
+
   it("rejette un GEDCOM vide (sans individus ni familles)", async () => {
     const emptyGedcom = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR\n";
     await expect(importGedcom(db, emptyGedcom)).rejects.toBeInstanceOf(ValidationError);

@@ -6,6 +6,7 @@ import type {
   Event,
   FamilyFact,
   FamilyFactCategory,
+  MapLocation,
   Person,
   Union,
 } from "./types.js";
@@ -93,11 +94,14 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
   const enrichment = matches[0];
   if (!date && !enrichment) return null;
   return {
+    id: enrichment?.id ?? -person.id * 10 - (type === "naissance" ? 1 : 2),
     identity: `person:${person.id}:${type}`,
     category: type,
+    type,
     owner: `person:${person.id}`,
     personIds: [person.id],
     date: date ?? enrichment.eventDate,
+    eventDate: date ?? enrichment.eventDate,
     label: enrichment?.label ?? null,
     description: enrichment?.description ?? null,
     place: enrichment?.place ?? null,
@@ -110,12 +114,16 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
 }
 
 function unionFact(item: Union): FamilyFact {
+  const category = item.type === "libre" ? "union libre" : item.type;
   return {
+    id: -item.id,
     identity: `union:${item.id}`,
-    category: item.type === "libre" ? "union libre" : item.type,
+    category,
+    type: category,
     owner: `union:${item.id}`,
     personIds: [...item.personIds].sort((left, right) => left - right),
     date: item.startDate,
+    eventDate: item.startDate,
     label: null,
     description: null,
     place: item.place,
@@ -130,11 +138,14 @@ function unionFact(item: Union): FamilyFact {
 function eventFact(item: Event): FamilyFact {
   const category = eventCategory(item);
   return {
+    id: item.id,
     identity: `event:${item.id}`,
     category,
+    type: category,
     owner: `person:${item.personId}`,
     personIds: [item.personId],
     date: item.eventDate,
+    eventDate: item.eventDate,
     label: category === "résidence" ? null : item.label,
     description: item.description,
     place: item.place,
@@ -185,4 +196,31 @@ export async function listCanonicalFamilyFacts(db: Database): Promise<FamilyFact
     listAllEvents(db),
   ]);
   return projectFamilyFacts(persons, unions, events);
+}
+
+export async function listCanonicalFactsByPerson(db: Database, personId: number): Promise<FamilyFact[]> {
+  return (await listCanonicalFamilyFacts(db)).filter((fact) => fact.personIds.includes(personId));
+}
+
+export function mapLocationsFromFacts(facts: FamilyFact[], persons: Person[]): MapLocation[] {
+  const personsById = new Map(persons.map((person) => [person.id, person]));
+  return facts
+    .filter((fact) => fact.place && fact.latitude != null && fact.longitude != null && fact.personIds.length > 0)
+    .map((fact) => ({
+      eventId: fact.id,
+      source: fact.source === "union" ? "union" : "event",
+      personId: fact.personIds[0],
+      personIds: fact.personIds,
+      personName: fact.personIds
+        .map((id) => personsById.get(id))
+        .filter((person): person is Person => person !== undefined)
+        .map((person) => `${person.firstName} ${person.lastName}`)
+        .join(" & "),
+      type: fact.category,
+      label: fact.label,
+      eventDate: fact.date,
+      place: fact.place!,
+      latitude: fact.latitude!,
+      longitude: fact.longitude!,
+    }));
 }

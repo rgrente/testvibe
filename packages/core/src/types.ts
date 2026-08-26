@@ -15,11 +15,15 @@ export type FamilyFactOwner = `person:${number}` | `union:${number}`;
 
 /** Fait familial canonique partagé par toutes les projections de lecture. */
 export interface FamilyFact {
+  /** Alias numérique compatible UI : ids d'union négatifs, ids d'événement positifs. */
+  id: number;
   identity: `person:${number}:naissance` | `person:${number}:décès` | `union:${number}` | `event:${number}`;
   category: FamilyFactCategory;
+  type: FamilyFactCategory;
   owner: FamilyFactOwner;
   personIds: number[];
   date: string | null;
+  eventDate: string | null;
   label: string | null;
   description: string | null;
   place: string | null;
@@ -117,7 +121,7 @@ export interface EventInput {
 }
 
 export interface FamilyTimelineEvent {
-  type: EventType;
+  type: FamilyFactCategory;
   label: string | null;
   eventDate: string | null;
   description: string | null;
@@ -157,9 +161,17 @@ export interface UpcomingFamilyAnniversary {
 }
 
 /** Ligne de la timeline comparative : une personne et ses événements métier. */
+export interface ComparativeTimelineEvent {
+  id: number;
+  identity?: FamilyFact["identity"];
+  type: FamilyFactCategory;
+  label: string | null;
+  eventDate: string | null;
+}
+
 export interface ComparativeTimelineRow {
   person: Person;
-  events: Event[];
+  events: ComparativeTimelineEvent[];
 }
 
 export interface Media {
@@ -191,7 +203,7 @@ export interface MapLocation {
   /** Toutes les personnes concernées (notamment pour un lieu porté par une union). */
   personIds?: number[];
   personName: string;
-  type: EventType | UnionType;
+  type: FamilyFactCategory;
   label: string | null;
   eventDate: string | null;
   place: string;

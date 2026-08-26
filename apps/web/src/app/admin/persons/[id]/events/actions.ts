@@ -11,6 +11,7 @@ export async function updateEventAction(formData: FormData) {
     | "naissance"
     | "décès"
     | "mariage"
+    | "résidence"
     | "libre"
     | undefined;
   const label = formData.get("label")?.toString().trim() || null;

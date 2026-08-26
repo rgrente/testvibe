@@ -2,6 +2,7 @@ import {
   getPersonForWeb,
   getPersonTimelineForWeb,
   getPersonMediaForWeb,
+  formatFamilyDate,
 } from "@testvibe/core";
 import { notFound } from "next/navigation";
 import Link from "next/link";
@@ -15,6 +16,9 @@ const EVENT_TYPE_LABELS: Record<string, string> = {
   "naissance": "Naissance",
   "décès": "Décès",
   "mariage": "Mariage",
+  "pacs": "Pacs",
+  "union libre": "Union libre",
+  "résidence": "Résidence",
   "libre": "Événement",
 };
 
@@ -22,6 +26,9 @@ const EVENT_TYPE_ICONS: Record<string, string> = {
   "naissance": "🌱",
   "décès": "✝",
   "mariage": "💍",
+  "pacs": "🤝",
+  "union libre": "🤝",
+  "résidence": "🏠",
   "libre": "📌",
 };
 
@@ -62,8 +69,8 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
           )}
           <p className="mt-1 text-sm text-slate-500">
             {person.gender === "M" ? "Masculin" : person.gender === "F" ? "Féminin" : person.gender ?? ""}
-            {person.birthDate && ` · né·e le ${person.birthDate}`}
-            {person.deathDate && ` · décédé·e le ${person.deathDate}`}
+            {person.birthDate && ` · né·e le ${formatFamilyDate(person.birthDate)}`}
+            {person.deathDate && ` · décédé·e le ${formatFamilyDate(person.deathDate)}`}
           </p>
         </div>
         <Link
@@ -143,9 +150,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
                       <span className="text-sm font-medium text-slate-800">— {ev.label}</span>
                     )}
                   </div>
-                  {ev.eventDate && (
-                    <time className="block text-sm text-slate-600">{ev.eventDate}</time>
-                  )}
+                  <time className="block text-sm text-slate-600">{formatFamilyDate(ev.eventDate)}</time>
                   {ev.description && (
                     <p className="mt-1 text-sm text-slate-700">{ev.description}</p>
                   )}

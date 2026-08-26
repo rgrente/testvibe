@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import type { MapLocation } from "@testvibe/core";
+import { formatFamilyDate, type MapLocation } from "@testvibe/core";
 
 interface MapClientProps {
   locations: MapLocation[];
@@ -27,7 +27,8 @@ export function getMapLocationTypeLabel(location: MapLocation): string {
   if (location.type === "décès") return "Décès";
   if (location.type === "mariage") return "Mariage";
   if (location.type === "pacs") return "Pacs";
-  if (location.source === "union" && location.type === "libre") return "Union libre";
+  if (location.type === "union libre" || (location.source === "union" && location.type === "libre")) return "Union libre";
+  if (location.type === "résidence") return "Résidence";
   return location.label || "Événement";
 }
 
@@ -219,8 +220,8 @@ export default function MapClient({
               <p className="text-sm text-slate-600">
                 {getMapLocationTypeLabel(selectedMarker)}
                 {selectedMarker.eventDate
-                  ? ` — ${selectedMarker.eventDate}`
-                  : ""}
+                  ? ` — ${formatFamilyDate(selectedMarker.eventDate)}`
+                  : " — Date inconnue"}
               </p>
               <p className="text-sm text-slate-600">{selectedMarker.place}</p>
               <p className="text-xs text-slate-400">
@@ -258,11 +259,9 @@ export default function MapClient({
                 <span className="ml-2 text-sm text-slate-600">
                   {getMapLocationTypeLabel(loc)}
                 </span>
-                {loc.eventDate && (
-                  <span className="ml-1 text-sm text-slate-500">
-                    ({loc.eventDate})
-                  </span>
-                )}
+                <span className="ml-1 text-sm text-slate-500">
+                  ({formatFamilyDate(loc.eventDate)})
+                </span>
                 <span className="ml-1 text-sm text-slate-500">
                   — {loc.place}
                 </span>

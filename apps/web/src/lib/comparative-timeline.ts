@@ -1,4 +1,4 @@
-import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
+import type { ComparativeTimelineRow, FamilyFactCategory, Person } from "@testvibe/core";
 
 export interface TimelineConnection {
   parentId: number;
@@ -13,7 +13,7 @@ export interface ConnectionRowRange {
 
 export interface PositionedTimelineEvent {
   id: number;
-  type: Event["type"];
+  type: FamilyFactCategory;
   label: string | null;
   displayDate: string | null;
   position?: number;

@@ -24,6 +24,7 @@ async function createEventAction(formData: FormData) {
     | "naissance"
     | "décès"
     | "mariage"
+    | "résidence"
     | "libre"
     | undefined;
   const label = formData.get("label")?.toString().trim() || null;
@@ -80,6 +81,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
     "naissance": "Naissance",
     "décès": "Décès",
     "mariage": "Mariage",
+    "résidence": "Résidence",
     "libre": "Événement libre",
   };
 

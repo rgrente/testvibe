@@ -48,14 +48,18 @@ export function anniversariesForDate(
   if (!target) return [];
   const targetIsLeapYear = new Date(Date.UTC(target.year, 1, 29)).getUTCDate() === 29;
 
+  const represented = new Set<string>();
   return entries
     .flatMap((entry): FamilyAnniversary[] => {
+      if (entry.event.type !== "naissance" && entry.event.type !== "mariage") return [];
+      if (represented.has(entry.key)) return [];
       const source = entry.event.eventDate ? parseCompleteDate(entry.event.eventDate) : null;
       if (!source || source.year > target.year) return [];
       const regularMatch = source.month === target.month && source.day === target.day;
       const leapDayMatch =
         !targetIsLeapYear && source.month === 2 && source.day === 29 && target.month === 2 && target.day === 28;
       if (!regularMatch && !leapDayMatch) return [];
+      represented.add(entry.key);
       const eventId = entry.key.startsWith("event:") ? Number(entry.key.slice(6)) : null;
       return [{
         key: entry.key,

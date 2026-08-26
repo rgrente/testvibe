@@ -22,7 +22,7 @@ describe("anniversariesForDate", () => {
     ];
 
     expect(anniversariesForDate(items, "2026-08-24").map((item) => [item.key, item.yearsElapsed])).toEqual([
-      ["event:1", 46], ["event:2", 46], ["event:3", 26],
+      ["event:1", 46],
     ]);
   });
 
@@ -34,7 +34,7 @@ describe("anniversariesForDate", () => {
   });
 
   it("reporte le 29 février au 28 février uniquement les années non bissextiles", () => {
-    const leapDay = entry("event:1", "2000-02-29", person(1, "A", "A"));
+    const leapDay = entry("event:1", "2000-02-29", person(1, "A", "A"), "naissance");
     expect(anniversariesForDate([leapDay], "2023-02-28")).toHaveLength(1);
     expect(anniversariesForDate([leapDay], "2024-02-28")).toHaveLength(0);
     expect(anniversariesForDate([leapDay], "2024-02-29")).toHaveLength(1);

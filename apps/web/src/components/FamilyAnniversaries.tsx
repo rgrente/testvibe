@@ -1,7 +1,15 @@
-import type { FamilyAnniversary } from "@testvibe/core";
+import type { FamilyAnniversary, FamilyFactCategory } from "@testvibe/core";
 import Link from "next/link";
 
-const typeLabels = { naissance: "Naissance", décès: "Décès", mariage: "Mariage", libre: "Événement" } as const;
+const typeLabels: Record<FamilyFactCategory, string> = {
+  naissance: "Naissance",
+  décès: "Décès",
+  mariage: "Mariage",
+  pacs: "Pacs",
+  "union libre": "Union libre",
+  résidence: "Résidence",
+  libre: "Événement",
+};
 
 export function FamilyAnniversaries({ anniversaries, compact = false }: { anniversaries: FamilyAnniversary[]; compact?: boolean }) {
   if (anniversaries.length === 0) {

@@ -4,6 +4,7 @@ import { listPersons } from "./person.js";
 import { listUnions } from "./union.js";
 import { listFiliations } from "./filiation.js";
 import { listAllEvents } from "./event.js";
+import { projectFamilyFacts } from "./projection.js";
 
 export interface RankedStatistic {
   label: string;
@@ -123,6 +124,7 @@ export function calculateFamilyStatistics(
   events: Event[],
   now = new Date(),
 ): FamilyStatistics {
+  const facts = projectFamilyFacts(persons, unions, events);
   const today = parisDateParts(now);
   const ageBuckets = new Map<number, AgePyramidBucket>();
   const lifeSpans: number[] = [];
@@ -154,16 +156,14 @@ export function calculateFamilyStatistics(
     totals: {
       persons: persons.length,
       unions: unions.length,
-      events: events.length,
+      events: facts.length,
       generations: generationCount(persons, filiations),
     },
     agePyramid: [...ageBuckets.values()].sort((left, right) => left.decade - right.decade),
     averageLongevity,
     topFirstNames: rank(persons.map((person) => person.firstName)),
-    topBirthPlaces: rank(events.filter((item) => item.type === "naissance").map((item) => item.place)),
-    topResidencePlaces: rank(events
-      .filter((item) => item.type === "libre" && item.label && normalizeKey(item.label) === "residence")
-      .map((item) => item.place)),
+    topBirthPlaces: rank(facts.filter((item) => item.category === "naissance").map((item) => item.place)),
+    topResidencePlaces: rank(facts.filter((item) => item.category === "résidence").map((item) => item.place)),
   };
 }
 

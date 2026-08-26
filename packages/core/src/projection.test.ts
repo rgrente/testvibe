@@ -1,8 +1,18 @@
 import { describe, expect, it } from "vitest";
+import { createTestDb } from "./test-utils.js";
+import { createPerson } from "./person.js";
+import { createEvent, listFamilyTimeline } from "./event.js";
+import { createUnion } from "./union.js";
+import { listComparativeTimeline } from "./comparative-timeline.js";
+import { getFamilyStatistics } from "./statistics.js";
+import { anniversariesForDate } from "./anniversary.js";
 import type { Event, Person, Union } from "./types.js";
 import {
   countCanonicalFacts,
   formatFamilyDate,
+  listCanonicalFamilyFacts,
+  listCanonicalFactsByPerson,
+  mapLocationsFromFacts,
   projectFamilyFacts,
 } from "./projection.js";
 
@@ -161,5 +171,58 @@ describe("formatFamilyDate", () => {
     [null, "Date inconnue"],
   ])("formate %s sans inventer de précision", (value, expected) => {
     expect(formatFamilyDate(value)).toBe(expected);
+  });
+});
+
+describe("projection cohérente des consommateurs", () => {
+  it("expose les mêmes identités sans double comptage dans fiche, timelines et statistiques", async () => {
+    const db = await createTestDb();
+    const alice = await createPerson(db, {
+      firstName: "Alice",
+      lastName: "Martin",
+      birthDate: "1980-05-02",
+    });
+    const bob = await createPerson(db, { firstName: "Bob", lastName: "Martin" });
+    const marriage = await createUnion(db, {
+      type: "mariage",
+      personIds: [alice.id, bob.id],
+      startDate: "2000-06-03",
+      place: "Paris",
+      latitude: 48.8566,
+      longitude: 2.3522,
+    });
+    const residence = await createEvent(db, {
+      personId: alice.id,
+      type: "résidence",
+      eventDate: "2001",
+      place: "Lyon",
+      latitude: 45.764,
+      longitude: 4.8357,
+    });
+
+    const personFacts = await listCanonicalFactsByPerson(db, alice.id);
+    const allFacts = await listCanonicalFamilyFacts(db);
+    const familyTimeline = await listFamilyTimeline(db);
+    const comparative = await listComparativeTimeline(db);
+    const statistics = await getFamilyStatistics(db, new Date("2026-08-26T12:00:00Z"));
+    const expected = [
+      `person:${alice.id}:naissance`,
+      `union:${marriage.id}`,
+      `event:${residence.id}`,
+    ];
+
+    expect(personFacts.map((fact) => fact.identity)).toEqual(expected);
+    expect(familyTimeline.filter((item) => item.person.id === alice.id).map((item) => item.key)).toEqual(expected);
+    expect(comparative.find((row) => row.person.id === alice.id)?.events.map((fact) => fact.identity)).toEqual(expected);
+    expect(statistics.totals.events).toBe(3);
+    expect(statistics.topBirthPlaces).toEqual([]);
+    expect(statistics.topResidencePlaces).toEqual([{ label: "Lyon", count: 1 }]);
+    expect(mapLocationsFromFacts(allFacts, [alice, bob]).map((location) => location.eventId)).toEqual([
+      -marriage.id,
+      residence.id,
+    ]);
+    expect(anniversariesForDate(familyTimeline, "2026-06-03").map((item) => item.key)).toEqual([
+      `union:${marriage.id}`,
+    ]);
   });
 });
