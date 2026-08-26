@@ -1,5 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { version } from "../../../../package.json";
+import AdminLayout from "./admin/layout";
 import RootLayout from "./layout";
 
 describe("RootLayout", () => {
@@ -67,5 +69,44 @@ describe("RootLayout", () => {
     expect(headerContent?.classList.contains("sm:flex-row")).toBe(true);
     expect(navigation?.classList.contains("flex-wrap")).toBe(true);
     expect(navigation?.classList.contains("gap-y-2")).toBe(true);
+  });
+
+  it("affiche un footer global discret avec la version de l'application", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const body = document.querySelector("body");
+    const footer = document.querySelector("body > footer");
+
+    expect(footer?.textContent).toContain(`Version ${version}`);
+    expect(footer?.textContent).toContain("Fait avec ❤️");
+    expect(footer?.classList.contains("text-xs")).toBe(true);
+    expect(footer?.classList.contains("text-slate-400")).toBe(true);
+    expect(body?.classList.contains("min-h-screen")).toBe(true);
+    expect(body?.classList.contains("grid-rows-[auto_1fr_auto]")).toBe(true);
+  });
+
+  it("conserve trois lignes de grille avec le layout imbriqué de l'administration", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <AdminLayout>
+          <main>{"Contenu de la page d'administration"}</main>
+        </AdminLayout>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const bodyChildren = Array.from(document.body.children).filter(
+      (element) => element.tagName !== "SCRIPT",
+    );
+    const adminLayout = bodyChildren[1];
+
+    expect(bodyChildren.map((element) => element.tagName)).toEqual(["HEADER", "DIV", "FOOTER"]);
+    expect(adminLayout?.querySelector(":scope > nav")).not.toBeNull();
+    expect(adminLayout?.querySelector(":scope > main")?.textContent).toBe(
+      "Contenu de la page d'administration",
+    );
   });
 });

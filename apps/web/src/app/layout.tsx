@@ -1,5 +1,6 @@
 import "./globals.css";
 import Link from "next/link";
+import { version } from "../../../../package.json";
 
 export default function RootLayout({
   children,
@@ -8,7 +9,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="fr">
-      <body>
+      <body className="grid min-h-screen grid-rows-[auto_1fr_auto]">
         <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
           <div className="mx-auto flex max-w-5xl flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/" className="text-lg font-semibold text-slate-900">
@@ -40,6 +41,9 @@ export default function RootLayout({
           </div>
         </header>
         {children}
+        <footer className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-400 sm:px-6">
+          Version {version} · Fait avec ❤️
+        </footer>
       </body>
     </html>
   );
