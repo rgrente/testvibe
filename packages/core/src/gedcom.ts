@@ -16,6 +16,7 @@ import { createUnion, listUnions, deleteUnion } from "./union.js";
 import { createFiliation, listFiliations, deleteFiliation } from "./filiation.js";
 import { createEvent, updateEvent, deleteEvent, listAllEvents, listEventsByPerson } from "./event.js";
 import type { FiliationRole } from "./types.js";
+import { projectFamilyFacts } from "./projection.js";
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -58,6 +59,7 @@ interface GedcomFam {
 /** Événement libre (EVEN) avec PLAC. */
 interface GedcomEven {
   personXref: string;
+  type: "résidence" | "libre";
   value: string | null;
   date: string | null;
   place: string | null;
@@ -242,6 +244,23 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
           } else if (inDeat) {
             deathPlace = sub.value || null;
           }
+        } else if (sub.level === 1 && sub.tag === "RESI") {
+          let residenceDate: string | null = null;
+          let residencePlace: string | null = null;
+          let residenceSubIdx = i + 1;
+          while (residenceSubIdx < parsed.length && parsed[residenceSubIdx].level >= 2) {
+            const residenceSub = parsed[residenceSubIdx];
+            if (residenceSub.level === 2 && residenceSub.tag === "DATE") {
+              residenceDate = parseGedcomDate(residenceSub.value);
+            }
+            if (residenceSub.level === 2 && residenceSub.tag === "PLAC") {
+              residencePlace = residenceSub.value || null;
+            }
+            residenceSubIdx++;
+          }
+          evens.push({ personXref: xref, type: "résidence", value: null, date: residenceDate, place: residencePlace });
+          inBirt = false;
+          inDeat = false;
         } else if (sub.level === 1 && sub.tag === "EVEN") {
           // Événement libre sous INDI (ex: 1 EVEN, 2 TYPE ..., 2 DATE ..., 2 PLAC ...)
           // GEDCOM 5.5.1 porte normalement le libellé dans 2 TYPE. Certains
@@ -265,7 +284,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
             }
             evenSubIdx++;
           }
-          evens.push({ personXref: xref, value: evenLabel, date: evenDate, place: evenPlace });
+          evens.push({ personXref: xref, type: "libre", value: evenLabel, date: evenDate, place: evenPlace });
           inBirt = false;
           inDeat = false;
         }
@@ -482,7 +501,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
       if (!personId) continue;
       const ev = await createEvent(db, {
         personId,
-        type: "libre",
+        type: even.type,
         label: even.value,
         eventDate: even.date ?? null,
         place: even.place ?? null,
@@ -579,6 +598,7 @@ export async function exportGedcom(db: Database): Promise<string> {
     listFiliations(db),
     listAllEvents(db),
   ]);
+  const facts = projectFamilyFacts(persons, unions, events);
 
   const lines: string[] = [];
 
@@ -599,36 +619,33 @@ export async function exportGedcom(db: Database): Promise<string> {
   // Indexer les événements par personne et type
   const birthEventByPersonId = new Map<number, string | null>(); // place
   const deathEventByPersonId = new Map<number, string | null>(); // place
-  const libreEventsByPersonId = new Map<number, { label: string | null; date: string | null; place: string | null }[]>();
+  const individualEventsByPersonId = new Map<number, { type: "résidence" | "libre"; label: string | null; date: string | null; place: string | null }[]>();
 
   for (const person of persons) {
-    libreEventsByPersonId.set(person.id, []);
+    individualEventsByPersonId.set(person.id, []);
   }
 
-  for (const ev of events) {
-    if (ev.type === "naissance" && ev.place) {
-      if (!birthEventByPersonId.has(ev.personId) || !birthEventByPersonId.get(ev.personId)) {
-        birthEventByPersonId.set(ev.personId, ev.place);
+  for (const fact of facts) {
+    const personId = fact.personIds[0];
+    if (fact.category === "naissance" && fact.place) {
+      if (!birthEventByPersonId.has(personId) || !birthEventByPersonId.get(personId)) {
+        birthEventByPersonId.set(personId, fact.place);
       }
     }
-    if (ev.type === "décès" && ev.place) {
-      if (!deathEventByPersonId.has(ev.personId) || !deathEventByPersonId.get(ev.personId)) {
-        deathEventByPersonId.set(ev.personId, ev.place);
+    if (fact.category === "décès" && fact.place) {
+      if (!deathEventByPersonId.has(personId) || !deathEventByPersonId.get(personId)) {
+        deathEventByPersonId.set(personId, fact.place);
       }
     }
-    if (ev.type === "libre" && ev.place) {
-      const arr = libreEventsByPersonId.get(ev.personId) || [];
-      arr.push({ label: ev.label, date: ev.eventDate, place: ev.place });
-      libreEventsByPersonId.set(ev.personId, arr);
-    }
-  }
-
-  const marriageEventPlaceByUnionId = new Map<number, string>();
-  for (const ev of events) {
-    if (ev.type === "mariage" && ev.unionId != null && ev.place) {
-      if (!marriageEventPlaceByUnionId.has(ev.unionId)) {
-        marriageEventPlaceByUnionId.set(ev.unionId, ev.place);
-      }
+    if (fact.category === "résidence" || fact.category === "libre") {
+      const arr = individualEventsByPersonId.get(personId) || [];
+      arr.push({
+        type: fact.category,
+        label: fact.label,
+        date: fact.date,
+        place: fact.place,
+      });
+      individualEventsByPersonId.set(personId, arr);
     }
   }
 
@@ -675,10 +692,10 @@ export async function exportGedcom(db: Database): Promise<string> {
       }
     }
     // Free events with place
-    const freeEvents = libreEventsByPersonId.get(p.id) || [];
+    const freeEvents = individualEventsByPersonId.get(p.id) || [];
     for (const freeEv of freeEvents) {
-      lines.push("1 EVEN");
-      if (freeEv.label) lines.push(`2 TYPE ${freeEv.label}`);
+      lines.push(freeEv.type === "résidence" ? "1 RESI" : "1 EVEN");
+      if (freeEv.type === "libre" && freeEv.label) lines.push(`2 TYPE ${freeEv.label}`);
       if (freeEv.date) {
         const gd = toGedcomDate(freeEv.date);
         if (gd) lines.push(`2 DATE ${gd}`);
@@ -725,8 +742,7 @@ export async function exportGedcom(db: Database): Promise<string> {
     if (union.type === "mariage") {
       lines.push("1 MARR");
       if (unionDate) lines.push(`2 DATE ${unionDate}`);
-      const marriagePlace = union.place ?? marriageEventPlaceByUnionId.get(union.id);
-      if (marriagePlace) lines.push(`2 PLAC ${marriagePlace}`);
+      if (union.place) lines.push(`2 PLAC ${union.place}`);
     } else {
       // GEDCOM 5.5.1 n'a pas de balise dédiée au PACS ou à l'union libre.
       // Un événement familial EVEN + TYPE préserve explicitement leur nature.

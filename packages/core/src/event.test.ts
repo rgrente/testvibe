@@ -240,12 +240,11 @@ describe("listFamilyTimeline", () => {
     const timeline = await listFamilyTimeline(db);
 
     expect(timeline.map(({ key }) => key)).toEqual([
-      `event:${firstSameDay.id}`,
       `event:${secondSameDay.id}`,
-      `event:${later.id}`,
+      `person:${bob.id}:naissance`,
       `event:${undated.id}`,
     ]);
-    expect(timeline.map(({ person }) => person.firstName)).toEqual(["Bob", "Alice", "Alice", "Bob"]);
+    expect(timeline.map(({ person }) => person.firstName)).toEqual(["Alice", "Bob", "Bob"]);
   });
 
   it("départage de façon stable les événements de même date (naissance auto incluse)", async () => {
@@ -266,8 +265,8 @@ describe("listFamilyTimeline", () => {
     const timeline = await listFamilyTimeline(db);
 
     expect(timeline.map(({ key }) => key)).toEqual([
-      `event:${autoBirth.id}`,
       `event:${sameDayEvent.id}`,
+      `person:${alice.id}:naissance`,
     ]);
   });
 });

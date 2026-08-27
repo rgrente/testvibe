@@ -2,7 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { describe, expect, it, vi } from "vitest";
 import PersonEventsPage from "./page";
-import { updateEventAction } from "./actions";
+import { createEventAction, updateEventAction } from "./actions";
 
 const mocks = vi.hoisted(() => ({
   adminGetPerson: vi.fn(),
@@ -23,6 +23,42 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("PersonEventsPage", () => {
+  it("propose et soumet une résidence canonique", async () => {
+    mocks.adminGetPerson.mockResolvedValue({
+      id: 7,
+      firstName: "Marie",
+      lastName: "Martin",
+    });
+    mocks.adminListEventsByPerson.mockResolvedValue([]);
+
+    render(
+      await PersonEventsPage({
+        params: Promise.resolve({ id: "7" }),
+        searchParams: Promise.resolve({}),
+      }),
+    );
+
+    expect(screen.getByRole("option", { name: "Résidence" })).toHaveValue("résidence");
+
+    const formData = new FormData();
+    formData.set("personId", "7");
+    formData.set("type", "résidence");
+    formData.set("eventDate", "2020-06");
+    formData.set("place", "Lyon");
+
+    await expect(createEventAction(formData)).rejects.toThrow("NEXT_REDIRECT");
+    expect(mocks.adminCreateEvent).toHaveBeenCalledWith({
+      personId: 7,
+      type: "résidence",
+      label: null,
+      eventDate: "2020-06",
+      description: null,
+      place: "Lyon",
+      latitude: null,
+      longitude: null,
+    });
+  });
+
   it.each(["1900", "1900-06"])(
     "propose l’édition protégée sans perdre la date partielle %s",
     async (eventDate) => {

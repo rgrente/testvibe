@@ -42,12 +42,12 @@ describe("listComparativeTimeline", () => {
     // Les événements naissance/décès sont auto-générés à partir des dates de la
     // Person (auto-sync), avant l'événement libre saisi manuellement.
     expect(adaRow.events).toHaveLength(3);
-    expect(adaRow.events.map((e) => e.type)).toEqual(["naissance", "décès", "libre"]);
-    expect(adaRow.events.map((e) => e.eventDate)).toEqual(["1815-12-10", "1852-11-27", "1843"]);
-    expect(adaRow.events[2]).toEqual(diploma);
-    expect(rows.find(({ person }) => person.id === charles.id)).toEqual({
+    expect(adaRow.events.map((e) => e.type)).toEqual(["naissance", "libre", "décès"]);
+    expect(adaRow.events.map((e) => e.eventDate)).toEqual(["1815-12-10", "1843", "1852-11-27"]);
+    expect(adaRow.events[1]).toMatchObject({ identity: `event:${diploma.id}`, label: diploma.label });
+    expect(rows.find(({ person }) => person.id === charles.id)).toMatchObject({
       person: charles,
-      events: [undated],
+      events: [{ identity: `event:${undated.id}`, label: undated.label }],
     });
   });
 

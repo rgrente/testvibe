@@ -1,12 +1,11 @@
 import {
   adminGetPerson,
   adminListEventsByPerson,
-  adminCreateEvent,
   adminDeleteEvent,
 } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect, notFound } from "next/navigation";
-import { updateEventAction } from "./actions";
+import { createEventAction, updateEventAction } from "./actions";
 import Link from "next/link";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 
@@ -15,36 +14,6 @@ export const dynamic = "force-dynamic";
 interface PersonEventsPageProps {
   params: Promise<{ id: string }>;
   searchParams: Promise<{ error?: string }>;
-}
-
-async function createEventAction(formData: FormData) {
-  "use server";
-  const personId = Number(formData.get("personId"));
-  const type = formData.get("type")?.toString() as
-    | "naissance"
-    | "décès"
-    | "mariage"
-    | "libre"
-    | undefined;
-  const label = formData.get("label")?.toString().trim() || null;
-  const eventDate = formData.get("eventDate")?.toString().trim() || null;
-  const description = formData.get("description")?.toString().trim() || null;
-  const place = formData.get("place")?.toString().trim() || null;
-  const latStr = formData.get("latitude")?.toString().trim();
-  const lngStr = formData.get("longitude")?.toString().trim();
-  const latitude = latStr ? Number(latStr) : null;
-  const longitude = lngStr ? Number(lngStr) : null;
-
-  if (!personId || !type) {
-    redirect(`/admin/persons/${personId}/events?error=champs_requis`);
-  }
-  try {
-    await adminCreateEvent({ personId, type, label, eventDate, description, place, latitude, longitude });
-  } catch {
-    redirect(`/admin/persons/${personId}/events?error=validation`);
-  }
-  revalidatePath(`/admin/persons/${personId}/events`);
-  redirect(`/admin/persons/${personId}/events`);
 }
 
 async function deleteEventAction(formData: FormData) {
@@ -80,6 +49,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
     "naissance": "Naissance",
     "décès": "Décès",
     "mariage": "Mariage",
+    "résidence": "Résidence",
     "libre": "Événement libre",
   };
 
@@ -120,6 +90,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               <option value="naissance">Naissance</option>
               <option value="décès">Décès</option>
               <option value="mariage">Mariage</option>
+              <option value="résidence">Résidence</option>
               <option value="libre">Événement libre</option>
             </select>
           </div>

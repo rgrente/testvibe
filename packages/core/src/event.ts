@@ -8,6 +8,7 @@ import type { Event, EventInput, FamilyTimelineItem } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 import { listPersons } from "./person.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
+import { listCanonicalFamilyFacts } from "./projection.js";
 
 function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
@@ -17,7 +18,7 @@ function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
     throw new ValidationError("personId est requis et doit être > 0.");
   }
-  const validTypes = ["naissance", "décès", "mariage", "libre"] as const;
+  const validTypes = ["naissance", "décès", "mariage", "résidence", "libre"] as const;
   if (!validTypes.includes(input.type as (typeof validTypes)[number])) {
     throw new ValidationError(`type invalide : ${input.type}`);
   }
@@ -96,70 +97,22 @@ export async function listAllEvents(db: Database): Promise<Event[]> {
  * Les dates absentes ou inexploitables restent présentes à la fin de la liste.
  */
 export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineItem[]> {
-  const [events, persons] = await Promise.all([listAllEvents(db), listPersons(db)]);
+  const [facts, persons] = await Promise.all([listCanonicalFamilyFacts(db), listPersons(db)]);
   const personsById = new Map(persons.map((person) => [person.id, person]));
-  const representedBiographicalFacts = new Set<string>();
-
-  const entries: FamilyTimelineItem[] = events
-    .map((event) => {
-      const person = personsById.get(event.personId);
-      if (!person) return undefined;
-
-      const personDate =
-        event.type === "naissance"
-          ? person.birthDate
-          : event.type === "décès"
-            ? person.deathDate
-            : null;
-      if (personDate) {
-        const factKey = `${person.id}:${event.type}`;
-        if (representedBiographicalFacts.has(factKey)) return undefined;
-        representedBiographicalFacts.add(factKey);
-      }
-
-      return {
-        key: `event:${event.id}`,
-        event: {
-          type: event.type,
-          label: event.label,
-          eventDate: personDate ?? event.eventDate,
-          description: event.description,
-        },
-        person,
-      };
-    })
-    .filter((entry): entry is FamilyTimelineItem => entry !== undefined);
-
-  for (const person of persons) {
-    for (const [type, eventDate] of [
-      ["naissance", person.birthDate],
-      ["décès", person.deathDate],
-    ] as const) {
-      const factKey = `${person.id}:${type}`;
-      if (!eventDate || representedBiographicalFacts.has(factKey)) continue;
-
-      entries.push({
-        key: `person:${person.id}:${type}`,
-        event: { type, eventDate, label: null, description: null },
-        person,
-      });
-    }
-  }
-
-  return entries.sort((a, b) => {
-    const aTimestamp = a.event.eventDate ? Date.parse(a.event.eventDate) : Number.POSITIVE_INFINITY;
-    const bTimestamp = b.event.eventDate ? Date.parse(b.event.eventDate) : Number.POSITIVE_INFINITY;
-    const safeATimestamp = Number.isNaN(aTimestamp) ? Number.POSITIVE_INFINITY : aTimestamp;
-    const safeBTimestamp = Number.isNaN(bTimestamp) ? Number.POSITIVE_INFINITY : bTimestamp;
-
-    if (safeATimestamp !== safeBTimestamp) return safeATimestamp - safeBTimestamp;
-
-    const aEventId = a.key.startsWith("event:") ? Number(a.key.slice("event:".length)) : null;
-    const bEventId = b.key.startsWith("event:") ? Number(b.key.slice("event:".length)) : null;
-    if (aEventId !== null && bEventId !== null) return aEventId - bEventId;
-
-    return a.key.localeCompare(b.key);
-  });
+  return facts.flatMap((fact) => fact.personIds.flatMap((personId) => {
+    const person = personsById.get(personId);
+    if (!person) return [];
+    return [{
+      key: fact.identity,
+      event: {
+        type: fact.category,
+        label: fact.label,
+        eventDate: fact.date,
+        description: fact.description,
+      },
+      person,
+    }];
+  }));
 }
 
 export async function updateEvent(

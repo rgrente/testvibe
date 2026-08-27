@@ -1,11 +1,14 @@
-import type { ComparativeTimelineRow, EventType } from "@testvibe/core";
+import { formatFamilyDate, type ComparativeTimelineRow, type FamilyFactCategory } from "@testvibe/core";
 import Link from "next/link";
 import { assignConnectionLanes, prepareComparativeTimeline, type TimelineConnection } from "../lib/comparative-timeline";
 
-const EVENT_TYPE_LABELS: Record<EventType, string> = {
+const EVENT_TYPE_LABELS: Record<FamilyFactCategory, string> = {
   naissance: "Naissance",
   décès: "Décès",
   mariage: "Mariage",
+  pacs: "Pacs",
+  "union libre": "Union libre",
+  résidence: "Résidence",
   libre: "Événement",
 };
 
@@ -212,7 +215,8 @@ export function ComparativeTimeline({ rows, connections = [], branchByPersonId, 
                   {row.datedEvents.map((event) => {
                     const typeLabel = EVENT_TYPE_LABELS[event.type];
                     const label = event.label ?? typeLabel;
-                    const accessibleLabel = `${typeLabel}, ${label}, ${event.displayDate}`;
+                    const displayDate = formatFamilyDate(event.displayDate);
+                    const accessibleLabel = `${typeLabel}, ${label}, ${displayDate}`;
                     const horizontalAlignment =
                       event.position < 10
                         ? "items-start"
@@ -229,7 +233,7 @@ export function ComparativeTimeline({ rows, connections = [], branchByPersonId, 
                       >
                         <span className="h-4 w-4 rounded-full border-2 border-white bg-amber-500 shadow-sm ring-1 ring-amber-600" aria-hidden="true" />
                         <span className="mt-1 whitespace-nowrap rounded-sm bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-950 shadow-xs">
-                          {label} · {typeLabel} · {event.displayDate}
+                          {label} · {typeLabel} · {displayDate}
                         </span>
                       </span>
                     );

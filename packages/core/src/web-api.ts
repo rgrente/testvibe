@@ -14,16 +14,17 @@
  * connexion par défaut, à l'image de packages/db/src/migrate.ts.
  */
 import { db as defaultDb } from "@testvibe/db";
-import type { ComparativeTimelineRow, Person, Event, FamilyTimelineItem, FamilyAnniversary, UpcomingFamilyAnniversary, Media, MapLocation } from "./types.js";
+import type { ComparativeTimelineRow, Person, FamilyFact, FamilyTimelineItem, FamilyAnniversary, UpcomingFamilyAnniversary, Media, MapLocation } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
 import { getFamilyTree, getAncestorIds, getDescendantIds, type FamilyTree } from "./tree.js";
-import { listEventsByPerson, listFamilyTimeline, listMapLocations } from "./event.js";
+import { listFamilyTimeline } from "./event.js";
 import { listMediaByPerson } from "./media.js";
 import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
-import { listUnions } from "./union.js";
+
 import { listFamilyAnniversaries, listUpcomingFamilyAnniversaries } from "./anniversary.js";
 import { getFamilyStatistics, type FamilyStatistics } from "./statistics.js";
+import { listCanonicalFactsByPerson, listCanonicalFamilyFacts, mapLocationsFromFacts } from "./projection.js";
 
 /** Liste toutes les Person (pour un sélecteur de racine d'arbre côté web). */
 export async function listAllPersonsForWeb(): Promise<Person[]> {
@@ -52,8 +53,8 @@ export async function searchPersonsForWeb(query: string): Promise<Person[]> {
  * Retourne la timeline chronologique d'une personne (ses événements triés).
  * Phase 5 (tâche #24).
  */
-export async function getPersonTimelineForWeb(personId: number): Promise<Event[]> {
-  return listEventsByPerson(defaultDb, personId);
+export async function getPersonTimelineForWeb(personId: number): Promise<FamilyFact[]> {
+  return listCanonicalFactsByPerson(defaultDb, personId);
 }
 
 /** Retourne tous les événements familiaux avec leur personne, triés chronologiquement. */
@@ -97,46 +98,8 @@ export async function getPersonForWeb(personId: number): Promise<Person> {
  * Phase 6 (tâche lieux/carte).
  */
 export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
-  const [unions, persons] = await Promise.all([
-    listUnions(defaultDb),
-    listPersons(defaultDb),
-  ]);
-  const locations = await listMapLocations(defaultDb, persons);
-  const eventLocations: MapLocation[] = locations.map(({ event, person }) => ({
-    eventId: event.id,
-    source: "event",
-    personId: person.id,
-    personIds: [person.id],
-    personName: `${person.firstName} ${person.lastName}`,
-    type: event.type,
-    label: event.label,
-    eventDate: event.eventDate,
-    place: event.place!,
-    latitude: event.latitude!,
-    longitude: event.longitude!,
-  }));
-  const personsById = new Map(persons.map((person) => [person.id, person]));
-  const unionLocations: MapLocation[] = unions
-    .filter((union) => union.place && union.latitude != null && union.longitude != null && union.personIds.length > 0)
-    .map((union) => ({
-      // Les ids d'événement sont positifs ; un id négatif forme une clé stable sans collision.
-      eventId: -union.id,
-      source: "union",
-      personId: union.personIds[0],
-      personIds: union.personIds,
-      personName: union.personIds
-        .map((id) => personsById.get(id))
-        .filter((person): person is Person => person !== undefined)
-        .map((person) => `${person.firstName} ${person.lastName}`)
-        .join(" & "),
-      type: union.type,
-      label: null,
-      eventDate: union.startDate,
-      place: union.place!,
-      latitude: union.latitude!,
-      longitude: union.longitude!,
-    }));
-  return [...eventLocations, ...unionLocations];
+  const [facts, persons] = await Promise.all([listCanonicalFamilyFacts(defaultDb), listPersons(defaultDb)]);
+  return mapLocationsFromFacts(facts, persons);
 }
 
 /**

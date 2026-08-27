@@ -67,7 +67,7 @@ export const filiation = sqliteTable("filiation", {
 /**
  * Événements biographiques liés à une Person (optionnel : unionId si
  * l'événement est un mariage ou événement familial).
- * Types : "naissance" | "décès" | "mariage" | "libre"
+ * Types : "naissance" | "décès" | "mariage" | "résidence" | "libre"
  */
 export const event = sqliteTable("event", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -75,7 +75,7 @@ export const event = sqliteTable("event", {
     .notNull()
     .references(() => person.id, { onDelete: "cascade" }),
   unionId: integer("union_id").references(() => unions.id, { onDelete: "set null" }),
-  type: text("type", { enum: ["naissance", "décès", "mariage", "libre"] }).notNull(),
+  type: text("type", { enum: ["naissance", "décès", "mariage", "résidence", "libre"] }).notNull(),
   label: text("label"),
   eventDate: text("event_date"),
   description: text("description"),

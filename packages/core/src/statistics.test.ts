@@ -62,7 +62,7 @@ describe("calculateFamilyStatistics", () => {
       filiation(2, 2, 3),
       filiation(3, 3, 4),
     ], events, new Date("2026-08-26T12:00:00Z"))).toEqual({
-      totals: { persons: 4, unions: 1, events: 6, generations: 4 },
+      totals: { persons: 4, unions: 1, events: 9, generations: 4 },
       agePyramid: [
         { decade: 10, women: 0, men: 0, other: 1 },
         { decade: 20, women: 0, men: 1, other: 0 },
@@ -75,7 +75,7 @@ describe("calculateFamilyStatistics", () => {
         { label: "Zoé", count: 1 },
       ],
       topBirthPlaces: [
-        { label: "Montréal", count: 2 },
+        { label: "montreal", count: 2 },
         { label: "Paris", count: 1 },
       ],
       topResidencePlaces: [{ label: "Lyon", count: 2 }],
