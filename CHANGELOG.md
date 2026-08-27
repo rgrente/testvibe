@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.6.0](https://github.com/rgrente/testvibe/compare/v1.5.0...v1.6.0) (2026-08-27)
+
+
+### Features
+
+* **core:** project canonical family events ([#80](https://github.com/rgrente/testvibe/issues/80)) ([f828e2f](https://github.com/rgrente/testvibe/commit/f828e2ff370fc779b15c84e86b8099f36dfbba46)), closes [#79](https://github.com/rgrente/testvibe/issues/79)
+
 # [1.5.0](https://github.com/rgrente/testvibe/compare/v1.4.0...v1.5.0) (2026-08-26)
 
 
