@@ -15,6 +15,7 @@ const LEGACY_STORAGE_KEY = "family-tree-mobile-view";
 export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
   const [view, setView] = useState<FamilyTreeView>("tree");
   const [generationDepth, setGenerationDepth] = useState<number | null>(3);
+  const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
 
   const visibleTree = useMemo((): FamilyTree => {
     if (generationDepth === null) return tree;
@@ -42,6 +43,7 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
 
   const chooseView = (nextView: FamilyTreeView) => {
     setView(nextView);
+    setMobileCanvasOpen(false);
     window.localStorage.setItem(STORAGE_KEY, nextView);
   };
 
@@ -65,7 +67,21 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
         </SharedToolbar>
       ) : null}
       {view === "tree" ? (
-        <><FamilyTreeCanvas tree={visibleTree} profile="desktop" className="hidden md:block" /><div className="md:hidden"><FamilyTreeMobileList tree={tree} /></div></>
+        <>
+          <FamilyTreeCanvas tree={visibleTree} profile="desktop" className="hidden md:block" />
+          <div className="md:hidden">
+            <button
+              type="button"
+              className="mb-3 min-h-11 w-full rounded-md border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
+              onClick={() => setMobileCanvasOpen((open) => !open)}
+            >
+              {mobileCanvasOpen ? "Revenir à la vue mobile" : "Ouvrir le canevas interactif"}
+            </button>
+            {mobileCanvasOpen
+              ? <FamilyTreeCanvas tree={visibleTree} profile="mobile" />
+              : <FamilyTreeMobileList tree={tree} />}
+          </div>
+        </>
       ) : view === "list" ? <FamilyTreeMobileList tree={tree} /> : <FamilyTreeFanChart tree={tree} />}
     </>
   );

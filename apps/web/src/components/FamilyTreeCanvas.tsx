@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, type KeyboardEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Background, MiniMap, ReactFlow, useViewport, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -63,6 +63,17 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
     });
   }, [graph.nodes, profile, tree.rootId]);
 
+  const chooseFocusedPerson = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const target = event.target as HTMLElement;
+    if (target.closest("a")) return;
+    const nodeId = target.closest<HTMLElement>("[data-id]")?.dataset.id;
+    const node = graph.nodes.find((candidate) => candidate.id === nodeId);
+    if (node?.type !== "person") return;
+    event.preventDefault();
+    router.push(`/?personId=${node.id}`);
+  }, [graph.nodes, router]);
+
   useEffect(() => {
     if (!instanceRef.current) return;
     const frame = window.requestAnimationFrame(centerRoot);
@@ -87,6 +98,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
         onNodeClick={(_event, node) => {
           if (node.type === "person") router.push(`/?personId=${node.id}`);
         }}
+        onKeyDown={chooseFocusedPerson}
         panOnDrag
         zoomOnPinch
         zoomOnDoubleClick={false}

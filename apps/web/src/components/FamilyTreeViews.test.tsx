@@ -27,6 +27,18 @@ describe("FamilyTreeViews", () => {
     expect(screen.getByRole("button", { name: "Arbre" })).toHaveAttribute("aria-pressed", "true");
   });
 
+  it("permet d’ouvrir puis de refermer le canevas mobile interactif depuis la composition 1b", () => {
+    render(<FamilyTreeViews tree={tree} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ouvrir le canevas interactif" }));
+    expect(screen.getByTestId("canvas-mobile")).toBeInTheDocument();
+    expect(screen.queryByTestId("mobile-list")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Revenir à la vue mobile" }));
+    expect(screen.getByTestId("mobile-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-mobile")).not.toBeInTheDocument();
+  });
+
   it("bascule vers la liste et mémorise le choix localement", () => {
     render(<FamilyTreeViews tree={tree} />);
     fireEvent.click(screen.getByRole("button", { name: "Liste" }));

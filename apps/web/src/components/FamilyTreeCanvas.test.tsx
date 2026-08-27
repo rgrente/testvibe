@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from "react";
+import type { KeyboardEvent, MouseEvent, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
@@ -26,19 +26,23 @@ interface MockReactFlowProps {
   nodes: MockNode[];
   edges: Array<{ id: string }>;
   onNodeClick?: (event: MouseEvent<HTMLButtonElement>, node: MockNode) => void;
+  onKeyDown?: (event: KeyboardEvent<HTMLDivElement>) => void;
   onInit?: (instance: unknown) => void;
+  panOnDrag?: boolean;
+  zoomOnPinch?: boolean;
   children?: ReactNode;
 }
 
 vi.mock("@xyflow/react", () => ({
-  ReactFlow: ({ nodes, edges, onNodeClick, onInit, children }: MockReactFlowProps) => {
+  ReactFlow: ({ nodes, edges, onNodeClick, onKeyDown, onInit, panOnDrag, zoomOnPinch, children }: MockReactFlowProps) => {
     onInit?.({ setCenter, zoomIn, zoomOut, fitView });
     return (
-    <div>
+    <div onKeyDown={onKeyDown} data-pan-on-drag={panOnDrag} data-zoom-on-pinch={zoomOnPinch} data-testid="react-flow">
       {nodes.map((node) => (
         <button
           key={node.id}
           type="button"
+          data-id={node.id}
           data-testid={`flow-node-${node.id}`}
           onClick={(event) => onNodeClick?.(event, node)}
         >
@@ -114,6 +118,15 @@ describe("FamilyTreeCanvas", () => {
     expect(push).toHaveBeenCalledWith("/?personId=2");
   });
 
+  it.each(["Enter", " "])("choisit une carte focalisée comme racine avec la touche %s", (key) => {
+    render(<FamilyTreeCanvas tree={makeTree()} />);
+
+    fireEvent.keyDown(screen.getByTestId("flow-node-2"), { key });
+
+    expect(push).toHaveBeenCalledOnce();
+    expect(push).toHaveBeenCalledWith("/?personId=2");
+  });
+
   it("ne navigue pas depuis une jonction, une arête, le fond ou les contrôles", () => {
     render(<FamilyTreeCanvas tree={makeTree()} />);
 
@@ -135,6 +148,8 @@ describe("FamilyTreeCanvas", () => {
     expect(zoomIn).toHaveBeenCalledOnce();
     expect(zoomOut).toHaveBeenCalledOnce();
     expect(setCenter).toHaveBeenCalledWith(75, 32, expect.objectContaining({ zoom: 1 }));
+    expect(screen.getByTestId("react-flow")).toHaveAttribute("data-pan-on-drag", "true");
+    expect(screen.getByTestId("react-flow")).toHaveAttribute("data-zoom-on-pinch", "true");
   });
 
   it("reprend le canevas, la minimap, les contrôles et le statut de la référence 1a", () => {

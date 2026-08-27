@@ -108,12 +108,12 @@ describe("buildReactFlowGraph", () => {
     const person = (id: number) => graph.nodes.find((node) => node.id === String(id))!;
     const junction = graph.nodes.find((node) => node.id === "union-10")!;
 
-    expect(PERSON_NODE_WIDTH).toBe(180);
+    expect(PERSON_NODE_WIDTH).toBe(184);
     expect(GENERATION_ROW_HEIGHT).toBe(140);
     expect(SIBLING_PITCH).toBe(220);
     expect(person(8).position.y).toBe(-140);
     expect(person(9).position.y).toBe(280);
-    expect(person(1).style).toMatchObject({ width: 180 });
+    expect(person(1).style).toMatchObject({ width: 184 });
     expect(person(4).position.x + PERSON_NODE_WIDTH / 2).toBe(junction.position.x + 4);
     expect(person(4).position.x - person(3).position.x).toBe(220);
     expect(person(5).position.x - person(4).position.x).toBe(220);
@@ -185,7 +185,7 @@ describe("buildReactFlowGraph", () => {
     const graph = buildReactFlowGraph(makeTree());
     const cards = graph.nodes
       .filter((node) => node.type === "person")
-      .map((node) => ({ left: node.position.x, right: node.position.x + 180, top: node.position.y, bottom: node.position.y + PERSON_NODE_HEIGHT }));
+      .map((node) => ({ left: node.position.x, right: node.position.x + PERSON_NODE_WIDTH, top: node.position.y, bottom: node.position.y + PERSON_NODE_HEIGHT }));
     const routedSegments = graph.edges.flatMap((edge) =>
       edge.type === "filiation" ? ((edge.data as RoutedFiliationEdgeData).segments ?? []) : [],
     );
@@ -237,7 +237,7 @@ describe("buildReactFlowGraph", () => {
     expect(first.segments.every((segment) =>
       [segment.x1, segment.y1, segment.x2, segment.y2].every(Number.isFinite)
       && (segment.x1 === segment.x2 || segment.y1 === segment.y2))).toBe(true);
-    expect(first.segments[0]).toMatchObject({ x1: 390, y1: 24, kind: "stem" });
+    expect(first.segments[0]).toMatchObject({ x1: 392, y1: 24, kind: "stem" });
     expect(first.segments.some((segment) => segment.x2 === first.targets[0].x && segment.y2 === first.targets[0].y)).toBe(true);
   });
 

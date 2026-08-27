@@ -58,7 +58,7 @@ export interface ReactFlowGraph {
 
 export type FamilyTreeLayoutProfile = "desktop" | "mobile";
 
-export const PERSON_NODE_WIDTH = 180;
+export const PERSON_NODE_WIDTH = 184;
 export const GENERATION_ROW_HEIGHT = 140;
 export const SIBLING_PITCH = 220;
 export const PERSON_NODE_HEIGHT = 72;
