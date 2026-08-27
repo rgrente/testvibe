@@ -1,8 +1,13 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { version } from "../../../../package.json";
 import AdminLayout from "./admin/layout";
 import RootLayout from "./layout";
+
+vi.mock("next/font/google", () => ({
+  Instrument_Sans: () => ({ variable: "instrument-sans-variable" }),
+  JetBrains_Mono: () => ({ variable: "jetbrains-mono-variable" }),
+}));
 
 describe("RootLayout", () => {
   it("affiche le nom du site dans un header global avant le contenu", () => {
