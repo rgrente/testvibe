@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.7.0](https://github.com/rgrente/testvibe/compare/v1.6.0...v1.7.0) (2026-08-27)
+
+
+### Features
+
+* **web:** discipline family tree layout and links ([#82](https://github.com/rgrente/testvibe/issues/82)) ([86560d0](https://github.com/rgrente/testvibe/commit/86560d0e9a03e7f5848b9f4d9eb11f8922175b14)), closes [#81](https://github.com/rgrente/testvibe/issues/81)
+
 # [1.6.0](https://github.com/rgrente/testvibe/compare/v1.5.0...v1.6.0) (2026-08-27)
 
 
