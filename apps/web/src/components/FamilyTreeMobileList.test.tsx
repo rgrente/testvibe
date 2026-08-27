@@ -17,6 +17,19 @@ function makeTree(): FamilyTree {
 }
 
 describe("FamilyTreeMobileList", () => {
+  it("regroupe les personnes sans indentation dans des sections de génération croissantes", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+
+    const headings = screen.getAllByRole("heading", { level: 2 });
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "Génération -1",
+      "Génération 0",
+      "Génération 1",
+    ]);
+    expect(screen.getByTestId("mobile-row-1")).toHaveStyle({ paddingLeft: "0px" });
+    expect(screen.getByTestId("mobile-row-4")).toHaveStyle({ paddingLeft: "0px" });
+  });
+
   it("affiche une ligne par Person avec son nom complet", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();

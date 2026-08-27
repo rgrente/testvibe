@@ -30,6 +30,27 @@ export type ReactFlowGraphNode = PersonFlowNode | UnionJunctionFlowNode;
 
 export type ReactFlowGraphEdge = Edge;
 
+export interface OrthogonalSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  kind: "stem" | "bus" | "branch";
+}
+
+export interface RoutedFiliationTarget {
+  personId: number;
+  x: number;
+  y: number;
+  roles: string[];
+}
+
+export interface RoutedFiliationEdgeData extends Record<string, unknown> {
+  segments: OrthogonalSegment[];
+  bus: OrthogonalSegment;
+  targets: RoutedFiliationTarget[];
+}
+
 export interface ReactFlowGraph {
   nodes: ReactFlowGraphNode[];
   edges: ReactFlowGraphEdge[];
@@ -37,8 +58,13 @@ export interface ReactFlowGraph {
 
 export type FamilyTreeLayoutProfile = "desktop" | "mobile";
 
+export const PERSON_NODE_WIDTH = 180;
+export const GENERATION_ROW_HEIGHT = 140;
+export const SIBLING_PITCH = 220;
+const PERSON_NODE_HEIGHT = 96;
+
 const LAYOUT = {
-  desktop: { generationRowHeight: 140, nodeColumnWidth: 220, unionPartnerGap: 300, personNodeHalfWidth: 90 },
+  desktop: { generationRowHeight: GENERATION_ROW_HEIGHT, nodeColumnWidth: SIBLING_PITCH, unionPartnerGap: 300, personNodeHalfWidth: PERSON_NODE_WIDTH / 2 },
   mobile: { generationRowHeight: 112, nodeColumnWidth: 170, unionPartnerGap: 210, personNodeHalfWidth: 75 },
 } as const;
 /**
@@ -52,10 +78,6 @@ const PERSON_HANDLE_Y_OFFSET = 20;
 const JUNCTION_HALF_SIZE = 4;
 
 const UNION_LINK_STYLE = { stroke: "#cbd5e1", strokeDasharray: "4 4" };
-
-function filiationLabel(role: string): string | undefined {
-  return role === "biologique" ? undefined : role;
-}
 
 type FamilyTreeNode = FamilyTree["nodes"][number];
 
@@ -170,6 +192,7 @@ export function buildReactFlowGraph(
       id: String(n.person.id),
       type: "person",
       position: { x, y: n.generation * generationRowHeight },
+      style: { width: layoutProfile === "desktop" ? PERSON_NODE_WIDTH : 150 },
       data: {
         personId: n.person.id,
         label: `${n.person.firstName} ${n.person.lastName}`.trim(),
@@ -370,7 +393,7 @@ export function buildReactFlowGraph(
       id: junctionId,
       type: "unionJunction",
       position: {
-        x: (posA.x + posB.x) / 2 + personNodeHalfWidth,
+        x: (posA.x + posB.x) / 2 + personNodeHalfWidth - JUNCTION_HALF_SIZE,
         // Même partenaires nécessairement à la même génération (donc même y) :
         // aligné sur l'offset fixe des handles latéraux pour un lien horizontal.
         y: posA.y + PERSON_HANDLE_Y_OFFSET - JUNCTION_HALF_SIZE,
@@ -405,6 +428,7 @@ export function buildReactFlowGraph(
     );
 
     const partnerSet = new Set(union.personIds);
+    const children: { childId: number; roles: string[] }[] = [];
     for (const [childId, parentIds] of parentIdsByChild) {
       const isExactMatch = parentIds.size === partnerSet.size && [...parentIds].every((id) => partnerSet.has(id));
       if (!isExactMatch) continue;
@@ -412,32 +436,101 @@ export function buildReactFlowGraph(
       const matchingFiliations = filiationEdges.filter(
         (f) => f.childId === childId && partnerSet.has(f.parentId),
       );
-      const roles = new Set(matchingFiliations.map((f) => f.role));
-
-      edges.push({
-        id: `${junctionId}-child-${childId}`,
-        source: junctionId,
-        sourceHandle: "bottom",
-        target: String(childId),
-        targetHandle: "top",
-        label: roles.size === 1 ? filiationLabel([...roles][0]) : undefined,
-      });
+      children.push({ childId, roles: [...new Set(matchingFiliations.map((f) => f.role))] });
 
       for (const f of matchingFiliations) consumedFiliationIds.add(f.filiationId);
+    }
+
+    if (children.length > 0) {
+      const sourceX = (posA.x + posB.x) / 2 + personNodeHalfWidth;
+      const sourceY = posA.y + PERSON_HANDLE_Y_OFFSET + JUNCTION_HALF_SIZE;
+      const targetPoints = children
+        .map(({ childId, roles }) => {
+          const position = positionByPersonId.get(String(childId))!;
+          return { personId: childId, x: position.x + personNodeHalfWidth, y: position.y, roles };
+        })
+        .sort((a, b) => a.x - b.x || a.personId - b.personId);
+      const busY = (posA.y + PERSON_NODE_HEIGHT + targetPoints[0].y) / 2;
+      const bus: OrthogonalSegment = {
+        x1: Math.min(sourceX, ...targetPoints.map((target) => target.x)),
+        y1: busY,
+        x2: Math.max(sourceX, ...targetPoints.map((target) => target.x)),
+        y2: busY,
+        kind: "bus",
+      };
+      const segments: OrthogonalSegment[] = [
+        { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
+        bus,
+        ...targetPoints.map((target) => ({
+          x1: target.x,
+          y1: busY,
+          x2: target.x,
+          y2: target.y,
+          kind: "branch" as const,
+        })),
+      ];
+      edges.push({
+        id: `${junctionId}-children`,
+        source: junctionId,
+        sourceHandle: "bottom",
+        target: String(targetPoints[0].personId),
+        targetHandle: "top",
+        type: "filiation",
+        data: { segments, bus, targets: targetPoints } satisfies RoutedFiliationEdgeData,
+      });
     }
   }
 
   // Filiations non absorbées par un point de jonction (parent unique
   // connu, ou parents ne partageant pas d'Union commune) : arête directe.
-  for (const f of filiationEdges) {
-    if (consumedFiliationIds.has(f.filiationId)) continue;
+  const remainingByParent = new Map<number, typeof filiationEdges>();
+  for (const filiation of filiationEdges) {
+    if (consumedFiliationIds.has(filiation.filiationId)) continue;
+    const siblings = remainingByParent.get(filiation.parentId) ?? [];
+    siblings.push(filiation);
+    remainingByParent.set(filiation.parentId, siblings);
+  }
+  for (const [parentId, filiations] of remainingByParent) {
+    const sourcePosition = positionByPersonId.get(String(parentId));
+    if (!sourcePosition) continue;
+    const sourceX = sourcePosition.x + personNodeHalfWidth;
+    const sourceY = sourcePosition.y + PERSON_NODE_HEIGHT;
+    const targetPoints = filiations
+      .reduce<RoutedFiliationTarget[]>((targets, filiation) => {
+        const position = positionByPersonId.get(String(filiation.childId));
+        if (position) {
+          targets.push({
+            personId: filiation.childId,
+            x: position.x + personNodeHalfWidth,
+            y: position.y,
+            roles: [filiation.role],
+          });
+        }
+        return targets;
+      }, [])
+      .sort((a, b) => a.x - b.x || a.personId - b.personId);
+    if (targetPoints.length === 0) continue;
+    const busY = (sourceY + targetPoints[0].y) / 2;
+    const bus: OrthogonalSegment = {
+      x1: Math.min(sourceX, ...targetPoints.map((target) => target.x)),
+      y1: busY,
+      x2: Math.max(sourceX, ...targetPoints.map((target) => target.x)),
+      y2: busY,
+      kind: "bus",
+    };
+    const segments: OrthogonalSegment[] = [
+      { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
+      bus,
+      ...targetPoints.map((target) => ({ x1: target.x, y1: busY, x2: target.x, y2: target.y, kind: "branch" as const })),
+    ];
     edges.push({
-      id: `filiation-${f.filiationId}`,
-      source: String(f.parentId),
+      id: `parent-${parentId}-children`,
+      source: String(parentId),
       sourceHandle: "bottom",
-      target: String(f.childId),
+      target: String(targetPoints[0].personId),
       targetHandle: "top",
-      label: filiationLabel(f.role),
+      type: "filiation",
+      data: { segments, bus, targets: targetPoints } satisfies RoutedFiliationEdgeData,
     });
   }
 

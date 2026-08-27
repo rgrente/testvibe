@@ -1,6 +1,15 @@
 import { describe, it, expect } from "vitest";
 import type { FamilyTree } from "@testvibe/core";
-import { buildReactFlowGraph, buildHierarchyRows, type PersonNodeData } from "./family-tree-layout";
+import {
+  buildReactFlowGraph,
+  buildHierarchyRows,
+  GENERATION_ROW_HEIGHT,
+  PERSON_NODE_WIDTH,
+  SIBLING_PITCH,
+  type OrthogonalSegment,
+  type PersonNodeData,
+  type RoutedFiliationEdgeData,
+} from "./family-tree-layout";
 
 function makeTree(): FamilyTree {
   return {
@@ -25,6 +34,91 @@ function personData(node: ReturnType<typeof buildReactFlowGraph>["nodes"][number
 }
 
 describe("buildReactFlowGraph", () => {
+  it("applique les constantes desktop et centre l'enfant médian d'une fratrie de trois sur la jonction", () => {
+    const tree: FamilyTree = {
+      rootId: 1,
+      nodes: [
+        { person: { id: 8, firstName: "Aïeul", lastName: "Test", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+        { person: { id: 1, firstName: "Parent", lastName: "Test", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+        { person: { id: 2, firstName: "Partenaire", lastName: "Test", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
+        { person: { id: 3, firstName: "Aîné", lastName: "Test", birthDate: "2010-01-01", deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 4, firstName: "Cadet", lastName: "Test", birthDate: "2012-01-01", deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 5, firstName: "Benjamin", lastName: "Test", birthDate: "2014-01-01", deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 9, firstName: "Petit-enfant", lastName: "Test", birthDate: null, deathDate: null, gender: null } as any, generation: 2 },
+      ],
+      edges: [
+        { type: "union", unionId: 10, personIds: [1, 2] },
+        ...[3, 4, 5].flatMap((childId, index) => [
+          { type: "filiation" as const, filiationId: 20 + index * 2, parentId: 1, childId, role: "biologique" as const },
+          { type: "filiation" as const, filiationId: 21 + index * 2, parentId: 2, childId, role: "biologique" as const },
+        ]),
+        { type: "filiation", filiationId: 30, parentId: 8, childId: 1, role: "biologique" },
+        { type: "filiation", filiationId: 31, parentId: 4, childId: 9, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const person = (id: number) => graph.nodes.find((node) => node.id === String(id))!;
+    const junction = graph.nodes.find((node) => node.id === "union-10")!;
+
+    expect(PERSON_NODE_WIDTH).toBe(180);
+    expect(GENERATION_ROW_HEIGHT).toBe(140);
+    expect(SIBLING_PITCH).toBe(220);
+    expect(person(8).position.y).toBe(-140);
+    expect(person(9).position.y).toBe(280);
+    expect(person(1).style).toMatchObject({ width: 180 });
+    expect(person(4).position.x + PERSON_NODE_WIDTH / 2).toBe(junction.position.x + 4);
+    expect(person(4).position.x - person(3).position.x).toBe(220);
+    expect(person(5).position.x - person(4).position.x).toBe(220);
+  });
+
+  it("produit une seule jonction et un seul bus horizontal par union et fratrie", () => {
+    const tree = makeTree();
+    tree.nodes.push(
+      { person: { id: 5, firstName: "Grace", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+      { person: { id: 6, firstName: "Alan", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+    );
+    tree.edges.push(
+      { type: "filiation", filiationId: 13, parentId: 2, childId: 5, role: "adopte" },
+      { type: "filiation", filiationId: 14, parentId: 3, childId: 5, role: "adopte" },
+      { type: "filiation", filiationId: 15, parentId: 2, childId: 6, role: "beau-parent" },
+      { type: "filiation", filiationId: 16, parentId: 3, childId: 6, role: "beau-parent" },
+    );
+
+    const graph = buildReactFlowGraph(tree);
+    const junctions = graph.nodes.filter((node) => node.id === "union-20");
+    const siblingEdges = graph.edges.filter((edge) => edge.id === "union-20-children");
+    const data = siblingEdges[0]?.data as RoutedFiliationEdgeData;
+
+    expect(junctions).toHaveLength(1);
+    expect(siblingEdges).toHaveLength(1);
+    expect(data.bus).toBeDefined();
+    expect(data.targets).toHaveLength(3);
+    expect(data.segments.filter((segment) => segment.kind === "bus")).toHaveLength(1);
+  });
+
+  it("route les filiations sans couper l'intérieur des cartes", () => {
+    const graph = buildReactFlowGraph(makeTree());
+    const cards = graph.nodes
+      .filter((node) => node.type === "person")
+      .map((node) => ({ left: node.position.x, right: node.position.x + 180, top: node.position.y, bottom: node.position.y + 96 }));
+    const routedSegments = graph.edges.flatMap((edge) =>
+      edge.type === "filiation" ? ((edge.data as RoutedFiliationEdgeData).segments ?? []) : [],
+    );
+    const crossesInterior = (segment: OrthogonalSegment, card: (typeof cards)[number]) => {
+      if (segment.x1 === segment.x2) {
+        return segment.x1 > card.left && segment.x1 < card.right
+          && Math.max(segment.y1, segment.y2) > card.top && Math.min(segment.y1, segment.y2) < card.bottom;
+      }
+      return segment.y1 > card.top && segment.y1 < card.bottom
+        && Math.max(segment.x1, segment.x2) > card.left && Math.min(segment.x1, segment.x2) < card.right;
+    };
+
+    expect(routedSegments.length).toBeGreaterThan(0);
+    for (const segment of routedSegments) {
+      expect(cards.filter((card) => crossesInterior(segment, card))).toHaveLength(0);
+    }
+  });
   it("utilise un profil mobile compact sans changer la sémantique du graphe", () => {
     const desktop = buildReactFlowGraph(makeTree(), "desktop");
     const mobile = buildReactFlowGraph(makeTree(), "mobile");
@@ -169,7 +263,7 @@ describe("buildReactFlowGraph", () => {
 
   it("fusionne les Filiation d'un enfant commun aux deux partenaires en une seule arête depuis le point de jonction", () => {
     const graph = buildReactFlowGraph(makeTree());
-    const merged = graph.edges.find((e) => e.id === "union-20-child-4");
+    const merged = graph.edges.find((e) => e.id === "union-20-children");
     expect(merged).toMatchObject({ source: "union-20", target: "4" });
     expect(merged!.label).toBeUndefined();
 
@@ -311,20 +405,16 @@ describe("buildReactFlowGraph", () => {
     expect(coupleMidpoint).toBe(childrenMidpoint);
   });
 
-  it("masque uniquement le libellé biologique et conserve celui des autres filiations", () => {
+  it("conserve les rôles de filiation dans le routage sans exposer de libellé par défaut", () => {
     const tree = makeTree();
     tree.edges.push({ type: "filiation", filiationId: 13, parentId: 1, childId: 3, role: "adopte" });
     const graph = buildReactFlowGraph(tree);
-    expect(graph.edges.find((e) => e.id === "filiation-10")).toMatchObject({
-      source: "1",
-      target: "2",
-    });
-    expect(graph.edges.find((e) => e.id === "filiation-10")!.label).toBeUndefined();
-    expect(graph.edges.find((e) => e.id === "filiation-13")).toMatchObject({
-      source: "1",
-      target: "3",
-      label: "adopte",
-    });
+    const edge = graph.edges.find((candidate) => candidate.id === "parent-1-children")!;
+    const data = edge.data as RoutedFiliationEdgeData;
+
+    expect(edge.label).toBeUndefined();
+    expect(data.targets.find((target) => target.personId === 2)?.roles).toEqual(["biologique"]);
+    expect(data.targets.find((target) => target.personId === 3)?.roles).toEqual(["adopte"]);
   });
 });
 
