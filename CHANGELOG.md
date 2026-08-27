@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/rgrente/testvibe/compare/v1.7.0...v1.7.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **web:** add safe filiation routing fallback ([#84](https://github.com/rgrente/testvibe/issues/84)) ([9dcbd42](https://github.com/rgrente/testvibe/commit/9dcbd426e9aee7c7ad4cc5e79b05c44858c39157)), closes [#83](https://github.com/rgrente/testvibe/issues/83)
+
 # [1.7.0](https://github.com/rgrente/testvibe/compare/v1.6.0...v1.7.0) (2026-08-27)
 
 
