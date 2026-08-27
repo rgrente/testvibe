@@ -97,6 +97,43 @@ describe("buildReactFlowGraph", () => {
     expect(data.segments.filter((segment) => segment.kind === "bus")).toHaveLength(1);
   });
 
+  it("place une personne ayant deux unions entre ses partenaires et ignore une union incomplète", () => {
+    const tree: FamilyTree = {
+      rootId: 1,
+      nodes: [
+        { person: { id: 1, firstName: "Parent", lastName: "Commun", birthDate: "1980-01-01", deathDate: null, gender: "M" } as any, generation: 0 },
+        { person: { id: 2, firstName: "Partenaire", lastName: "A", birthDate: "1981-01-01", deathDate: null, gender: "F" } as any, generation: 0 },
+        { person: { id: 3, firstName: "Partenaire", lastName: "B", birthDate: "1982-01-01", deathDate: null, gender: "F" } as any, generation: 0 },
+        { person: { id: 4, firstName: "Personne", lastName: "Seule", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 5, firstName: "Enfant", lastName: "A", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 6, firstName: "Enfant", lastName: "B", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+      ],
+      edges: [
+        { type: "union", unionId: 10, personIds: [1, 2] },
+        { type: "union", unionId: 20, personIds: [1, 3] },
+        { type: "union", unionId: 30, personIds: [4] },
+        { type: "filiation", filiationId: 1, parentId: 1, childId: 5, role: "biologique" },
+        { type: "filiation", filiationId: 2, parentId: 2, childId: 5, role: "biologique" },
+        { type: "filiation", filiationId: 3, parentId: 1, childId: 6, role: "biologique" },
+        { type: "filiation", filiationId: 4, parentId: 3, childId: 6, role: "biologique" },
+        { type: "filiation", filiationId: 5, parentId: 99, childId: 6, role: "biologique" },
+      ],
+    };
+
+    const graph = buildReactFlowGraph(tree);
+    const x = (id: number) => graph.nodes.find((node) => node.id === String(id))!.position.x;
+
+    expect(x(1)).toBeGreaterThan(Math.min(x(2), x(3)));
+    expect(x(1)).toBeLessThan(Math.max(x(2), x(3)));
+    expect(Math.abs(x(1) - x(2))).toBe(300);
+    expect(Math.abs(x(1) - x(3))).toBe(300);
+    expect(graph.nodes.filter((node) => node.id === "union-10")).toHaveLength(1);
+    expect(graph.nodes.filter((node) => node.id === "union-20")).toHaveLength(1);
+    expect(graph.nodes.some((node) => node.id === "union-30")).toBe(false);
+    expect(graph.edges.filter((edge) => edge.id.endsWith("-children"))).toHaveLength(2);
+    expect(graph.edges.some((edge) => edge.source === "99")).toBe(false);
+  });
+
   it("route les filiations sans couper l'intérieur des cartes", () => {
     const graph = buildReactFlowGraph(makeTree());
     const cards = graph.nodes

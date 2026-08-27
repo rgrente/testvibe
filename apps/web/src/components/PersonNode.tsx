@@ -32,7 +32,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   return (
     <div
       data-testid={`person-node-${data.personId}`}
-      className={`cursor-pointer rounded-lg border text-sm shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "px-4 py-2"} ${
+      className={`cursor-pointer rounded-lg border text-sm shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "w-[180px] px-4 py-2"} ${
         data.isRoot
           ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
           : "border-slate-300 bg-white text-slate-800"

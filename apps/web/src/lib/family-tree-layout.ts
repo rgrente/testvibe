@@ -140,17 +140,6 @@ export function buildReactFlowGraph(
   const { generationRowHeight, nodeColumnWidth, unionPartnerGap, personNodeHalfWidth } = LAYOUT[layoutProfile];
   const sortedByGeneration = [...tree.nodes].sort(compareSiblingOrder);
 
-  // Partenaire d'Union à deux membres, pour un placement adjacent garanti
-  // (cf. plus bas) : sans ça, deux partenaires ne se retrouvent côte à
-  // côte que par accident de tri par id, et un tiers pourrait s'intercaler.
-  const unionPartnerOf = new Map<number, number>();
-  for (const e of tree.edges) {
-    if (e.type !== "union" || e.personIds.length !== 2) continue;
-    const [a, b] = e.personIds;
-    unionPartnerOf.set(a, b);
-    unionPartnerOf.set(b, a);
-  }
-
   const filiationEdges = tree.edges.filter((e) => e.type === "filiation");
   const unionEdges = tree.edges.filter((e) => e.type === "union");
 
@@ -207,35 +196,55 @@ export function buildReactFlowGraph(
     });
   };
 
-  type Unit = { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] };
+  type Unit = { members: (typeof sortedByGeneration) };
 
-  /** Largeur (écart entre le premier membre et son partenaire) occupée par l'unité ; 0 pour une personne seule. */
-  const widthOf = (unit: Unit) => (unit.partner ? unionPartnerGap : 0);
+  /** Largeur occupée par une composante d'unions ; 0 pour une personne seule. */
+  const widthOf = (unit: Unit) => (unit.members.length - 1) * unionPartnerGap;
 
   const placeUnit = (unit: Unit, x: number) => {
-    placeNode(unit.first, x);
-    if (unit.partner) placeNode(unit.partner, x + unionPartnerGap);
+    unit.members.forEach((member, index) => placeNode(member, x + index * unionPartnerGap));
   };
 
   for (const generation of generationOrder) {
     const nodesInGeneration = byGeneration.get(generation)!;
     const byPersonId = new Map(nodesInGeneration.map((n) => [n.person.id, n]));
 
-    // Regroupe en "unités" de placement (personne seule, ou couple adjacent).
+    // Regroupe en composantes d'unions. Pour deux unions partageant une
+    // personne, celle-ci est placée entre ses partenaires afin que les deux
+    // jonctions restent chacune dans un espace libre entre cartes.
     const units: Unit[] = [];
     const grouped = new Set<number>();
     for (const n of nodesInGeneration) {
       if (grouped.has(n.person.id)) continue;
-      grouped.add(n.person.id);
-      const partnerId = unionPartnerOf.get(n.person.id);
-      const partnerNode = partnerId !== undefined ? byPersonId.get(partnerId) : undefined;
-      if (partnerNode && !grouped.has(partnerNode.person.id)) {
-        grouped.add(partnerNode.person.id);
-        const [first, partner] = orderCoupleLeftToRight(n, partnerNode);
-        units.push({ first, partner });
-      } else {
-        units.push({ first: n });
+      const componentIds = new Set<number>();
+      const queue = [n.person.id];
+      while (queue.length > 0) {
+        const personId = queue.shift()!;
+        if (componentIds.has(personId)) continue;
+        componentIds.add(personId);
+        for (const edge of unionEdges) {
+          if (edge.personIds.length !== 2 || !edge.personIds.includes(personId)) continue;
+          for (const partnerId of edge.personIds) {
+            if (byPersonId.has(partnerId) && !componentIds.has(partnerId)) queue.push(partnerId);
+          }
+        }
       }
+      componentIds.forEach((personId) => grouped.add(personId));
+      let members = nodesInGeneration.filter((candidate) => componentIds.has(candidate.person.id));
+      if (members.length === 2) {
+        members = [...orderCoupleLeftToRight(members[0], members[1])];
+      } else if (members.length === 3) {
+        const degree = (personId: number) => unionEdges.filter(
+          (edge) => edge.personIds.length === 2 && edge.personIds.includes(personId)
+            && edge.personIds.every((id) => componentIds.has(id)),
+        ).length;
+        const center = members.find((member) => degree(member.person.id) === 2);
+        if (center) {
+          const endpoints = members.filter((member) => member !== center);
+          members = [endpoints[0], center, endpoints[1]];
+        }
+      }
+      units.push({ members });
     }
 
     if (generation === 0) {
@@ -255,7 +264,7 @@ export function buildReactFlowGraph(
       generation < 0 ? (childrenOfParent.get(personId) ?? []) : (parentsOfChild.get(personId) ?? []);
 
     const anchorOf = (unit: Unit): number | undefined => {
-      const memberIds = unit.partner ? [unit.first.person.id, unit.partner.person.id] : [unit.first.person.id];
+      const memberIds = unit.members.map((member) => member.person.id);
       const neighborXs = memberIds
         .flatMap(neighborsOf)
         .map((id) => xByPersonId.get(id))
@@ -369,6 +378,9 @@ export function buildReactFlowGraph(
   /** Ensemble des parents connus (via Filiation) de chaque enfant. */
   const parentIdsByChild = new Map<number, Set<number>>();
   for (const f of filiationEdges) {
+    // Les filiations vers un parent absent de la vue sont des données
+    // partielles : elles ne doivent pas empêcher une union visible exacte.
+    if (!positionByPersonId.has(String(f.parentId))) continue;
     if (!parentIdsByChild.has(f.childId)) parentIdsByChild.set(f.childId, new Set());
     parentIdsByChild.get(f.childId)!.add(f.parentId);
   }

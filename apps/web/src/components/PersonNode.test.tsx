@@ -41,6 +41,11 @@ function renderNode(overrides: Partial<PersonNodeData> = {}) {
 }
 
 describe("PersonNode", () => {
+  it("utilise une largeur desktop homogène de 180 px", () => {
+    renderNode();
+    expect(screen.getByTestId("person-node-1")).toHaveClass("w-[180px]");
+  });
+
   it("affiche distinctement le nom de naissance lorsqu'il existe", () => {
     renderNode({ birthName: "Kaminker" });
     expect(screen.getByTestId("person-node-1")).toHaveTextContent("Nom de naissance : Kaminker");

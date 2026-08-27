@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Background, ReactFlow, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
+import { Background, ReactFlow, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
 import { buildReactFlowGraph, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
 import { UnionJunctionNode } from "./UnionJunctionNode";
+import { FiliationEdge } from "./FiliationEdge";
 
 const nodeTypes: NodeTypes = { person: PersonNode, unionJunction: UnionJunctionNode };
+const edgeTypes: EdgeTypes = { filiation: FiliationEdge };
 
 export interface FamilyTreeCanvasProps {
   tree: FamilyTree;
@@ -50,6 +52,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
         nodes={graph.nodes}
         edges={graph.edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         onInit={(instance) => {
           instanceRef.current = instance;
           window.requestAnimationFrame(centerRoot);
