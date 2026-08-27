@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("./FamilyTreeCanvas", () => ({
-  FamilyTreeCanvas: ({ profile }: { profile: string }) => <div data-testid={`canvas-${profile}`} />,
+  FamilyTreeCanvas: ({ profile, tree }: { profile: string; tree: { nodes: unknown[] } }) => <div data-testid={`canvas-${profile}`}>{tree.nodes.length}</div>,
 }));
 vi.mock("./FamilyTreeMobileList", () => ({
   FamilyTreeMobileList: () => <div data-testid="mobile-list" />,
@@ -53,5 +53,20 @@ describe("FamilyTreeViews", () => {
     expect(screen.getByTestId("fan-chart")).toBeInTheDocument();
     expect(window.localStorage.getItem("family-tree-view")).toBe("fan");
     expect(window.localStorage.getItem("family-tree-mobile-view")).toBeNull();
+  });
+
+  it("offre les profondeurs 2/3/4/Tout et l’ajout sans masquer les autres modes", () => {
+    const deepTree = {
+      rootId: 1,
+      nodes: [-2, -1, 0, 1, 2].map((generation, index) => ({ person: { id: index + 1 }, generation })),
+      edges: [],
+    } as never;
+    render(<FamilyTreeViews tree={deepTree} />);
+
+    expect(screen.getByRole("button", { name: "Afficher 3 générations" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Afficher 2 générations" }));
+    expect(screen.getByTestId("canvas-desktop")).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: "Afficher tout l’arbre" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("link", { name: "Ajouter une personne" })).toHaveAttribute("href", "/admin/persons");
   });
 });
