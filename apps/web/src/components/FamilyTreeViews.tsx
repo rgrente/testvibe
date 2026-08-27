@@ -5,6 +5,7 @@ import type { FamilyTree } from "@testvibe/core";
 import { FamilyTreeCanvas } from "./FamilyTreeCanvas";
 import { FamilyTreeMobileList } from "./FamilyTreeMobileList";
 import { FamilyTreeFanChart } from "./FamilyTreeFanChart";
+import { SharedToolbar } from "./SharedToolbar";
 
 type FamilyTreeView = "tree" | "list" | "fan";
 const STORAGE_KEY = "family-tree-view";
@@ -29,15 +30,15 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
 
   return (
     <>
-      <div className="mb-3">
-        <div className="inline-flex rounded-lg border border-slate-300 p-1" role="group" aria-label="Mode d’affichage">
+      <SharedToolbar label="Mode d’affichage" className="mb-3 rounded-[var(--radius-md)]">
+        <div className="inline-flex rounded-lg border border-slate-300 p-1" role="group" aria-label="Choix du mode d’affichage">
           {(["tree", "list", "fan"] as const).map((option) => (
-            <button key={option} type="button" className={`min-h-11 rounded-md px-4 text-sm font-medium ${view === option ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-50"}`} aria-pressed={view === option} onClick={() => chooseView(option)}>
+            <button key={option} type="button" className={`min-h-11 rounded-md px-4 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)] ${view === option ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-50"}`} aria-pressed={view === option} onClick={() => chooseView(option)}>
               {option === "tree" ? "Arbre" : option === "list" ? "Liste" : "Éventail"}
             </button>
           ))}
         </div>
-      </div>
+      </SharedToolbar>
       {view === "tree" ? (
         <><FamilyTreeCanvas tree={tree} profile="desktop" className="hidden md:block" /><div className="md:hidden"><FamilyTreeCanvas tree={tree} profile="mobile" /></div></>
       ) : view === "list" ? <FamilyTreeMobileList tree={tree} /> : <FamilyTreeFanChart tree={tree} />}
