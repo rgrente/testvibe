@@ -1,8 +1,8 @@
-import type { FamilyAnniversary, FamilyTimelineItem, Person, Union, UpcomingFamilyAnniversary } from "./types.js";
+import type { FamilyAnniversary, FamilyFact, FamilyTimelineItem, Person, UpcomingFamilyAnniversary } from "./types.js";
 import type { Database } from "@testvibe/db";
 import { listFamilyTimeline } from "./event.js";
 import { listPersons } from "./person.js";
-import { listUnions } from "./union.js";
+import { listCanonicalFamilyFacts } from "./projection.js";
 
 const COMPLETE_DATE = /^(\d{4})-(\d{2})-(\d{2})$/;
 
@@ -87,25 +87,23 @@ export async function listFamilyAnniversaries(
 
 /** Retourne les anniversaires de naissance et de mariage des prochains jours, hors aujourd'hui. */
 export function upcomingFamilyAnniversaries(
+  facts: FamilyFact[],
   persons: Person[],
-  unions: Union[],
   fromDate: string,
   days: number,
 ): UpcomingFamilyAnniversary[] {
   const from = parseCompleteDate(fromDate);
   if (!from || !Number.isInteger(days) || days < 1) return [];
   const peopleById = new Map(persons.map((person) => [person.id, person]));
-  const sources = [
-    ...persons.map((person) => ({ key: `person:${person.id}:naissance`, type: "naissance" as const, date: person.birthDate, persons: [person] })),
-    ...unions
-      .filter((union) => union.type === "mariage")
-      .map((union) => ({
-        key: `union:${union.id}:mariage`,
-        type: "mariage" as const,
-        date: union.startDate,
-        persons: union.personIds.flatMap((id) => peopleById.get(id) ?? []),
-      })),
-  ];
+  const sources = facts
+    .filter((fact): fact is FamilyFact & { category: "naissance" | "mariage" } =>
+      fact.category === "naissance" || fact.category === "mariage")
+    .map((fact) => ({
+      key: fact.identity,
+      type: fact.category,
+      date: fact.date,
+      persons: fact.personIds.flatMap((id) => peopleById.get(id) ?? []),
+    }));
   const start = new Date(Date.UTC(from.year, from.month - 1, from.day));
   const results: UpcomingFamilyAnniversary[] = [];
 
@@ -144,6 +142,6 @@ export async function listUpcomingFamilyAnniversaries(
   fromDate: string,
   days: number,
 ): Promise<UpcomingFamilyAnniversary[]> {
-  const [persons, unions] = await Promise.all([listPersons(db), listUnions(db)]);
-  return upcomingFamilyAnniversaries(persons, unions, fromDate, days);
+  const [facts, persons] = await Promise.all([listCanonicalFamilyFacts(db), listPersons(db)]);
+  return upcomingFamilyAnniversaries(facts, persons, fromDate, days);
 }

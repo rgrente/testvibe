@@ -5,7 +5,7 @@ import { createEvent, listFamilyTimeline } from "./event.js";
 import { createUnion } from "./union.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
 import { getFamilyStatistics } from "./statistics.js";
-import { anniversariesForDate } from "./anniversary.js";
+import { anniversariesForDate, upcomingFamilyAnniversaries } from "./anniversary.js";
 import type { Event, Person, Union } from "./types.js";
 import {
   countCanonicalFacts,
@@ -222,6 +222,9 @@ describe("projection cohérente des consommateurs", () => {
       residence.id,
     ]);
     expect(anniversariesForDate(familyTimeline, "2026-06-03").map((item) => item.key)).toEqual([
+      `union:${marriage.id}`,
+    ]);
+    expect(upcomingFamilyAnniversaries(allFacts, [alice, bob], "2026-06-01", 3).map((item) => item.key)).toEqual([
       `union:${marriage.id}`,
     ]);
   });

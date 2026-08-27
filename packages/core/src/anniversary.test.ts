@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import type { FamilyTimelineItem, Person, Union } from "./types.js";
+import type { Event, FamilyTimelineItem, Person, Union } from "./types.js";
 import { anniversariesForDate, isCompleteCalendarDate, localCalendarDate, upcomingFamilyAnniversaries } from "./anniversary.js";
+import { projectFamilyFacts } from "./projection.js";
 
 const person = (id: number, firstName: string, lastName: string): Person => ({
   id, firstName, lastName, birthName: null, birthDate: null, deathDate: null, gender: null,
@@ -64,10 +65,12 @@ describe("upcomingFamilyAnniversaries", () => {
       latitude: null, longitude: null, personIds: [1, 2],
     };
 
-    expect(upcomingFamilyAnniversaries([alice, bob], [marriage], "2026-09-01", 7))
+    const facts = projectFamilyFacts([alice, bob], [marriage], []);
+
+    expect(upcomingFamilyAnniversaries(facts, [alice, bob], "2026-09-01", 7))
       .toEqual([
         expect.objectContaining({ key: "person:2:naissance", daysUntil: 1, yearsElapsed: 44, persons: [bob] }),
-        expect.objectContaining({ key: "union:4:mariage", daysUntil: 4, yearsElapsed: 16, persons: [alice, bob] }),
+        expect.objectContaining({ key: "union:4", daysUntil: 4, yearsElapsed: 16, persons: [alice, bob] }),
       ]);
   });
 
@@ -79,15 +82,34 @@ describe("upcomingFamilyAnniversaries", () => {
     };
     const incomplete = { ...person(2, "Bob", "Beta"), birthDate: "1982-09" };
 
-    expect(upcomingFamilyAnniversaries([alice, incomplete], [union], "2026-09-01", 7)).toEqual([]);
+    const facts = projectFamilyFacts([alice, incomplete], [union], []);
+    expect(upcomingFamilyAnniversaries(facts, [alice, incomplete], "2026-09-01", 7)).toEqual([]);
   });
 
   it("gère le passage d'année et le 29 février", () => {
     const newYear = { ...person(1, "Alice", "Alpha"), birthDate: "2000-01-01" };
     const leapDay = { ...person(2, "Bob", "Beta"), birthDate: "2000-02-29" };
-    expect(upcomingFamilyAnniversaries([newYear], [], "2026-12-31", 1)[0])
+    expect(upcomingFamilyAnniversaries(projectFamilyFacts([newYear], [], []), [newYear], "2026-12-31", 1)[0])
       .toMatchObject({ occurrenceDate: "2027-01-01", daysUntil: 1, yearsElapsed: 27 });
-    expect(upcomingFamilyAnniversaries([leapDay], [], "2023-02-27", 1)[0])
+    expect(upcomingFamilyAnniversaries(projectFamilyFacts([leapDay], [], []), [leapDay], "2023-02-27", 1)[0])
       .toMatchObject({ occurrenceDate: "2023-02-28", yearsElapsed: 23 });
+  });
+
+  it("ignore les événements de naissance et mariage parallèles aux faits canoniques", () => {
+    const alice = { ...person(1, "Alice", "Alpha"), birthDate: "1980-09-02" };
+    const conflictingEvents: Event[] = [
+      {
+        id: 10, personId: 1, unionId: null, type: "naissance", label: null,
+        eventDate: "1981-09-03", description: null, place: null, latitude: null, longitude: null,
+      },
+      {
+        id: 11, personId: 1, unionId: null, type: "mariage", label: null,
+        eventDate: "2010-09-04", description: null, place: null, latitude: null, longitude: null,
+      },
+    ];
+    const facts = projectFamilyFacts([alice], [], conflictingEvents);
+
+    expect(upcomingFamilyAnniversaries(facts, [alice], "2026-09-01", 7).map((item) => item.key))
+      .toEqual(["person:1:naissance"]);
   });
 });
