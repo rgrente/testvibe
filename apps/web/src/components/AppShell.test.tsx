@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 let pathname = "/";
@@ -49,5 +50,28 @@ describe("AppShell", () => {
     for (const link of Array.from(mobileNavigation.querySelectorAll("a"))) {
       expect(link).toHaveClass("min-h-11", "focus-visible:outline-2");
     }
+  });
+
+  it("suit l’ordre visuel au clavier et active les liens avec Entrée", async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+
+    const brand = screen.getByRole("link", { name: "Genealogie" });
+    const desktopNavigation = screen.getByRole("navigation", { name: "Navigation principale" });
+    const desktopTree = desktopNavigation.querySelector<HTMLAnchorElement>('a[href="/"]');
+    expect(desktopTree).not.toBeNull();
+
+    await user.tab();
+    expect(brand).toHaveFocus();
+    await user.tab();
+    expect(desktopTree).toHaveFocus();
+    await user.tab({ shift: true });
+    expect(brand).toHaveFocus();
+
+    const onActivate = vi.fn((event: Event) => event.preventDefault());
+    desktopTree?.addEventListener("click", onActivate);
+    await user.tab();
+    await user.keyboard("{Enter}");
+    expect(onActivate).toHaveBeenCalledOnce();
   });
 });
