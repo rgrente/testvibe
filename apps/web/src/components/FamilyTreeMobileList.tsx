@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { FamilyTree } from "@testvibe/core";
 import { buildHierarchyRows, generationDisplayNumber, generationSemanticLabel, type HierarchyRow } from "../lib/family-tree-layout";
 
@@ -20,14 +21,16 @@ function MobilePersonCard({ row, compact = false }: { row: HierarchyRow; compact
       data-testid={`mobile-row-${row.personId}`}
       aria-current={row.isRoot ? "true" : undefined}
       style={{ paddingLeft: 0 }}
-      className={`${compact ? "min-w-[143px] shrink-0" : "w-full"} family-tree-sans rounded-[10px] border bg-white px-2.5 py-2 font-sans ${
+      className={`${compact ? "min-w-[143px] shrink-0" : "w-full"} family-tree-sans rounded-[10px] border bg-white font-sans ${
         row.isRoot ? "border-blue-600 font-semibold text-blue-900 ring-3 ring-blue-100" : "border-slate-200 text-slate-800"
       }`}
     >
-      <div className="truncate text-[12px] font-semibold">{row.label}</div>
-      {row.birthName ? <div className="truncate text-[10.5px] text-slate-500">Nom de naissance : {row.birthName}</div> : null}
-      {row.birthDate ? <div className="family-tree-mono font-mono text-[9.5px] text-slate-500">{formatDate(row.birthDate)}</div> : null}
-      {row.isRoot ? <span className="mt-1 inline-block rounded-sm bg-blue-50 px-1.5 font-mono text-[9px] tracking-wider text-blue-700">FOCUS</span> : null}
+      <Link href={`/?personId=${row.personId}`} aria-label={`Centrer l’arbre sur ${row.label}`} className="block min-h-11 rounded-[9px] px-2.5 py-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+        <div className="truncate text-[12px] font-semibold">{row.label}</div>
+        {row.birthName ? <div className="truncate text-[10.5px] text-slate-500">Nom de naissance : {row.birthName}</div> : null}
+        {row.birthDate ? <div className="family-tree-mono font-mono text-[9.5px] text-slate-500">{formatDate(row.birthDate)}</div> : null}
+        {row.isRoot ? <span className="mt-1 inline-block rounded-sm bg-blue-50 px-1.5 font-mono text-[9px] tracking-wider text-blue-700">FOCUS</span> : null}
+      </Link>
     </li>
   );
 }

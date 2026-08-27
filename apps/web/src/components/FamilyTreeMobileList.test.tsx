@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { FamilyTree } from "@testvibe/core";
 import { FamilyTreeMobileList } from "./FamilyTreeMobileList";
@@ -69,6 +69,21 @@ describe("FamilyTreeMobileList", () => {
       expect(screen.getByRole("button", { name })).toHaveClass("min-h-11");
     }
     expect(screen.getByRole("button", { name: "Proches" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("filtre les branches et permet de changer de racine au clavier ou au toucher", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+
+    const ada = screen.getByRole("link", { name: "Centrer l’arbre sur Ada Lovelace" });
+    expect(ada).toHaveAttribute("href", "/?personId=1");
+    expect(ada).toHaveClass("min-h-11", "focus-visible:outline-2");
+
+    fireEvent.click(screen.getByRole("button", { name: "Ascendance" }));
+    expect(screen.getByTestId("mobile-generation--1")).toBeInTheDocument();
+    expect(screen.queryByTestId("mobile-generation-1")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Descendance" }));
+    expect(screen.queryByTestId("mobile-generation--1")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mobile-generation-1")).toBeInTheDocument();
   });
 
   it.each([

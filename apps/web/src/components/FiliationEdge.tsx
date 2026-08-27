@@ -50,7 +50,7 @@ function RoleTrigger({ target, busY }: { target: RoutedFiliationTarget; busY: nu
     >
       <button
         type="button"
-        className="h-8 w-4 cursor-pointer rounded-sm border-0 bg-transparent p-0 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+        className="h-11 w-11 cursor-pointer rounded-sm border-0 bg-transparent p-0 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
         aria-label={`Filiation vers la personne ${target.personId}`}
         aria-expanded={visible}
         onMouseEnter={() => setHovered(true)}
