@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import type { FamilyTree } from "@testvibe/core";
 import { buildHierarchyRows, generationDisplayNumber, generationSemanticLabel, type HierarchyRow } from "../lib/family-tree-layout";
 
@@ -30,11 +33,30 @@ function MobilePersonCard({ row, compact = false }: { row: HierarchyRow; compact
 }
 
 export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
-  const rows = buildHierarchyRows(tree);
+  const [filter, setFilter] = useState<"nearby" | "ancestors" | "descendants">("nearby");
+  const allRows = buildHierarchyRows(tree);
+  const rootRow = allRows.find((row) => row.isRoot);
+  const rows = allRows.filter((row) => filter === "nearby" || row.isRoot || (filter === "ancestors" ? row.generation < 0 : row.generation > 0));
   const generations = [...new Set(rows.map((row) => row.generation))];
 
   return (
-    <div data-testid="family-tree-mobile-list" className="family-tree-sans space-y-4 bg-slate-50 p-4 font-sans">
+    <div data-testid="family-tree-mobile-list" className="family-tree-sans overflow-x-hidden bg-white font-sans">
+      {rootRow ? (
+        <header className="px-4 pb-3 pt-2">
+          <h1 className="text-[17px] font-bold leading-tight text-slate-900">{rootRow.label}</h1>
+          <p className="family-tree-mono mt-1 font-mono text-[11px] text-slate-500">G{generationDisplayNumber(rootRow.generation)}{rootRow.birthDate ? ` · n. ${formatDate(rootRow.birthDate)}` : ""}</p>
+          <div className="mt-3 flex gap-2 overflow-x-auto" role="group" aria-label="Filtrer les relations">
+            {([
+              ["nearby", "Proches"],
+              ["ancestors", "Ascendance"],
+              ["descendants", "Descendance"],
+            ] as const).map(([value, label]) => (
+              <button key={value} type="button" aria-pressed={filter === value} onClick={() => setFilter(value)} className={`min-h-11 rounded-full px-4 text-[11.5px] font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${filter === value ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>{label}</button>
+            ))}
+          </div>
+        </header>
+      ) : null}
+      <div className="space-y-4 border-t border-slate-200 bg-slate-50 p-4">
       {generations.map((generation) => {
         const generationRows = rows.filter((row) => row.generation === generation);
         const root = generationRows.find((row) => row.isRoot);
@@ -66,6 +88,7 @@ export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
         </section>
         );
       })}
+      </div>
     </div>
   );
 }

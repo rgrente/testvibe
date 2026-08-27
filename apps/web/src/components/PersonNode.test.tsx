@@ -41,9 +41,9 @@ function renderNode(overrides: Partial<PersonNodeData> = {}) {
 }
 
 describe("PersonNode", () => {
-  it("utilise une largeur desktop homogène de 180 px", () => {
+  it("utilise la carte desktop normative de 184 × 72 px", () => {
     renderNode();
-    expect(screen.getByTestId("person-node-1")).toHaveClass("w-[180px]");
+    expect(screen.getByTestId("person-node-1")).toHaveClass("w-[184px]", "h-[72px]");
   });
 
   it("affiche distinctement le nom de naissance lorsqu'il existe", () => {

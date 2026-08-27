@@ -35,7 +35,7 @@ describe("FamilyTreeMobileList", () => {
   it("affiche une ligne par Person avec son nom complet", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
-    expect(screen.getByText("Byron King")).toBeInTheDocument();
+    expect(screen.getAllByText("Byron King")).toHaveLength(2);
     expect(screen.getByText("Ralph King")).toBeInTheDocument();
   });
 
@@ -58,6 +58,17 @@ describe("FamilyTreeMobileList", () => {
     expect(screen.getByTestId("mobile-row-2")).toHaveAttribute("aria-current", "true");
     expect(screen.getByTestId("mobile-siblings")).not.toHaveClass("overflow-x-auto");
     expect(screen.getByTestId("mobile-row-3")).toHaveClass("shrink-0");
+  });
+
+  it("rend l’en-tête focus et les filtres tactiles de la référence 1b", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+
+    expect(screen.getByRole("heading", { level: 1, name: "Byron King" })).toBeInTheDocument();
+    expect(screen.getByText((content, element) => element?.tagName === "P" && content.startsWith("G3"))).toHaveClass("font-mono");
+    for (const name of ["Proches", "Ascendance", "Descendance"]) {
+      expect(screen.getByRole("button", { name })).toHaveClass("min-h-11");
+    }
+    expect(screen.getByRole("button", { name: "Proches" })).toHaveAttribute("aria-pressed", "true");
   });
 
   it.each([

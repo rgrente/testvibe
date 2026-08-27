@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Background, ReactFlow, useViewport, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
+import { Background, MiniMap, ReactFlow, useViewport, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
 import { buildReactFlowGraph, GENERATION_ROW_HEIGHT, generationDisplayNumber, generationSemanticLabel, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
@@ -37,6 +37,11 @@ function GenerationBands({ generations }: { generations: number[] }) {
   );
 }
 
+function ZoomPercent() {
+  const { zoom } = useViewport();
+  return <output aria-label="Niveau de zoom" className="family-tree-mono min-w-14 px-2 text-center font-mono text-[11px] text-slate-600">{Math.round(zoom * 100)} %</output>;
+}
+
 export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: FamilyTreeCanvasProps) {
   const router = useRouter();
   const instanceRef = useRef<ReactFlowInstance<ReactFlowGraphNode> | null>(null);
@@ -50,7 +55,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
     const root = graph.nodes.find((node) => node.id === String(tree.rootId));
     if (!root || !instanceRef.current) return;
     const reducedMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    const width = profile === "mobile" ? 150 : (root.measured?.width ?? 180);
+    const width = profile === "mobile" ? 150 : (root.measured?.width ?? 184);
     const height = root.measured?.height ?? 64;
     void instanceRef.current.setCenter(root.position.x + width / 2, root.position.y + height / 2, {
       zoom: profile === "mobile" ? 1 : 0.9,
@@ -69,7 +74,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
   }, [centerRoot]);
 
   return (
-    <div data-testid={`family-tree-canvas-${profile}`} className={`relative h-[65vh] min-h-[440px] w-full rounded-lg border border-slate-200 ${className}`}>
+    <div data-testid={`family-tree-canvas-${profile}`} className={`relative w-full overflow-hidden rounded-[10px] border border-slate-200 bg-slate-50 ${profile === "desktop" ? "h-[600px]" : "h-[466px]"} ${className}`}>
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}
@@ -92,13 +97,24 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
         proOptions={{ hideAttribution: true }}
       >
         {profile === "desktop" ? <GenerationBands generations={generations} /> : null}
-        <Background />
+        <Background gap={22} size={1} color="#d9dde3" />
+        {profile === "desktop" ? <MiniMap pannable zoomable /> : null}
+        <div className="absolute bottom-12 left-3 z-10 flex items-center overflow-hidden rounded-lg border border-slate-200 bg-white shadow-xs" aria-label="Contrôles de l’arbre">
+          <button type="button" className="flex h-11 min-w-11 items-center justify-center border-r border-slate-200 text-xl hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => instanceRef.current?.zoomOut({ duration: 150 })} aria-label="Zoom arrière">−</button>
+          <ZoomPercent />
+          <button type="button" className="flex h-11 min-w-11 items-center justify-center border-l border-slate-200 text-xl hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => instanceRef.current?.zoomIn({ duration: 150 })} aria-label="Zoom avant">+</button>
+        </div>
       </ReactFlow>
-      <div className="absolute bottom-3 right-3 z-10 flex gap-2" aria-label="Contrôles de l’arbre">
-        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-xs hover:bg-slate-50" onClick={() => instanceRef.current?.zoomIn({ duration: 150 })} aria-label="Zoom avant">+</button>
-        <button type="button" className="flex h-11 min-w-11 items-center justify-center rounded-md border border-slate-300 bg-white text-xl shadow-xs hover:bg-slate-50" onClick={() => instanceRef.current?.zoomOut({ duration: 150 })} aria-label="Zoom arrière">−</button>
-        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-xs hover:bg-slate-50" onClick={centerRoot}>Recentrer</button>
+      <div className="absolute bottom-12 left-40 z-10 flex gap-2">
+        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-xs hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={() => instanceRef.current?.fitView({ padding: 0.12, duration: 200 })} aria-label="Ajuster l’arbre">Ajuster</button>
+        <button type="button" className="flex h-11 items-center justify-center rounded-md border border-slate-300 bg-white px-3 text-sm font-medium shadow-xs hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-blue-600" onClick={centerRoot}>Recentrer</button>
       </div>
+      <footer className="family-tree-mono absolute inset-x-0 bottom-0 z-10 flex h-9 items-center gap-3 border-t border-slate-200 bg-white px-4 font-mono text-[10.5px] text-slate-500">
+        <span>{tree.nodes.length} personnes</span><span aria-hidden="true">·</span>
+        <span>{generations.length} {generations.length === 1 ? "génération" : "générations"}</span><span aria-hidden="true">·</span>
+        <span>{tree.edges.filter((edge) => edge.type === "union").length} {tree.edges.filter((edge) => edge.type === "union").length === 1 ? "union" : "unions"}</span>
+        <span className="ml-auto hidden lg:inline">Espace + glisser pour déplacer · molette pour zoomer</span>
+      </footer>
     </div>
   );
 }

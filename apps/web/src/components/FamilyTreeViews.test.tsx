@@ -19,10 +19,11 @@ const tree = { rootId: 1, nodes: [], edges: [] } as never;
 describe("FamilyTreeViews", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("affiche l’arbre visuel mobile par défaut", () => {
+  it("affiche la composition mobile 1b dans le mode Arbre par défaut", () => {
     render(<FamilyTreeViews tree={tree} />);
-    expect(screen.getByTestId("canvas-mobile")).toBeInTheDocument();
-    expect(screen.queryByTestId("mobile-list")).not.toBeInTheDocument();
+    expect(screen.getByTestId("mobile-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-mobile")).not.toBeInTheDocument();
+    expect(screen.getByTestId("canvas-desktop")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Arbre" })).toHaveAttribute("aria-pressed", "true");
   });
 

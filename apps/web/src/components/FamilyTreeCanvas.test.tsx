@@ -4,11 +4,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { FamilyTree } from "@testvibe/core";
 
-const { push, setCenter, zoomIn, zoomOut, viewport } = vi.hoisted(() => ({
+const { push, setCenter, zoomIn, zoomOut, fitView, viewport } = vi.hoisted(() => ({
   push: vi.fn(),
   setCenter: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  fitView: vi.fn(),
   viewport: { x: 0, y: 0, zoom: 1 },
 }));
 
@@ -31,7 +32,7 @@ interface MockReactFlowProps {
 
 vi.mock("@xyflow/react", () => ({
   ReactFlow: ({ nodes, edges, onNodeClick, onInit, children }: MockReactFlowProps) => {
-    onInit?.({ setCenter, zoomIn, zoomOut });
+    onInit?.({ setCenter, zoomIn, zoomOut, fitView });
     return (
     <div>
       {nodes.map((node) => (
@@ -54,6 +55,7 @@ vi.mock("@xyflow/react", () => ({
     );
   },
   Background: () => <button type="button" data-testid="flow-background">Fond</button>,
+  MiniMap: () => <div data-testid="flow-minimap" />,
   Controls: () => <button type="button" data-testid="flow-controls">Contrôles</button>,
   useViewport: () => viewport,
 }));
@@ -99,6 +101,7 @@ describe("FamilyTreeCanvas", () => {
     setCenter.mockReset();
     zoomIn.mockReset();
     zoomOut.mockReset();
+    fitView.mockReset();
     Object.assign(viewport, { x: 0, y: 0, zoom: 1 });
   });
 
@@ -132,6 +135,20 @@ describe("FamilyTreeCanvas", () => {
     expect(zoomIn).toHaveBeenCalledOnce();
     expect(zoomOut).toHaveBeenCalledOnce();
     expect(setCenter).toHaveBeenCalledWith(75, 32, expect.objectContaining({ zoom: 1 }));
+  });
+
+  it("reprend le canevas, la minimap, les contrôles et le statut de la référence 1a", () => {
+    render(<FamilyTreeCanvas tree={makeTree()} />);
+
+    expect(screen.getByTestId("family-tree-canvas-desktop")).toHaveClass("h-[600px]");
+    expect(screen.getByTestId("flow-minimap")).toBeInTheDocument();
+    expect(screen.getByText("100 %")).toHaveClass("font-mono");
+    expect(screen.getByText("2 personnes")).toBeInTheDocument();
+    expect(screen.getByText("1 génération")).toBeInTheDocument();
+    expect(screen.getByText("1 union")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Ajuster l’arbre" }));
+    expect(fitView).toHaveBeenCalledWith(expect.objectContaining({ padding: 0.12 }));
   });
 
   it("rend des bandes desktop sémantiques stables et synchronisées au viewport", () => {

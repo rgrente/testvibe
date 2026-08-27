@@ -38,7 +38,7 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
         ))}
       </SharedToolbar>
       {view === "tree" ? (
-        <><FamilyTreeCanvas tree={tree} profile="desktop" className="hidden md:block" /><div className="md:hidden"><FamilyTreeCanvas tree={tree} profile="mobile" /></div></>
+        <><FamilyTreeCanvas tree={tree} profile="desktop" className="hidden md:block" /><div className="md:hidden"><FamilyTreeMobileList tree={tree} /></div></>
       ) : view === "list" ? <FamilyTreeMobileList tree={tree} /> : <FamilyTreeFanChart tree={tree} />}
     </>
   );
