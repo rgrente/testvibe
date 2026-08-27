@@ -422,49 +422,76 @@ export function buildReactFlowGraph(
     // ne puisse jamais couper la carte d'un autre enfant.
     const obstacles = expandedCards.filter((card) => !endpointIds.has(card.personId) || targetIds.has(card.personId));
     const defaultBusY = (sourceY + targets[0].y) / 2;
-    const stem: OrthogonalSegment = { x1: sourceX, y1: sourceY, x2: sourceX, y2: defaultBusY, kind: "stem" };
 
     const downward = targets[0].y >= sourceY;
     const blockingEdges = obstacles
       .filter((card) => downward ? card.top > sourceY && card.top < targets[0].y : card.bottom < sourceY && card.bottom > targets[0].y)
       .map((card) => downward ? card.top : card.bottom);
     const nearestEdge = downward ? Math.min(...blockingEdges) : Math.max(...blockingEdges);
-    const busY = blockingEdges.length > 0 ? (sourceY + nearestEdge) / 2 : defaultBusY;
-    const pathToTarget = (target: RoutedFiliationTarget, routeX: number): OrthogonalSegment[] => {
-      const approachY = target.y >= sourceY
-        ? target.y - LINK_OBSTACLE_MARGIN
-        : target.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN;
-      return [
-        { x1: routeX, y1: busY, x2: routeX, y2: approachY, kind: "branch" },
-        ...(routeX === target.x ? [] : [{ x1: routeX, y1: approachY, x2: target.x, y2: approachY, kind: "branch" as const }]),
-        { x1: target.x, y1: approachY, x2: target.x, y2: target.y, kind: "branch" },
-      ];
-    };
+    const preferredBusY = blockingEdges.length > 0 ? (sourceY + nearestEdge) / 2 : defaultBusY;
+    const isBetweenRows = (y: number) => downward
+      ? y >= sourceY && y <= targets[0].y
+      : y <= sourceY && y >= targets[0].y;
+    const busYCandidates = [...new Set([
+      preferredBusY,
+      defaultBusY,
+      ...obstacles.flatMap((card) => [card.top, card.bottom]),
+    ].filter(isBetweenRows))]
+      .sort((a, b) => Math.abs(a - preferredBusY) - Math.abs(b - preferredBusY) || a - b);
+
     const pathIsFree = (target: RoutedFiliationTarget, segments: OrthogonalSegment[]) => segments.every((segment, index) =>
       obstacles.every((card) => {
         const ownFinalIngress = card.personId === target.personId && index === segments.length - 1;
         return ownFinalIngress || !crossesCard(segment, card);
       }));
-    const routeXs = targets.map((target) => {
-      const candidates = [...new Set([target.x, ...obstacles.flatMap((card) => [card.left, card.right])])]
-        .sort((a, b) => Math.abs(a - target.x) - Math.abs(b - target.x) || a - b);
-      return candidates.find((candidate) => pathIsFree(target, pathToTarget(target, candidate))) ?? target.x;
-    });
-    const bus: OrthogonalSegment = {
-      x1: Math.min(sourceX, ...routeXs), y1: busY, x2: Math.max(sourceX, ...routeXs), y2: busY, kind: "bus",
+
+    const buildRoute = (busY: number, allowFallback: boolean) => {
+      const pathToTarget = (target: RoutedFiliationTarget, routeX: number): OrthogonalSegment[] => {
+        const approachY = target.y >= sourceY
+          ? target.y - LINK_OBSTACLE_MARGIN
+          : target.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN;
+        return [
+          { x1: routeX, y1: busY, x2: routeX, y2: approachY, kind: "branch" },
+          ...(routeX === target.x ? [] : [{ x1: routeX, y1: approachY, x2: target.x, y2: approachY, kind: "branch" as const }]),
+          { x1: target.x, y1: approachY, x2: target.x, y2: target.y, kind: "branch" },
+        ];
+      };
+      const routeXs = targets.map((target) => {
+        const candidates = [...new Set([
+          target.x,
+          sourceX,
+          ...targets.map((candidate) => candidate.x),
+          ...obstacles.flatMap((card) => [card.left, card.right]),
+        ])].sort((a, b) => Math.abs(a - target.x) - Math.abs(b - target.x) || a - b);
+        return candidates.find((candidate) => pathIsFree(target, pathToTarget(target, candidate)));
+      });
+      if (!allowFallback && routeXs.some((routeX) => routeX === undefined)) return undefined;
+      const resolvedRouteXs = routeXs.map((routeX, index) => routeX ?? targets[index].x);
+      const bus: OrthogonalSegment = {
+        x1: Math.min(sourceX, ...resolvedRouteXs), y1: busY,
+        x2: Math.max(sourceX, ...resolvedRouteXs), y2: busY,
+        kind: "bus",
+      };
+      const routedStem: OrthogonalSegment = { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" };
+      const segments: OrthogonalSegment[] = [
+        routedStem,
+        bus,
+        ...targets.flatMap((target, index) => pathToTarget(target, resolvedRouteXs[index])),
+      ];
+      const trunkIsFree = [routedStem, bus].every((segment) =>
+        obstacles.every((card) => !crossesCard(segment, card)));
+      return { bus, segments, isPerfect: trunkIsFree && routeXs.every((routeX) => routeX !== undefined) };
     };
-    const routedStem: OrthogonalSegment = { ...stem, y2: busY };
-    const segments: OrthogonalSegment[] = [
-      routedStem,
-      bus,
-      ...targets.flatMap((target, index) => pathToTarget(target, routeXs[index])),
-    ];
-    // Revalidation du chemin complet : le bus et le stem doivent eux aussi
-    // rester hors de toutes les cartes non-source après le choix des canaux.
-    if ([routedStem, bus].some((segment) => obstacles.some((card) => crossesCard(segment, card)))) {
-      throw new Error("Aucun routage de filiation sans collision");
+
+    for (const busY of busYCandidates) {
+      const route = buildRoute(busY, false);
+      if (route?.isPerfect) return { bus: route.bus, segments: route.segments };
     }
-    return { bus, segments };
+
+    // Dernier recours rendu-sûr : conserve le tracé orthogonal et connecté
+    // du candidat préféré, même si une collision résiduelle est inévitable.
+    const fallback = buildRoute(preferredBusY, true)!;
+    return { bus: fallback.bus, segments: fallback.segments };
   };
 
   /** Ensemble des parents connus (via Filiation) de chaque enfant. */
