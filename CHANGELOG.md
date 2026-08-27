@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.8.0](https://github.com/rgrente/testvibe/compare/v1.7.1...v1.8.0) (2026-08-27)
+
+
+### Features
+
+* **web:** add responsive application shell ([#86](https://github.com/rgrente/testvibe/issues/86)) ([6f4deb5](https://github.com/rgrente/testvibe/commit/6f4deb51a41721f27c12496419cd9e0837d7bf64)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
 ## [1.7.1](https://github.com/rgrente/testvibe/compare/v1.7.0...v1.7.1) (2026-08-27)
 
 
