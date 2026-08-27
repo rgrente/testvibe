@@ -489,6 +489,40 @@ describe("buildReactFlowGraph", () => {
     expect(data.segments.every((segment) => !crosses(segment))).toBe(true);
     expect(Math.min(...data.segments.flatMap((segment) => [segment.x1, segment.x2]))).toBe(expanded.left);
   });
+
+  it("revalide chaque branche d'une fratrie nombreuse contre les cartes des autres enfants", () => {
+    const tree: FamilyTree = {
+      rootId: 1,
+      nodes: [
+        { person: { id: 1, firstName: "Parent", lastName: "Source", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 10, firstName: "Obstacle", lastName: "Gauche", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 11, firstName: "Obstacle", lastName: "Droite", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+        ...[20, 21, 22, 23].map((id) => ({ person: { id, firstName: "Enfant", lastName: String(id), birthDate: null, deathDate: null, gender: null } as any, generation: 2 })),
+      ],
+      edges: [20, 21, 22, 23].map((childId, index) => ({ type: "filiation" as const, filiationId: index + 1, parentId: 1, childId, role: "biologique" as const })),
+    };
+    const graph = buildReactFlowGraph(tree);
+    const data = graph.edges.find((edge) => edge.id === "parent-1-children")!.data as RoutedFiliationEdgeData;
+    const cards = graph.nodes.filter((node) => node.type === "person").map((node) => ({
+      personId: Number(node.id),
+      anchorX: node.position.x + PERSON_NODE_WIDTH / 2,
+      anchorY: node.position.y,
+      left: node.position.x - 12,
+      right: node.position.x + PERSON_NODE_WIDTH + 12,
+      top: node.position.y - 12,
+      bottom: node.position.y + PERSON_NODE_HEIGHT + 12,
+    }));
+    const crosses = (segment: OrthogonalSegment, card: (typeof cards)[number]) => segment.x1 === segment.x2
+      ? segment.x1 > card.left && segment.x1 < card.right && Math.max(segment.y1, segment.y2) > card.top && Math.min(segment.y1, segment.y2) < card.bottom
+      : segment.y1 > card.top && segment.y1 < card.bottom && Math.max(segment.x1, segment.x2) > card.left && Math.min(segment.x1, segment.x2) < card.right;
+    const isOwnTargetIngress = (segment: OrthogonalSegment, card: (typeof cards)[number]) =>
+      segment.x1 === segment.x2 && segment.x1 === card.anchorX
+      && ((segment.x1 === card.anchorX && segment.y1 === card.anchorY) || (segment.x2 === card.anchorX && segment.y2 === card.anchorY));
+
+    for (const segment of data.segments) {
+      expect(cards.filter((card) => card.personId !== 1 && crosses(segment, card) && !isOwnTargetIngress(segment, card))).toEqual([]);
+    }
+  });
 });
 
 describe("buildHierarchyRows", () => {

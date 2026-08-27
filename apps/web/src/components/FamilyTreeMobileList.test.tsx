@@ -24,9 +24,9 @@ describe("FamilyTreeMobileList", () => {
 
     const headings = screen.getAllByRole("heading", { level: 2 });
     expect(headings.map((heading) => heading.textContent)).toEqual([
-      "G1 · PARENTS2",
-      "G2 · MOI & FRATRIE2",
-      "G3 · ENFANTS1",
+      "G2 · PARENTS2",
+      "G3 · MOI & FRATRIE2",
+      "G4 · ENFANTS1",
     ]);
     expect(screen.getByTestId("mobile-row-1")).toHaveStyle({ paddingLeft: "0px" });
     expect(screen.getByTestId("mobile-row-4")).toHaveStyle({ paddingLeft: "0px" });
@@ -56,8 +56,30 @@ describe("FamilyTreeMobileList", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     expect(screen.getByTestId("mobile-generation--1").querySelector("ul")).toHaveClass("grid-cols-2");
     expect(screen.getByTestId("mobile-row-2")).toHaveAttribute("aria-current", "true");
-    expect(screen.getByTestId("mobile-siblings")).toHaveClass("overflow-x-auto");
+    expect(screen.getByTestId("mobile-siblings")).not.toHaveClass("overflow-x-auto");
     expect(screen.getByTestId("mobile-row-3")).toHaveClass("shrink-0");
+  });
+
+  it.each([
+    { count: 0, hidden: null },
+    { count: 1, hidden: null },
+    { count: 2, hidden: null },
+    { count: 4, hidden: "+2" },
+  ])("affiche au plus deux frères sur $count et compte exactement le reliquat", ({ count, hidden }) => {
+    const tree = makeTree();
+    tree.nodes = tree.nodes.filter((node) => node.generation !== 0 || node.person.id === tree.rootId);
+    for (let index = 0; index < count; index += 1) {
+      tree.nodes.push({
+        person: { id: 20 + index, firstName: `Frère ${index}`, lastName: "King", birthDate: `195${index}-01-01`, deathDate: null, gender: null } as any,
+        generation: 0,
+      });
+    }
+
+    render(<FamilyTreeMobileList tree={tree} />);
+
+    expect(screen.queryAllByTestId(/^mobile-row-2[0-9]$/)).toHaveLength(Math.min(count, 2));
+    if (hidden) expect(screen.getByText(hidden)).toHaveAttribute("aria-label", `${count - 2} autres membres de la fratrie`);
+    else expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
   });
 
   it("affiche dates et compteurs en JetBrains Mono sans perdre les données partielles", () => {

@@ -4,11 +4,12 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { FamilyTree } from "@testvibe/core";
 
-const { push, setCenter, zoomIn, zoomOut } = vi.hoisted(() => ({
+const { push, setCenter, zoomIn, zoomOut, viewport } = vi.hoisted(() => ({
   push: vi.fn(),
   setCenter: vi.fn(),
   zoomIn: vi.fn(),
   zoomOut: vi.fn(),
+  viewport: { x: 0, y: 0, zoom: 1 },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -54,6 +55,7 @@ vi.mock("@xyflow/react", () => ({
   },
   Background: () => <button type="button" data-testid="flow-background">Fond</button>,
   Controls: () => <button type="button" data-testid="flow-controls">Contrôles</button>,
+  useViewport: () => viewport,
 }));
 
 import { FamilyTreeCanvas } from "./FamilyTreeCanvas";
@@ -97,6 +99,7 @@ describe("FamilyTreeCanvas", () => {
     setCenter.mockReset();
     zoomIn.mockReset();
     zoomOut.mockReset();
+    Object.assign(viewport, { x: 0, y: 0, zoom: 1 });
   });
 
   it("navigue vers la personne cliquée pour la choisir comme racine", () => {
@@ -131,19 +134,28 @@ describe("FamilyTreeCanvas", () => {
     expect(setCenter).toHaveBeenCalledWith(75, 32, expect.objectContaining({ zoom: 1 }));
   });
 
-  it("rend des bandes desktop visibles avec libellés sémantiques et ordre déterministe", () => {
+  it("rend des bandes desktop sémantiques stables et synchronisées au viewport", () => {
     const tree = makeTree();
-    tree.nodes.push({
-      person: { id: 3, firstName: "Grace", lastName: "Hopper", birthName: null, birthDate: null, deathDate: null, gender: null } as never,
-      generation: 1,
-    });
+    tree.nodes = [
+      { person: { id: 3, firstName: "Grace", lastName: "Hopper", birthName: null, birthDate: null, deathDate: null, gender: null } as never, generation: -1 },
+      ...tree.nodes,
+      { person: { id: 4, firstName: "Alan", lastName: "Turing", birthName: null, birthDate: null, deathDate: null, gender: null } as never, generation: 1 },
+    ];
 
-    render(<FamilyTreeCanvas tree={tree} />);
+    const { rerender } = render(<FamilyTreeCanvas tree={tree} />);
 
     expect(screen.getByRole("list", { name: "Bandes de génération" })).toHaveClass("font-mono");
     expect(screen.getAllByTestId(/^desktop-generation-band-/).map((band) => band.textContent)).toEqual([
-      "G1 · MOI & FRATRIE",
-      "G2 · ENFANTS",
+      "G2 · PARENTS",
+      "G3 · MOI & FRATRIE",
+      "G4 · ENFANTS",
     ]);
+    expect(screen.getByTestId("desktop-generation-band--1")).toHaveStyle({ top: "-140px" });
+    expect(screen.getByTestId("desktop-generation-band-1")).toHaveStyle({ top: "140px" });
+
+    Object.assign(viewport, { x: 20, y: 35, zoom: 1.5 });
+    rerender(<FamilyTreeCanvas tree={tree} />);
+    expect(screen.getByTestId("desktop-generation-band--1")).toHaveStyle({ top: "-175px" });
+    expect(screen.getByTestId("desktop-generation-band-1")).toHaveStyle({ top: "245px" });
   });
 });

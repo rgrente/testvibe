@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Background, ReactFlow, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
+import { Background, ReactFlow, useViewport, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
-import { buildReactFlowGraph, generationSemanticLabel, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
+import { buildReactFlowGraph, GENERATION_ROW_HEIGHT, generationDisplayNumber, generationSemanticLabel, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
 import { UnionJunctionNode } from "./UnionJunctionNode";
 import { FiliationEdge } from "./FiliationEdge";
@@ -17,6 +17,24 @@ export interface FamilyTreeCanvasProps {
   tree: FamilyTree;
   profile?: FamilyTreeLayoutProfile;
   className?: string;
+}
+
+function GenerationBands({ generations }: { generations: number[] }) {
+  const viewport = useViewport();
+  return (
+    <ol aria-label="Bandes de génération" className="family-tree-mono pointer-events-none absolute inset-0 z-10 font-mono text-[9.5px] tracking-[0.1em] text-slate-400">
+      {generations.map((generation) => (
+        <li
+          key={generation}
+          data-testid={`desktop-generation-band-${generation}`}
+          className="absolute left-3 right-3 border-t border-slate-200 pt-1"
+          style={{ top: viewport.y + generation * GENERATION_ROW_HEIGHT * viewport.zoom }}
+        >
+          G{generationDisplayNumber(generation)} · {generationSemanticLabel(generation)}
+        </li>
+      ))}
+    </ol>
+  );
 }
 
 export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: FamilyTreeCanvasProps) {
@@ -52,15 +70,6 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
 
   return (
     <div data-testid={`family-tree-canvas-${profile}`} className={`relative h-[65vh] min-h-[440px] w-full rounded-lg border border-slate-200 ${className}`}>
-      {profile === "desktop" ? (
-        <ol aria-label="Bandes de génération" className="family-tree-mono pointer-events-none absolute inset-0 z-10 font-mono text-[9.5px] tracking-[0.1em] text-slate-400">
-          {generations.map((generation, index) => (
-            <li key={generation} data-testid={`desktop-generation-band-${generation}`} className="absolute left-3 right-3 border-t border-slate-200 pt-1" style={{ top: `${8 + index * (84 / Math.max(generations.length, 1))}%` }}>
-              G{index + 1} · {generationSemanticLabel(generation)}
-            </li>
-          ))}
-        </ol>
-      ) : null}
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}
@@ -82,6 +91,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
         maxZoom={1.8}
         proOptions={{ hideAttribution: true }}
       >
+        {profile === "desktop" ? <GenerationBands generations={generations} /> : null}
         <Background />
       </ReactFlow>
       <div className="absolute bottom-3 right-3 z-10 flex gap-2" aria-label="Contrôles de l’arbre">

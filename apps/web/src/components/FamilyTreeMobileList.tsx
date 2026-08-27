@@ -1,5 +1,5 @@
 import type { FamilyTree } from "@testvibe/core";
-import { buildHierarchyRows, generationSemanticLabel, type HierarchyRow } from "../lib/family-tree-layout";
+import { buildHierarchyRows, generationDisplayNumber, generationSemanticLabel, type HierarchyRow } from "../lib/family-tree-layout";
 
 export interface FamilyTreeMobileListProps {
   tree: FamilyTree;
@@ -35,19 +35,28 @@ export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
 
   return (
     <div data-testid="family-tree-mobile-list" className="family-tree-sans space-y-4 bg-slate-50 p-4 font-sans">
-      {generations.map((generation, index) => {
+      {generations.map((generation) => {
         const generationRows = rows.filter((row) => row.generation === generation);
         const root = generationRows.find((row) => row.isRoot);
         const siblings = generationRows.filter((row) => !row.isRoot);
         return (
         <section key={generation} data-testid={`mobile-generation-${generation}`} aria-labelledby={`generation-${generation}`}>
           <h2 id={`generation-${generation}`} className="family-tree-mono mb-2 flex items-baseline gap-2 border-b border-slate-200 pb-1 font-mono text-[9.5px] font-medium tracking-[0.1em] text-slate-500">
-            <span>G{index + 1} · {generationSemanticLabel(generation)}</span><span className="ml-auto tracking-normal text-slate-400">{generationRows.length}</span>
+            <span>G{generationDisplayNumber(generation)} · {generationSemanticLabel(generation)}</span><span className="ml-auto tracking-normal text-slate-400">{generationRows.length}</span>
           </h2>
           {root ? (
             <div className="space-y-2">
               <ul><MobilePersonCard row={root} /></ul>
-              {siblings.length > 0 ? <ul data-testid="mobile-siblings" aria-label="Fratrie" className="flex gap-2 overflow-x-auto pb-1">{siblings.map((row) => <MobilePersonCard key={row.personId} row={row} compact />)}</ul> : null}
+              {siblings.length > 0 ? (
+                <ul data-testid="mobile-siblings" aria-label="Fratrie" className="flex gap-2 pb-1">
+                  {siblings.slice(0, 2).map((row) => <MobilePersonCard key={row.personId} row={row} compact />)}
+                  {siblings.length > 2 ? (
+                    <li className="family-tree-mono flex min-w-11 items-center justify-center rounded-[10px] border border-dashed border-slate-300 font-mono text-xs text-slate-500" aria-label={`${siblings.length - 2} autres membres de la fratrie`}>
+                      +{siblings.length - 2}
+                    </li>
+                  ) : null}
+                </ul>
+              ) : null}
             </div>
           ) : (
             <ul className={generation < 0 ? "grid grid-cols-2 gap-2" : "flex gap-2 overflow-x-auto"}>

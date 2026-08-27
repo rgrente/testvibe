@@ -96,6 +96,11 @@ export function generationSemanticLabel(generation: number): string {
   return "PETITS-ENFANTS";
 }
 
+/** Numérotation stable de la référence, même quand une bande est absente. */
+export function generationDisplayNumber(generation: number): number {
+  return Math.max(1, generation + 3);
+}
+
 /**
  * Ordre d'affichage par génération croissante, puis par date de naissance
  * (plutôt que par id) au sein d'une même génération — pour que les enfants
@@ -411,20 +416,13 @@ export function buildReactFlowGraph(
     targets: RoutedFiliationTarget[],
     endpointIds: Set<number>,
   ): { bus: OrthogonalSegment; segments: OrthogonalSegment[] } => {
-    const obstacles = expandedCards.filter((card) => !endpointIds.has(card.personId));
+    const targetIds = new Set(targets.map((target) => target.personId));
+    // Les cartes source sont traversées uniquement au départ de leur ancre.
+    // Les autres cibles restent des obstacles afin qu'une branche de fratrie
+    // ne puisse jamais couper la carte d'un autre enfant.
+    const obstacles = expandedCards.filter((card) => !endpointIds.has(card.personId) || targetIds.has(card.personId));
     const defaultBusY = (sourceY + targets[0].y) / 2;
-    const defaultBus: OrthogonalSegment = {
-      x1: Math.min(sourceX, ...targets.map((target) => target.x)), y1: defaultBusY,
-      x2: Math.max(sourceX, ...targets.map((target) => target.x)), y2: defaultBusY, kind: "bus",
-    };
-    const defaultSegments: OrthogonalSegment[] = [
-      { x1: sourceX, y1: sourceY, x2: sourceX, y2: defaultBusY, kind: "stem" },
-      defaultBus,
-      ...targets.map((target) => ({ x1: target.x, y1: defaultBusY, x2: target.x, y2: target.y, kind: "branch" as const })),
-    ];
-    if (defaultSegments.every((segment) => obstacles.every((card) => !crossesCard(segment, card)))) {
-      return { bus: defaultBus, segments: defaultSegments };
-    }
+    const stem: OrthogonalSegment = { x1: sourceX, y1: sourceY, x2: sourceX, y2: defaultBusY, kind: "stem" };
 
     const downward = targets[0].y >= sourceY;
     const blockingEdges = obstacles
@@ -432,26 +430,40 @@ export function buildReactFlowGraph(
       .map((card) => downward ? card.top : card.bottom);
     const nearestEdge = downward ? Math.min(...blockingEdges) : Math.max(...blockingEdges);
     const busY = blockingEdges.length > 0 ? (sourceY + nearestEdge) / 2 : defaultBusY;
+    const pathToTarget = (target: RoutedFiliationTarget, routeX: number): OrthogonalSegment[] => {
+      const approachY = target.y >= sourceY
+        ? target.y - LINK_OBSTACLE_MARGIN
+        : target.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN;
+      return [
+        { x1: routeX, y1: busY, x2: routeX, y2: approachY, kind: "branch" },
+        ...(routeX === target.x ? [] : [{ x1: routeX, y1: approachY, x2: target.x, y2: approachY, kind: "branch" as const }]),
+        { x1: target.x, y1: approachY, x2: target.x, y2: target.y, kind: "branch" },
+      ];
+    };
+    const pathIsFree = (target: RoutedFiliationTarget, segments: OrthogonalSegment[]) => segments.every((segment, index) =>
+      obstacles.every((card) => {
+        const ownFinalIngress = card.personId === target.personId && index === segments.length - 1;
+        return ownFinalIngress || !crossesCard(segment, card);
+      }));
     const routeXs = targets.map((target) => {
-      const candidates = [...new Set(obstacles.flatMap((card) => [card.left, card.right]))]
+      const candidates = [...new Set([target.x, ...obstacles.flatMap((card) => [card.left, card.right])])]
         .sort((a, b) => Math.abs(a - target.x) - Math.abs(b - target.x) || a - b);
-      return candidates.find((candidate) => {
-        const vertical: OrthogonalSegment = { x1: candidate, y1: busY, x2: candidate, y2: target.y, kind: "branch" };
-        const landing: OrthogonalSegment = { x1: candidate, y1: target.y, x2: target.x, y2: target.y, kind: "branch" };
-        return obstacles.every((card) => !crossesCard(vertical, card) && !crossesCard(landing, card));
-      }) ?? target.x;
+      return candidates.find((candidate) => pathIsFree(target, pathToTarget(target, candidate))) ?? target.x;
     });
     const bus: OrthogonalSegment = {
       x1: Math.min(sourceX, ...routeXs), y1: busY, x2: Math.max(sourceX, ...routeXs), y2: busY, kind: "bus",
     };
+    const routedStem: OrthogonalSegment = { ...stem, y2: busY };
     const segments: OrthogonalSegment[] = [
-      { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
+      routedStem,
       bus,
-      ...targets.flatMap((target, index) => [
-        { x1: routeXs[index], y1: busY, x2: routeXs[index], y2: target.y, kind: "branch" as const },
-        ...(routeXs[index] === target.x ? [] : [{ x1: routeXs[index], y1: target.y, x2: target.x, y2: target.y, kind: "branch" as const }]),
-      ]),
+      ...targets.flatMap((target, index) => pathToTarget(target, routeXs[index])),
     ];
+    // Revalidation du chemin complet : le bus et le stem doivent eux aussi
+    // rester hors de toutes les cartes non-source après le choix des canaux.
+    if ([routedStem, bus].some((segment) => obstacles.some((card) => crossesCard(segment, card)))) {
+      throw new Error("Aucun routage de filiation sans collision");
+    }
     return { bus, segments };
   };
 
