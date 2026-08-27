@@ -19,10 +19,14 @@ describe("RootLayout", () => {
     const document = new DOMParser().parseFromString(markup, "text/html");
     const header = document.querySelector("body > header");
     const main = document.querySelector("body > main");
+    const mobileGridSlot = document.querySelector("body > [data-mobile-grid-slot]");
 
     expect(header).not.toBeNull();
     expect(header?.querySelector(':scope > a[href="/"]')?.textContent).toContain("Genealogie");
-    expect(document.querySelector('nav[aria-label="Navigation mobile"]')?.nextElementSibling).toBe(main);
+    expect(document.querySelector('nav[aria-label="Navigation mobile"]')?.nextElementSibling).toBe(
+      mobileGridSlot,
+    );
+    expect(mobileGridSlot?.nextElementSibling).toBe(main);
     expect(header?.classList.contains("border-b")).toBe(true);
     expect(header?.classList.contains("h-[52px]")).toBe(true);
     expect(header?.classList.contains("md:flex")).toBe(true);
@@ -79,6 +83,30 @@ describe("RootLayout", () => {
     expect(body?.classList.contains("overflow-x-hidden")).toBe(true);
   });
 
+  it("réserve la première ligne mobile pour laisser le contenu en 1fr et le footer intrinsèque", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const bodyChildren = Array.from(document.body.children).filter(
+      (element) => element.tagName !== "SCRIPT",
+    );
+    const mobileGridSlot = document.querySelector("body > [data-mobile-grid-slot]");
+
+    expect(bodyChildren.map((element) => element.tagName)).toEqual([
+      "HEADER",
+      "NAV",
+      "DIV",
+      "MAIN",
+      "FOOTER",
+    ]);
+    expect(mobileGridSlot?.classList.contains("h-0")).toBe(true);
+    expect(mobileGridSlot?.classList.contains("md:hidden")).toBe(true);
+    expect(mobileGridSlot?.nextElementSibling?.tagName).toBe("MAIN");
+  });
+
   it("affiche un footer global discret avec la version de l'application", () => {
     const markup = renderToStaticMarkup(
       <RootLayout>
@@ -109,9 +137,15 @@ describe("RootLayout", () => {
     const bodyChildren = Array.from(document.body.children).filter(
       (element) => element.tagName !== "SCRIPT",
     );
-    const adminLayout = bodyChildren[2];
+    const adminLayout = bodyChildren[3];
 
-    expect(bodyChildren.map((element) => element.tagName)).toEqual(["HEADER", "NAV", "DIV", "FOOTER"]);
+    expect(bodyChildren.map((element) => element.tagName)).toEqual([
+      "HEADER",
+      "NAV",
+      "DIV",
+      "DIV",
+      "FOOTER",
+    ]);
     expect(adminLayout?.querySelector(":scope > nav")).not.toBeNull();
     expect(adminLayout?.querySelector(":scope > main")?.textContent).toBe(
       "Contenu de la page d'administration",
