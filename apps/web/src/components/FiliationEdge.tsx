@@ -50,8 +50,8 @@ function RoleTrigger({ target, busY }: { target: RoutedFiliationTarget; busY: nu
     >
       <button
         type="button"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-slate-300 bg-white text-[10px] font-semibold text-slate-600 shadow-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500"
-        aria-label={`Afficher les rôles de filiation vers la personne ${target.personId}`}
+        className="h-8 w-4 cursor-pointer rounded-sm border-0 bg-transparent p-0 focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+        aria-label={`Filiation vers la personne ${target.personId}`}
         aria-expanded={visible}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
@@ -62,9 +62,7 @@ function RoleTrigger({ target, busY }: { target: RoutedFiliationTarget; busY: nu
         }}
         onKeyDown={onKeyDown}
         onClick={toggle}
-      >
-        i
-      </button>
+      />
       {visible && roles ? (
         <span role="status" className="whitespace-nowrap rounded-sm bg-white px-1.5 py-0.5 text-xs text-slate-700 shadow-sm">
           {roles}

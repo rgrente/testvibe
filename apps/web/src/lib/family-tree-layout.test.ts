@@ -5,6 +5,7 @@ import {
   buildHierarchyRows,
   GENERATION_ROW_HEIGHT,
   PERSON_NODE_WIDTH,
+  PERSON_NODE_HEIGHT,
   SIBLING_PITCH,
   type OrthogonalSegment,
   type PersonNodeData,
@@ -138,7 +139,7 @@ describe("buildReactFlowGraph", () => {
     const graph = buildReactFlowGraph(makeTree());
     const cards = graph.nodes
       .filter((node) => node.type === "person")
-      .map((node) => ({ left: node.position.x, right: node.position.x + 180, top: node.position.y, bottom: node.position.y + 96 }));
+      .map((node) => ({ left: node.position.x, right: node.position.x + 180, top: node.position.y, bottom: node.position.y + PERSON_NODE_HEIGHT }));
     const routedSegments = graph.edges.flatMap((edge) =>
       edge.type === "filiation" ? ((edge.data as RoutedFiliationEdgeData).segments ?? []) : [],
     );
@@ -452,6 +453,41 @@ describe("buildReactFlowGraph", () => {
     expect(edge.label).toBeUndefined();
     expect(data.targets.find((target) => target.personId === 2)?.roles).toEqual(["biologique"]);
     expect(data.targets.find((target) => target.personId === 3)?.roles).toEqual(["adopte"]);
+  });
+
+  it("déduplique une cible par enfant et agrège ses rôles uniques", () => {
+    const tree = makeTree();
+    tree.edges.push(
+      { type: "filiation", filiationId: 40, parentId: 1, childId: 2, role: "adopte" },
+      { type: "filiation", filiationId: 41, parentId: 1, childId: 2, role: "biologique" },
+    );
+    const graph = buildReactFlowGraph(tree);
+    const data = graph.edges.find((edge) => edge.id === "parent-1-children")!.data as RoutedFiliationEdgeData;
+
+    expect(data.targets.filter((target) => target.personId === 2)).toHaveLength(1);
+    expect(data.targets.find((target) => target.personId === 2)?.roles).toEqual(["biologique", "adopte"]);
+  });
+
+  it("évite les rectangles augmentés de 12 px par le canal libre le plus court avec tie-break gauche", () => {
+    const tree: FamilyTree = {
+      rootId: 1,
+      nodes: [
+        { person: { id: 1, firstName: "Parent", lastName: "Source", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+        { person: { id: 2, firstName: "Obstacle", lastName: "Central", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+        { person: { id: 3, firstName: "Enfant", lastName: "Cible", birthDate: null, deathDate: null, gender: null } as any, generation: 2 },
+      ],
+      edges: [{ type: "filiation", filiationId: 1, parentId: 1, childId: 3, role: "biologique" }],
+    };
+    const graph = buildReactFlowGraph(tree);
+    const data = graph.edges.find((edge) => edge.id === "parent-1-children")!.data as RoutedFiliationEdgeData;
+    const obstacle = graph.nodes.find((node) => node.id === "2")!;
+    const expanded = { left: obstacle.position.x - 12, right: obstacle.position.x + PERSON_NODE_WIDTH + 12, top: obstacle.position.y - 12, bottom: obstacle.position.y + 72 + 12 };
+    const crosses = (segment: OrthogonalSegment) => segment.x1 === segment.x2
+      ? segment.x1 > expanded.left && segment.x1 < expanded.right && Math.max(segment.y1, segment.y2) > expanded.top && Math.min(segment.y1, segment.y2) < expanded.bottom
+      : segment.y1 > expanded.top && segment.y1 < expanded.bottom && Math.max(segment.x1, segment.x2) > expanded.left && Math.min(segment.x1, segment.x2) < expanded.right;
+
+    expect(data.segments.every((segment) => !crosses(segment))).toBe(true);
+    expect(Math.min(...data.segments.flatMap((segment) => [segment.x1, segment.x2]))).toBe(expanded.left);
   });
 });
 

@@ -32,7 +32,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   return (
     <div
       data-testid={`person-node-${data.personId}`}
-      className={`cursor-pointer rounded-lg border text-sm shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "w-[180px] px-4 py-2"} ${
+      className={`family-tree-sans h-[72px] cursor-pointer overflow-hidden rounded-[10px] border font-sans shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "w-[180px] px-3 py-2.5"} ${
         data.isRoot
           ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
           : "border-slate-300 bg-white text-slate-800"
@@ -44,7 +44,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
           le lien d'union avec le point de jonction, quel que soit le contenu. */}
       <Handle id="left" type="source" position={Position.Left} style={{ top: 20 }} />
       <Handle id="right" type="source" position={Position.Right} style={{ top: 20 }} />
-      <div className="flex items-center gap-1.5">
+      <div className="flex items-start gap-2">
         {genderStyle && (
           <span
             className={`flex h-4 w-4 items-center justify-center rounded-full border text-[10px] leading-none ${genderStyle.className}`}
@@ -53,15 +53,16 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
             {genderStyle.symbol}
           </span>
         )}
-        <span>{data.label}</span>
+        <span data-testid={`person-name-${data.personId}`} className="truncate text-[13px] font-semibold leading-[1.3]">{data.label}</span>
       </div>
       {data.birthName && (
-        <div className="mt-0.5 text-xs font-normal text-slate-500">
-          Nom de naissance : {data.birthName}
-        </div>
+        <>
+          <span className="sr-only">Nom de naissance : {data.birthName}</span>
+          <div className="ml-[26px] truncate text-[10.5px] font-normal leading-[1.35] text-slate-500">née {data.birthName}</div>
+        </>
       )}
       {hasDates && (
-        <div className="mt-0.5 text-xs font-normal text-slate-500">
+        <div data-testid={`person-dates-${data.personId}`} className="family-tree-mono ml-[26px] truncate font-mono text-[10.5px] font-normal leading-[1.4] text-slate-500">
           {data.birthDate && <span>* {formatDate(data.birthDate)}</span>}
           {data.birthDate && data.deathDate && <span> · </span>}
           {data.deathDate && <span>† {formatDate(data.deathDate)}</span>}
@@ -69,7 +70,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
       )}
       <Link
         href={`/persons/${data.personId}`}
-        className="nodrag nopan mt-1 inline-flex min-h-11 items-center text-xs font-medium text-blue-700 underline-offset-2 hover:underline focus:outline-hidden focus:ring-2 focus:ring-blue-500"
+        className="nodrag nopan sr-only focus:not-sr-only focus:absolute focus:bg-white focus:p-1"
         onClick={(event) => event.stopPropagation()}
         aria-label={`Voir la fiche de ${data.label}`}
       >

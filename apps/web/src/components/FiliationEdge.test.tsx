@@ -44,12 +44,14 @@ describe("FiliationEdge", () => {
 
     expect(screen.getByTestId("edge-path")).toHaveTextContent("M 50 10 L 50 50 M 10 50 L 90 50 M 90 50 L 90 100");
     expect(screen.queryByText("Biologique · Adopté·e · Beau-parent")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Afficher les rôles de filiation vers la personne 7" })).toBeInTheDocument();
+    const trigger = screen.getByRole("button", { name: "Filiation vers la personne 7" });
+    expect(trigger).toHaveTextContent("");
+    expect(trigger).toHaveClass("bg-transparent");
   });
 
   it("affiche les rôles uniques dans l'ordre contractuel au survol puis les masque à la sortie", () => {
     renderEdge();
-    const trigger = screen.getByRole("button", { name: "Afficher les rôles de filiation vers la personne 7" });
+    const trigger = screen.getByRole("button", { name: "Filiation vers la personne 7" });
 
     fireEvent.mouseEnter(trigger);
     expect(screen.getByText("Biologique · Adopté·e · Beau-parent")).toBeVisible();
@@ -59,7 +61,7 @@ describe("FiliationEdge", () => {
 
   it("gère focus, Échap, blur et le basculement clic/toucher sans navigation", () => {
     renderEdge();
-    const trigger = screen.getByRole("button", { name: "Afficher les rôles de filiation vers la personne 7" });
+    const trigger = screen.getByRole("button", { name: "Filiation vers la personne 7" });
 
     fireEvent.focus(trigger);
     expect(screen.getByText("Biologique · Adopté·e · Beau-parent")).toBeVisible();

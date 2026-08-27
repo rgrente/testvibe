@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Background, ReactFlow, type EdgeTypes, type NodeTypes, type ReactFlowInstance } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import type { FamilyTree } from "@testvibe/core";
-import { buildReactFlowGraph, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
+import { buildReactFlowGraph, generationSemanticLabel, type FamilyTreeLayoutProfile, type ReactFlowGraphNode } from "../lib/family-tree-layout";
 import { PersonNode } from "./PersonNode";
 import { UnionJunctionNode } from "./UnionJunctionNode";
 import { FiliationEdge } from "./FiliationEdge";
@@ -23,6 +23,10 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
   const router = useRouter();
   const instanceRef = useRef<ReactFlowInstance<ReactFlowGraphNode> | null>(null);
   const graph = useMemo(() => buildReactFlowGraph(tree, profile), [tree, profile]);
+  const generations = useMemo(
+    () => [...new Set(tree.nodes.map((node) => node.generation))].sort((a, b) => a - b),
+    [tree.nodes],
+  );
 
   const centerRoot = useCallback(() => {
     const root = graph.nodes.find((node) => node.id === String(tree.rootId));
@@ -48,6 +52,15 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
 
   return (
     <div data-testid={`family-tree-canvas-${profile}`} className={`relative h-[65vh] min-h-[440px] w-full rounded-lg border border-slate-200 ${className}`}>
+      {profile === "desktop" ? (
+        <ol aria-label="Bandes de génération" className="family-tree-mono pointer-events-none absolute inset-0 z-10 font-mono text-[9.5px] tracking-[0.1em] text-slate-400">
+          {generations.map((generation, index) => (
+            <li key={generation} data-testid={`desktop-generation-band-${generation}`} className="absolute left-3 right-3 border-t border-slate-200 pt-1" style={{ top: `${8 + index * (84 / Math.max(generations.length, 1))}%` }}>
+              G{index + 1} · {generationSemanticLabel(generation)}
+            </li>
+          ))}
+        </ol>
+      ) : null}
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}

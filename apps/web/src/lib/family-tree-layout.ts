@@ -61,7 +61,8 @@ export type FamilyTreeLayoutProfile = "desktop" | "mobile";
 export const PERSON_NODE_WIDTH = 180;
 export const GENERATION_ROW_HEIGHT = 140;
 export const SIBLING_PITCH = 220;
-const PERSON_NODE_HEIGHT = 96;
+export const PERSON_NODE_HEIGHT = 72;
+export const LINK_OBSTACLE_MARGIN = 12;
 
 const LAYOUT = {
   desktop: { generationRowHeight: GENERATION_ROW_HEIGHT, nodeColumnWidth: SIBLING_PITCH, unionPartnerGap: 300, personNodeHalfWidth: PERSON_NODE_WIDTH / 2 },
@@ -85,6 +86,14 @@ function personLabel(tree: FamilyTree, personId: number): string {
   const node = tree.nodes.find((n) => n.person.id === personId);
   if (!node) return `#${personId}`;
   return `${node.person.firstName} ${node.person.lastName}`.trim();
+}
+
+export function generationSemanticLabel(generation: number): string {
+  if (generation <= -2) return "GRANDS-PARENTS";
+  if (generation === -1) return "PARENTS";
+  if (generation === 0) return "MOI & FRATRIE";
+  if (generation === 1) return "ENFANTS";
+  return "PETITS-ENFANTS";
 }
 
 /**
@@ -374,6 +383,77 @@ export function buildReactFlowGraph(
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
+  const expandedCards = personNodes
+    .filter((node): node is PersonFlowNode => node.type === "person")
+    .map((node) => ({
+      personId: Number(node.id),
+      left: node.position.x - LINK_OBSTACLE_MARGIN,
+      right: node.position.x + (layoutProfile === "desktop" ? PERSON_NODE_WIDTH : 150) + LINK_OBSTACLE_MARGIN,
+      top: node.position.y - LINK_OBSTACLE_MARGIN,
+      bottom: node.position.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN,
+    }));
+
+  const crossesCard = (segment: OrthogonalSegment, card: (typeof expandedCards)[number]) => {
+    if (segment.x1 === segment.x2) {
+      return segment.x1 > card.left && segment.x1 < card.right
+        && Math.max(segment.y1, segment.y2) > card.top && Math.min(segment.y1, segment.y2) < card.bottom;
+    }
+    return segment.y1 > card.top && segment.y1 < card.bottom
+      && Math.max(segment.x1, segment.x2) > card.left && Math.min(segment.x1, segment.x2) < card.right;
+  };
+
+  /** Route un stem et des branches sur un bus unique. En cas de carte
+   * intermédiaire, choisit le canal vertical libre le plus proche ; le tri
+   * x croissant fournit le tie-break gauche contractuel. */
+  const routeFiliation = (
+    sourceX: number,
+    sourceY: number,
+    targets: RoutedFiliationTarget[],
+    endpointIds: Set<number>,
+  ): { bus: OrthogonalSegment; segments: OrthogonalSegment[] } => {
+    const obstacles = expandedCards.filter((card) => !endpointIds.has(card.personId));
+    const defaultBusY = (sourceY + targets[0].y) / 2;
+    const defaultBus: OrthogonalSegment = {
+      x1: Math.min(sourceX, ...targets.map((target) => target.x)), y1: defaultBusY,
+      x2: Math.max(sourceX, ...targets.map((target) => target.x)), y2: defaultBusY, kind: "bus",
+    };
+    const defaultSegments: OrthogonalSegment[] = [
+      { x1: sourceX, y1: sourceY, x2: sourceX, y2: defaultBusY, kind: "stem" },
+      defaultBus,
+      ...targets.map((target) => ({ x1: target.x, y1: defaultBusY, x2: target.x, y2: target.y, kind: "branch" as const })),
+    ];
+    if (defaultSegments.every((segment) => obstacles.every((card) => !crossesCard(segment, card)))) {
+      return { bus: defaultBus, segments: defaultSegments };
+    }
+
+    const downward = targets[0].y >= sourceY;
+    const blockingEdges = obstacles
+      .filter((card) => downward ? card.top > sourceY && card.top < targets[0].y : card.bottom < sourceY && card.bottom > targets[0].y)
+      .map((card) => downward ? card.top : card.bottom);
+    const nearestEdge = downward ? Math.min(...blockingEdges) : Math.max(...blockingEdges);
+    const busY = blockingEdges.length > 0 ? (sourceY + nearestEdge) / 2 : defaultBusY;
+    const routeXs = targets.map((target) => {
+      const candidates = [...new Set(obstacles.flatMap((card) => [card.left, card.right]))]
+        .sort((a, b) => Math.abs(a - target.x) - Math.abs(b - target.x) || a - b);
+      return candidates.find((candidate) => {
+        const vertical: OrthogonalSegment = { x1: candidate, y1: busY, x2: candidate, y2: target.y, kind: "branch" };
+        const landing: OrthogonalSegment = { x1: candidate, y1: target.y, x2: target.x, y2: target.y, kind: "branch" };
+        return obstacles.every((card) => !crossesCard(vertical, card) && !crossesCard(landing, card));
+      }) ?? target.x;
+    });
+    const bus: OrthogonalSegment = {
+      x1: Math.min(sourceX, ...routeXs), y1: busY, x2: Math.max(sourceX, ...routeXs), y2: busY, kind: "bus",
+    };
+    const segments: OrthogonalSegment[] = [
+      { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
+      bus,
+      ...targets.flatMap((target, index) => [
+        { x1: routeXs[index], y1: busY, x2: routeXs[index], y2: target.y, kind: "branch" as const },
+        ...(routeXs[index] === target.x ? [] : [{ x1: routeXs[index], y1: target.y, x2: target.x, y2: target.y, kind: "branch" as const }]),
+      ]),
+    ];
+    return { bus, segments };
+  };
 
   /** Ensemble des parents connus (via Filiation) de chaque enfant. */
   const parentIdsByChild = new Map<number, Set<number>>();
@@ -462,25 +542,7 @@ export function buildReactFlowGraph(
           return { personId: childId, x: position.x + personNodeHalfWidth, y: position.y, roles };
         })
         .sort((a, b) => a.x - b.x || a.personId - b.personId);
-      const busY = (posA.y + PERSON_NODE_HEIGHT + targetPoints[0].y) / 2;
-      const bus: OrthogonalSegment = {
-        x1: Math.min(sourceX, ...targetPoints.map((target) => target.x)),
-        y1: busY,
-        x2: Math.max(sourceX, ...targetPoints.map((target) => target.x)),
-        y2: busY,
-        kind: "bus",
-      };
-      const segments: OrthogonalSegment[] = [
-        { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
-        bus,
-        ...targetPoints.map((target) => ({
-          x1: target.x,
-          y1: busY,
-          x2: target.x,
-          y2: target.y,
-          kind: "branch" as const,
-        })),
-      ];
+      const { bus, segments } = routeFiliation(sourceX, sourceY, targetPoints, new Set([...union.personIds, ...targetPoints.map((target) => target.personId)]));
       edges.push({
         id: `${junctionId}-children`,
         source: junctionId,
@@ -507,34 +569,22 @@ export function buildReactFlowGraph(
     if (!sourcePosition) continue;
     const sourceX = sourcePosition.x + personNodeHalfWidth;
     const sourceY = sourcePosition.y + PERSON_NODE_HEIGHT;
-    const targetPoints = filiations
-      .reduce<RoutedFiliationTarget[]>((targets, filiation) => {
+    const targetByChild = filiations
+      .reduce<Map<number, RoutedFiliationTarget>>((targets, filiation) => {
         const position = positionByPersonId.get(String(filiation.childId));
         if (position) {
-          targets.push({
-            personId: filiation.childId,
-            x: position.x + personNodeHalfWidth,
-            y: position.y,
-            roles: [filiation.role],
-          });
+          const current = targets.get(filiation.childId);
+          if (current) {
+            if (!current.roles.includes(filiation.role)) current.roles.push(filiation.role);
+          } else {
+            targets.set(filiation.childId, { personId: filiation.childId, x: position.x + personNodeHalfWidth, y: position.y, roles: [filiation.role] });
+          }
         }
         return targets;
-      }, [])
-      .sort((a, b) => a.x - b.x || a.personId - b.personId);
+      }, new Map());
+    const targetPoints = [...targetByChild.values()].sort((a, b) => a.x - b.x || a.personId - b.personId);
     if (targetPoints.length === 0) continue;
-    const busY = (sourceY + targetPoints[0].y) / 2;
-    const bus: OrthogonalSegment = {
-      x1: Math.min(sourceX, ...targetPoints.map((target) => target.x)),
-      y1: busY,
-      x2: Math.max(sourceX, ...targetPoints.map((target) => target.x)),
-      y2: busY,
-      kind: "bus",
-    };
-    const segments: OrthogonalSegment[] = [
-      { x1: sourceX, y1: sourceY, x2: sourceX, y2: busY, kind: "stem" },
-      bus,
-      ...targetPoints.map((target) => ({ x1: target.x, y1: busY, x2: target.x, y2: target.y, kind: "branch" as const })),
-    ];
+    const { bus, segments } = routeFiliation(sourceX, sourceY, targetPoints, new Set([parentId, ...targetPoints.map((target) => target.personId)]));
     edges.push({
       id: `parent-${parentId}-children`,
       source: String(parentId),
@@ -555,6 +605,9 @@ export interface HierarchyRow {
   birthName: string | null;
   generation: number;
   isRoot: boolean;
+  birthDate: string | null;
+  deathDate: string | null;
+  gender: string | null;
   /** Nombre de niveaux d'indentation (0 pour la racine). */
   depth: number;
 }
@@ -574,6 +627,9 @@ export function buildHierarchyRows(tree: FamilyTree): HierarchyRow[] {
       birthName: n.person.birthName,
       generation: n.generation,
       isRoot: n.person.id === tree.rootId,
+      birthDate: n.person.birthDate,
+      deathDate: n.person.deathDate,
+      gender: n.person.gender,
       depth: Math.abs(n.generation),
     }));
 }

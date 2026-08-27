@@ -1,6 +1,10 @@
 import "./globals.css";
 import Link from "next/link";
+import { Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import { version } from "../../../../package.json";
+
+const instrumentSans = Instrument_Sans({ subsets: ["latin"], variable: "--font-instrument-sans" });
+const jetBrainsMono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-jetbrains-mono" });
 
 export default function RootLayout({
   children,
@@ -8,7 +12,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr">
+    <html lang="fr" className={`${instrumentSans.variable} ${jetBrainsMono.variable}`}>
       <body className="grid min-h-screen grid-rows-[auto_1fr_auto]">
         <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
           <div className="mx-auto flex max-w-5xl flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -130,4 +130,20 @@ describe("FamilyTreeCanvas", () => {
     expect(zoomOut).toHaveBeenCalledOnce();
     expect(setCenter).toHaveBeenCalledWith(75, 32, expect.objectContaining({ zoom: 1 }));
   });
+
+  it("rend des bandes desktop visibles avec libellés sémantiques et ordre déterministe", () => {
+    const tree = makeTree();
+    tree.nodes.push({
+      person: { id: 3, firstName: "Grace", lastName: "Hopper", birthName: null, birthDate: null, deathDate: null, gender: null } as never,
+      generation: 1,
+    });
+
+    render(<FamilyTreeCanvas tree={tree} />);
+
+    expect(screen.getByRole("list", { name: "Bandes de génération" })).toHaveClass("font-mono");
+    expect(screen.getAllByTestId(/^desktop-generation-band-/).map((band) => band.textContent)).toEqual([
+      "G1 · MOI & FRATRIE",
+      "G2 · ENFANTS",
+    ]);
+  });
 });
