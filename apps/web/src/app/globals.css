@@ -17,3 +17,11 @@
     border-color: var(--color-gray-200, currentcolor);
   }
 }
+
+@utility family-tree-sans {
+  font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
+}
+
+@utility family-tree-mono {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+}

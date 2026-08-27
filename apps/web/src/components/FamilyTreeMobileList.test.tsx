@@ -8,8 +8,10 @@ function makeTree(): FamilyTree {
   return {
     rootId: 2,
     nodes: [
-      { person: { id: 1, firstName: "Ada", lastName: "Lovelace", birthName: "Byron", birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
-      { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      { person: { id: 1, firstName: "Ada", lastName: "Lovelace", birthName: "Byron", birthDate: "1815-12-10", deathDate: null, gender: null } as any, generation: -1 },
+      { person: { id: 5, firstName: "Charles", lastName: "Babbage", birthName: null, birthDate: null, deathDate: null, gender: null } as any, generation: -1 },
+      { person: { id: 2, firstName: "Byron", lastName: "King", birthDate: "1950-05-12", deathDate: null, gender: null } as any, generation: 0 },
+      { person: { id: 3, firstName: "Anne", lastName: "King", birthDate: "1952-01-01", deathDate: null, gender: null } as any, generation: 0 },
       { person: { id: 4, firstName: "Ralph", lastName: "King", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
     ],
     edges: [],
@@ -17,6 +19,19 @@ function makeTree(): FamilyTree {
 }
 
 describe("FamilyTreeMobileList", () => {
+  it("regroupe les personnes sans indentation dans des sections de génération croissantes", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+
+    const headings = screen.getAllByRole("heading", { level: 2 });
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      "G2 · PARENTS2",
+      "G3 · MOI & FRATRIE2",
+      "G4 · ENFANTS1",
+    ]);
+    expect(screen.getByTestId("mobile-row-1")).toHaveStyle({ paddingLeft: "0px" });
+    expect(screen.getByTestId("mobile-row-4")).toHaveStyle({ paddingLeft: "0px" });
+  });
+
   it("affiche une ligne par Person avec son nom complet", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
@@ -27,7 +42,7 @@ describe("FamilyTreeMobileList", () => {
   it("marque la racine avec le suffixe (racine)", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     const rootRow = screen.getByTestId("mobile-row-2");
-    expect(rootRow).toHaveTextContent("(racine)");
+    expect(rootRow).toHaveTextContent("FOCUS");
     expect(screen.getByTestId("mobile-row-1")).not.toHaveTextContent("(racine)");
   });
 
@@ -35,5 +50,42 @@ describe("FamilyTreeMobileList", () => {
     render(<FamilyTreeMobileList tree={makeTree()} />);
     expect(screen.getByTestId("mobile-row-1")).toHaveTextContent("Nom de naissance : Byron");
     expect(screen.getByTestId("mobile-row-2")).not.toHaveTextContent("Nom de naissance");
+  });
+
+  it("compose les ascendants en grille, distingue le focus et condense la fratrie", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+    expect(screen.getByTestId("mobile-generation--1").querySelector("ul")).toHaveClass("grid-cols-2");
+    expect(screen.getByTestId("mobile-row-2")).toHaveAttribute("aria-current", "true");
+    expect(screen.getByTestId("mobile-siblings")).not.toHaveClass("overflow-x-auto");
+    expect(screen.getByTestId("mobile-row-3")).toHaveClass("shrink-0");
+  });
+
+  it.each([
+    { count: 0, hidden: null },
+    { count: 1, hidden: null },
+    { count: 2, hidden: null },
+    { count: 4, hidden: "+2" },
+  ])("affiche au plus deux frères sur $count et compte exactement le reliquat", ({ count, hidden }) => {
+    const tree = makeTree();
+    tree.nodes = tree.nodes.filter((node) => node.generation !== 0 || node.person.id === tree.rootId);
+    for (let index = 0; index < count; index += 1) {
+      tree.nodes.push({
+        person: { id: 20 + index, firstName: `Frère ${index}`, lastName: "King", birthDate: `195${index}-01-01`, deathDate: null, gender: null } as any,
+        generation: 0,
+      });
+    }
+
+    render(<FamilyTreeMobileList tree={tree} />);
+
+    expect(screen.queryAllByTestId(/^mobile-row-2[0-9]$/)).toHaveLength(Math.min(count, 2));
+    if (hidden) expect(screen.getByText(hidden)).toHaveAttribute("aria-label", `${count - 2} autres membres de la fratrie`);
+    else expect(screen.queryByText(/^\+\d+$/)).not.toBeInTheDocument();
+  });
+
+  it("affiche dates et compteurs en JetBrains Mono sans perdre les données partielles", () => {
+    render(<FamilyTreeMobileList tree={makeTree()} />);
+    expect(screen.getByText("10/12/1815")).toHaveClass("font-mono");
+    expect(screen.getByTestId("mobile-generation-1")).toHaveTextContent("1");
+    expect(screen.getByTestId("mobile-row-4")).toBeInTheDocument();
   });
 });

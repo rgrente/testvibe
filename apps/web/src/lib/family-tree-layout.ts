@@ -30,6 +30,27 @@ export type ReactFlowGraphNode = PersonFlowNode | UnionJunctionFlowNode;
 
 export type ReactFlowGraphEdge = Edge;
 
+export interface OrthogonalSegment {
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  kind: "stem" | "bus" | "branch";
+}
+
+export interface RoutedFiliationTarget {
+  personId: number;
+  x: number;
+  y: number;
+  roles: string[];
+}
+
+export interface RoutedFiliationEdgeData extends Record<string, unknown> {
+  segments: OrthogonalSegment[];
+  bus: OrthogonalSegment;
+  targets: RoutedFiliationTarget[];
+}
+
 export interface ReactFlowGraph {
   nodes: ReactFlowGraphNode[];
   edges: ReactFlowGraphEdge[];
@@ -37,8 +58,14 @@ export interface ReactFlowGraph {
 
 export type FamilyTreeLayoutProfile = "desktop" | "mobile";
 
+export const PERSON_NODE_WIDTH = 180;
+export const GENERATION_ROW_HEIGHT = 140;
+export const SIBLING_PITCH = 220;
+export const PERSON_NODE_HEIGHT = 72;
+export const LINK_OBSTACLE_MARGIN = 12;
+
 const LAYOUT = {
-  desktop: { generationRowHeight: 140, nodeColumnWidth: 220, unionPartnerGap: 300, personNodeHalfWidth: 90 },
+  desktop: { generationRowHeight: GENERATION_ROW_HEIGHT, nodeColumnWidth: SIBLING_PITCH, unionPartnerGap: 300, personNodeHalfWidth: PERSON_NODE_WIDTH / 2 },
   mobile: { generationRowHeight: 112, nodeColumnWidth: 170, unionPartnerGap: 210, personNodeHalfWidth: 75 },
 } as const;
 /**
@@ -53,16 +80,25 @@ const JUNCTION_HALF_SIZE = 4;
 
 const UNION_LINK_STYLE = { stroke: "#cbd5e1", strokeDasharray: "4 4" };
 
-function filiationLabel(role: string): string | undefined {
-  return role === "biologique" ? undefined : role;
-}
-
 type FamilyTreeNode = FamilyTree["nodes"][number];
 
 function personLabel(tree: FamilyTree, personId: number): string {
   const node = tree.nodes.find((n) => n.person.id === personId);
   if (!node) return `#${personId}`;
   return `${node.person.firstName} ${node.person.lastName}`.trim();
+}
+
+export function generationSemanticLabel(generation: number): string {
+  if (generation <= -2) return "GRANDS-PARENTS";
+  if (generation === -1) return "PARENTS";
+  if (generation === 0) return "MOI & FRATRIE";
+  if (generation === 1) return "ENFANTS";
+  return "PETITS-ENFANTS";
+}
+
+/** Numérotation stable de la référence, même quand une bande est absente. */
+export function generationDisplayNumber(generation: number): number {
+  return Math.max(1, generation + 3);
 }
 
 /**
@@ -118,17 +154,6 @@ export function buildReactFlowGraph(
   const { generationRowHeight, nodeColumnWidth, unionPartnerGap, personNodeHalfWidth } = LAYOUT[layoutProfile];
   const sortedByGeneration = [...tree.nodes].sort(compareSiblingOrder);
 
-  // Partenaire d'Union à deux membres, pour un placement adjacent garanti
-  // (cf. plus bas) : sans ça, deux partenaires ne se retrouvent côte à
-  // côte que par accident de tri par id, et un tiers pourrait s'intercaler.
-  const unionPartnerOf = new Map<number, number>();
-  for (const e of tree.edges) {
-    if (e.type !== "union" || e.personIds.length !== 2) continue;
-    const [a, b] = e.personIds;
-    unionPartnerOf.set(a, b);
-    unionPartnerOf.set(b, a);
-  }
-
   const filiationEdges = tree.edges.filter((e) => e.type === "filiation");
   const unionEdges = tree.edges.filter((e) => e.type === "union");
 
@@ -170,6 +195,7 @@ export function buildReactFlowGraph(
       id: String(n.person.id),
       type: "person",
       position: { x, y: n.generation * generationRowHeight },
+      style: { width: layoutProfile === "desktop" ? PERSON_NODE_WIDTH : 150 },
       data: {
         personId: n.person.id,
         label: `${n.person.firstName} ${n.person.lastName}`.trim(),
@@ -184,35 +210,55 @@ export function buildReactFlowGraph(
     });
   };
 
-  type Unit = { first: (typeof sortedByGeneration)[number]; partner?: (typeof sortedByGeneration)[number] };
+  type Unit = { members: (typeof sortedByGeneration) };
 
-  /** Largeur (écart entre le premier membre et son partenaire) occupée par l'unité ; 0 pour une personne seule. */
-  const widthOf = (unit: Unit) => (unit.partner ? unionPartnerGap : 0);
+  /** Largeur occupée par une composante d'unions ; 0 pour une personne seule. */
+  const widthOf = (unit: Unit) => (unit.members.length - 1) * unionPartnerGap;
 
   const placeUnit = (unit: Unit, x: number) => {
-    placeNode(unit.first, x);
-    if (unit.partner) placeNode(unit.partner, x + unionPartnerGap);
+    unit.members.forEach((member, index) => placeNode(member, x + index * unionPartnerGap));
   };
 
   for (const generation of generationOrder) {
     const nodesInGeneration = byGeneration.get(generation)!;
     const byPersonId = new Map(nodesInGeneration.map((n) => [n.person.id, n]));
 
-    // Regroupe en "unités" de placement (personne seule, ou couple adjacent).
+    // Regroupe en composantes d'unions. Pour deux unions partageant une
+    // personne, celle-ci est placée entre ses partenaires afin que les deux
+    // jonctions restent chacune dans un espace libre entre cartes.
     const units: Unit[] = [];
     const grouped = new Set<number>();
     for (const n of nodesInGeneration) {
       if (grouped.has(n.person.id)) continue;
-      grouped.add(n.person.id);
-      const partnerId = unionPartnerOf.get(n.person.id);
-      const partnerNode = partnerId !== undefined ? byPersonId.get(partnerId) : undefined;
-      if (partnerNode && !grouped.has(partnerNode.person.id)) {
-        grouped.add(partnerNode.person.id);
-        const [first, partner] = orderCoupleLeftToRight(n, partnerNode);
-        units.push({ first, partner });
-      } else {
-        units.push({ first: n });
+      const componentIds = new Set<number>();
+      const queue = [n.person.id];
+      while (queue.length > 0) {
+        const personId = queue.shift()!;
+        if (componentIds.has(personId)) continue;
+        componentIds.add(personId);
+        for (const edge of unionEdges) {
+          if (edge.personIds.length !== 2 || !edge.personIds.includes(personId)) continue;
+          for (const partnerId of edge.personIds) {
+            if (byPersonId.has(partnerId) && !componentIds.has(partnerId)) queue.push(partnerId);
+          }
+        }
       }
+      componentIds.forEach((personId) => grouped.add(personId));
+      let members = nodesInGeneration.filter((candidate) => componentIds.has(candidate.person.id));
+      if (members.length === 2) {
+        members = [...orderCoupleLeftToRight(members[0], members[1])];
+      } else if (members.length === 3) {
+        const degree = (personId: number) => unionEdges.filter(
+          (edge) => edge.personIds.length === 2 && edge.personIds.includes(personId)
+            && edge.personIds.every((id) => componentIds.has(id)),
+        ).length;
+        const center = members.find((member) => degree(member.person.id) === 2);
+        if (center) {
+          const endpoints = members.filter((member) => member !== center);
+          members = [endpoints[0], center, endpoints[1]];
+        }
+      }
+      units.push({ members });
     }
 
     if (generation === 0) {
@@ -232,7 +278,7 @@ export function buildReactFlowGraph(
       generation < 0 ? (childrenOfParent.get(personId) ?? []) : (parentsOfChild.get(personId) ?? []);
 
     const anchorOf = (unit: Unit): number | undefined => {
-      const memberIds = unit.partner ? [unit.first.person.id, unit.partner.person.id] : [unit.first.person.id];
+      const memberIds = unit.members.map((member) => member.person.id);
       const neighborXs = memberIds
         .flatMap(neighborsOf)
         .map((id) => xByPersonId.get(id))
@@ -342,10 +388,91 @@ export function buildReactFlowGraph(
   }
 
   const positionByPersonId = new Map(personNodes.map((n) => [n.id, n.position]));
+  const expandedCards = personNodes
+    .filter((node): node is PersonFlowNode => node.type === "person")
+    .map((node) => ({
+      personId: Number(node.id),
+      left: node.position.x - LINK_OBSTACLE_MARGIN,
+      right: node.position.x + (layoutProfile === "desktop" ? PERSON_NODE_WIDTH : 150) + LINK_OBSTACLE_MARGIN,
+      top: node.position.y - LINK_OBSTACLE_MARGIN,
+      bottom: node.position.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN,
+    }));
+
+  const crossesCard = (segment: OrthogonalSegment, card: (typeof expandedCards)[number]) => {
+    if (segment.x1 === segment.x2) {
+      return segment.x1 > card.left && segment.x1 < card.right
+        && Math.max(segment.y1, segment.y2) > card.top && Math.min(segment.y1, segment.y2) < card.bottom;
+    }
+    return segment.y1 > card.top && segment.y1 < card.bottom
+      && Math.max(segment.x1, segment.x2) > card.left && Math.min(segment.x1, segment.x2) < card.right;
+  };
+
+  /** Route un stem et des branches sur un bus unique. En cas de carte
+   * intermédiaire, choisit le canal vertical libre le plus proche ; le tri
+   * x croissant fournit le tie-break gauche contractuel. */
+  const routeFiliation = (
+    sourceX: number,
+    sourceY: number,
+    targets: RoutedFiliationTarget[],
+    endpointIds: Set<number>,
+  ): { bus: OrthogonalSegment; segments: OrthogonalSegment[] } => {
+    const targetIds = new Set(targets.map((target) => target.personId));
+    // Les cartes source sont traversées uniquement au départ de leur ancre.
+    // Les autres cibles restent des obstacles afin qu'une branche de fratrie
+    // ne puisse jamais couper la carte d'un autre enfant.
+    const obstacles = expandedCards.filter((card) => !endpointIds.has(card.personId) || targetIds.has(card.personId));
+    const defaultBusY = (sourceY + targets[0].y) / 2;
+    const stem: OrthogonalSegment = { x1: sourceX, y1: sourceY, x2: sourceX, y2: defaultBusY, kind: "stem" };
+
+    const downward = targets[0].y >= sourceY;
+    const blockingEdges = obstacles
+      .filter((card) => downward ? card.top > sourceY && card.top < targets[0].y : card.bottom < sourceY && card.bottom > targets[0].y)
+      .map((card) => downward ? card.top : card.bottom);
+    const nearestEdge = downward ? Math.min(...blockingEdges) : Math.max(...blockingEdges);
+    const busY = blockingEdges.length > 0 ? (sourceY + nearestEdge) / 2 : defaultBusY;
+    const pathToTarget = (target: RoutedFiliationTarget, routeX: number): OrthogonalSegment[] => {
+      const approachY = target.y >= sourceY
+        ? target.y - LINK_OBSTACLE_MARGIN
+        : target.y + PERSON_NODE_HEIGHT + LINK_OBSTACLE_MARGIN;
+      return [
+        { x1: routeX, y1: busY, x2: routeX, y2: approachY, kind: "branch" },
+        ...(routeX === target.x ? [] : [{ x1: routeX, y1: approachY, x2: target.x, y2: approachY, kind: "branch" as const }]),
+        { x1: target.x, y1: approachY, x2: target.x, y2: target.y, kind: "branch" },
+      ];
+    };
+    const pathIsFree = (target: RoutedFiliationTarget, segments: OrthogonalSegment[]) => segments.every((segment, index) =>
+      obstacles.every((card) => {
+        const ownFinalIngress = card.personId === target.personId && index === segments.length - 1;
+        return ownFinalIngress || !crossesCard(segment, card);
+      }));
+    const routeXs = targets.map((target) => {
+      const candidates = [...new Set([target.x, ...obstacles.flatMap((card) => [card.left, card.right])])]
+        .sort((a, b) => Math.abs(a - target.x) - Math.abs(b - target.x) || a - b);
+      return candidates.find((candidate) => pathIsFree(target, pathToTarget(target, candidate))) ?? target.x;
+    });
+    const bus: OrthogonalSegment = {
+      x1: Math.min(sourceX, ...routeXs), y1: busY, x2: Math.max(sourceX, ...routeXs), y2: busY, kind: "bus",
+    };
+    const routedStem: OrthogonalSegment = { ...stem, y2: busY };
+    const segments: OrthogonalSegment[] = [
+      routedStem,
+      bus,
+      ...targets.flatMap((target, index) => pathToTarget(target, routeXs[index])),
+    ];
+    // Revalidation du chemin complet : le bus et le stem doivent eux aussi
+    // rester hors de toutes les cartes non-source après le choix des canaux.
+    if ([routedStem, bus].some((segment) => obstacles.some((card) => crossesCard(segment, card)))) {
+      throw new Error("Aucun routage de filiation sans collision");
+    }
+    return { bus, segments };
+  };
 
   /** Ensemble des parents connus (via Filiation) de chaque enfant. */
   const parentIdsByChild = new Map<number, Set<number>>();
   for (const f of filiationEdges) {
+    // Les filiations vers un parent absent de la vue sont des données
+    // partielles : elles ne doivent pas empêcher une union visible exacte.
+    if (!positionByPersonId.has(String(f.parentId))) continue;
     if (!parentIdsByChild.has(f.childId)) parentIdsByChild.set(f.childId, new Set());
     parentIdsByChild.get(f.childId)!.add(f.parentId);
   }
@@ -370,7 +497,7 @@ export function buildReactFlowGraph(
       id: junctionId,
       type: "unionJunction",
       position: {
-        x: (posA.x + posB.x) / 2 + personNodeHalfWidth,
+        x: (posA.x + posB.x) / 2 + personNodeHalfWidth - JUNCTION_HALF_SIZE,
         // Même partenaires nécessairement à la même génération (donc même y) :
         // aligné sur l'offset fixe des handles latéraux pour un lien horizontal.
         y: posA.y + PERSON_HANDLE_Y_OFFSET - JUNCTION_HALF_SIZE,
@@ -405,6 +532,7 @@ export function buildReactFlowGraph(
     );
 
     const partnerSet = new Set(union.personIds);
+    const children: { childId: number; roles: string[] }[] = [];
     for (const [childId, parentIds] of parentIdsByChild) {
       const isExactMatch = parentIds.size === partnerSet.size && [...parentIds].every((id) => partnerSet.has(id));
       if (!isExactMatch) continue;
@@ -412,32 +540,71 @@ export function buildReactFlowGraph(
       const matchingFiliations = filiationEdges.filter(
         (f) => f.childId === childId && partnerSet.has(f.parentId),
       );
-      const roles = new Set(matchingFiliations.map((f) => f.role));
-
-      edges.push({
-        id: `${junctionId}-child-${childId}`,
-        source: junctionId,
-        sourceHandle: "bottom",
-        target: String(childId),
-        targetHandle: "top",
-        label: roles.size === 1 ? filiationLabel([...roles][0]) : undefined,
-      });
+      children.push({ childId, roles: [...new Set(matchingFiliations.map((f) => f.role))] });
 
       for (const f of matchingFiliations) consumedFiliationIds.add(f.filiationId);
+    }
+
+    if (children.length > 0) {
+      const sourceX = (posA.x + posB.x) / 2 + personNodeHalfWidth;
+      const sourceY = posA.y + PERSON_HANDLE_Y_OFFSET + JUNCTION_HALF_SIZE;
+      const targetPoints = children
+        .map(({ childId, roles }) => {
+          const position = positionByPersonId.get(String(childId))!;
+          return { personId: childId, x: position.x + personNodeHalfWidth, y: position.y, roles };
+        })
+        .sort((a, b) => a.x - b.x || a.personId - b.personId);
+      const { bus, segments } = routeFiliation(sourceX, sourceY, targetPoints, new Set([...union.personIds, ...targetPoints.map((target) => target.personId)]));
+      edges.push({
+        id: `${junctionId}-children`,
+        source: junctionId,
+        sourceHandle: "bottom",
+        target: String(targetPoints[0].personId),
+        targetHandle: "top",
+        type: "filiation",
+        data: { segments, bus, targets: targetPoints } satisfies RoutedFiliationEdgeData,
+      });
     }
   }
 
   // Filiations non absorbées par un point de jonction (parent unique
   // connu, ou parents ne partageant pas d'Union commune) : arête directe.
-  for (const f of filiationEdges) {
-    if (consumedFiliationIds.has(f.filiationId)) continue;
+  const remainingByParent = new Map<number, typeof filiationEdges>();
+  for (const filiation of filiationEdges) {
+    if (consumedFiliationIds.has(filiation.filiationId)) continue;
+    const siblings = remainingByParent.get(filiation.parentId) ?? [];
+    siblings.push(filiation);
+    remainingByParent.set(filiation.parentId, siblings);
+  }
+  for (const [parentId, filiations] of remainingByParent) {
+    const sourcePosition = positionByPersonId.get(String(parentId));
+    if (!sourcePosition) continue;
+    const sourceX = sourcePosition.x + personNodeHalfWidth;
+    const sourceY = sourcePosition.y + PERSON_NODE_HEIGHT;
+    const targetByChild = filiations
+      .reduce<Map<number, RoutedFiliationTarget>>((targets, filiation) => {
+        const position = positionByPersonId.get(String(filiation.childId));
+        if (position) {
+          const current = targets.get(filiation.childId);
+          if (current) {
+            if (!current.roles.includes(filiation.role)) current.roles.push(filiation.role);
+          } else {
+            targets.set(filiation.childId, { personId: filiation.childId, x: position.x + personNodeHalfWidth, y: position.y, roles: [filiation.role] });
+          }
+        }
+        return targets;
+      }, new Map());
+    const targetPoints = [...targetByChild.values()].sort((a, b) => a.x - b.x || a.personId - b.personId);
+    if (targetPoints.length === 0) continue;
+    const { bus, segments } = routeFiliation(sourceX, sourceY, targetPoints, new Set([parentId, ...targetPoints.map((target) => target.personId)]));
     edges.push({
-      id: `filiation-${f.filiationId}`,
-      source: String(f.parentId),
+      id: `parent-${parentId}-children`,
+      source: String(parentId),
       sourceHandle: "bottom",
-      target: String(f.childId),
+      target: String(targetPoints[0].personId),
       targetHandle: "top",
-      label: filiationLabel(f.role),
+      type: "filiation",
+      data: { segments, bus, targets: targetPoints } satisfies RoutedFiliationEdgeData,
     });
   }
 
@@ -450,6 +617,9 @@ export interface HierarchyRow {
   birthName: string | null;
   generation: number;
   isRoot: boolean;
+  birthDate: string | null;
+  deathDate: string | null;
+  gender: string | null;
   /** Nombre de niveaux d'indentation (0 pour la racine). */
   depth: number;
 }
@@ -469,6 +639,9 @@ export function buildHierarchyRows(tree: FamilyTree): HierarchyRow[] {
       birthName: n.person.birthName,
       generation: n.generation,
       isRoot: n.person.id === tree.rootId,
+      birthDate: n.person.birthDate,
+      deathDate: n.person.deathDate,
+      gender: n.person.gender,
       depth: Math.abs(n.generation),
     }));
 }

@@ -41,6 +41,11 @@ function renderNode(overrides: Partial<PersonNodeData> = {}) {
 }
 
 describe("PersonNode", () => {
+  it("utilise une largeur desktop homogène de 180 px", () => {
+    renderNode();
+    expect(screen.getByTestId("person-node-1")).toHaveClass("w-[180px]");
+  });
+
   it("affiche distinctement le nom de naissance lorsqu'il existe", () => {
     renderNode({ birthName: "Kaminker" });
     expect(screen.getByTestId("person-node-1")).toHaveTextContent("Nom de naissance : Kaminker");
@@ -49,5 +54,14 @@ describe("PersonNode", () => {
   it("n'affiche aucun libellé de nom de naissance lorsqu'il est absent", () => {
     renderNode();
     expect(screen.getByTestId("person-node-1")).not.toHaveTextContent("Nom de naissance");
+  });
+
+  it("reprend les proportions et la hiérarchie typographique de la référence 1a", () => {
+    renderNode({ birthName: "Kaminker", birthDate: "1921-03-25", deathDate: "1985-09-30", isRoot: true });
+    const card = screen.getByTestId("person-node-1");
+    expect(card).toHaveClass("h-[72px]", "font-sans");
+    expect(screen.getByTestId("person-name-1")).toHaveClass("text-[13px]", "font-semibold");
+    expect(screen.getByText("née Kaminker")).toBeInTheDocument();
+    expect(screen.getByTestId("person-dates-1")).toHaveClass("font-mono", "text-[10.5px]");
   });
 });
