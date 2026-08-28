@@ -5,13 +5,22 @@ import { useRouter } from "next/navigation";
 import type { FamilyTree } from "@testvibe/core";
 import { buildRadialLayout } from "../lib/family-tree-radial-layout";
 
-export function FamilyTreeFanChart({ tree }: { tree: FamilyTree }) {
+export function FamilyTreeFanChart({ tree, personRoute = "/" }: { tree: FamilyTree; personRoute?: string }) {
   const router = useRouter();
   const layout = useMemo(() => buildRadialLayout(tree), [tree]);
   const positions = new Map(layout.nodes.map((node) => [node.personId, node]));
+  const root = layout.nodes.find((node) => node.personId === tree.rootId);
+  const generations = Math.max(1, ...layout.nodes.map((node) => node.generation + 1));
+  const possiblePeople = (2 ** generations) - 1;
+  const missingPeople = Math.max(0, possiblePeople - layout.nodes.length);
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50" data-testid="family-tree-fan-chart">
+    <section className="w-full min-w-0 max-w-full overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-subtle)]" data-testid="family-tree-fan-chart" aria-labelledby="fan-heading">
+      <h2 id="fan-heading" aria-label="Éventail d’ascendance" className="w-fit text-[var(--color-ink)]" style={{ fontSize: "14px", fontWeight: 700, lineHeight: "normal" }}>Éventail d&apos;ascendance</h2>
+      <p className="family-tree-mono mt-1 text-[10.5px] text-[var(--color-muted)]">
+        {root?.label ?? "Personne racine"} · {generations} générations · {layout.nodes.length}/{possiblePeople} connus
+      </p>
+      <div className="mt-4 min-w-0 max-w-full overflow-x-auto rounded-[var(--radius-card)] bg-[var(--color-canvas)]">
       <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="min-h-[440px] min-w-[720px] w-full" role="img" aria-labelledby="fan-chart-title fan-chart-description">
         <title id="fan-chart-title">Éventail des ancêtres</title>
         <desc id="fan-chart-description">La personne racine est au centre, ses ancêtres sont répartis par génération.</desc>
@@ -25,19 +34,21 @@ export function FamilyTreeFanChart({ tree }: { tree: FamilyTree }) {
         {layout.nodes.map((node) => {
           const dates = [node.birthDate?.slice(0, 4), node.deathDate?.slice(0, 4)].filter(Boolean).join(" – ");
           return (
-            <g key={node.personId} transform={`translate(${node.x}, ${node.y})`} role="link" tabIndex={0} aria-label={`${node.label}${node.isRoot ? ", personne racine" : `, génération ${node.generation}`}`} className="cursor-pointer focus:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500" onClick={() => router.push(`/?personId=${node.personId}`)} onKeyDown={(event) => {
+            <g key={node.personId} transform={`translate(${node.x}, ${node.y})`} role="link" tabIndex={0} aria-label={`${node.label}${node.isRoot ? ", personne racine" : `, génération ${node.generation}`}`} className="cursor-pointer outline-2 outline-transparent focus-visible:outline-2 focus-visible:outline-blue-500" onClick={() => router.push(`${personRoute}?personId=${node.personId}`)} onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
-                router.push(`/?personId=${node.personId}`);
+                router.push(`${personRoute}?personId=${node.personId}`);
               }
             }}>
-              <rect x="-62" y="-25" width="124" height="50" rx="8" fill={node.isRoot ? "#eff6ff" : "white"} stroke={node.isRoot ? "#2563eb" : "#94a3b8"} strokeWidth={node.isRoot ? 3 : 1.5} />
+              <rect x="-62" y="-30" width="124" height="60" rx="8" fill={node.isRoot ? "#eff6ff" : "white"} stroke={node.isRoot ? "#2563eb" : "#94a3b8"} strokeWidth={node.isRoot ? 3 : 1.5} />
               <text textAnchor="middle" y={dates ? -3 : 5} className="fill-slate-900 text-[13px] font-semibold">{node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label}</text>
               {dates ? <text textAnchor="middle" y="15" className="fill-slate-500 text-[11px]">{dates}</text> : null}
             </g>
           );
         })}
       </svg>
-    </div>
+      </div>
+      <p className="family-tree-mono mt-3 text-center text-[10px] text-[var(--color-muted)]">{missingPeople} manquant{missingPeople > 1 ? "s" : ""}</p>
+    </section>
   );
 }

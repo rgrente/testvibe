@@ -7,7 +7,7 @@ export function UpcomingFamilyAnniversaries({ anniversaries }: { anniversaries: 
   }
 
   return (
-    <ul className="divide-y divide-blue-100 overflow-hidden rounded-lg border border-blue-200 bg-white">
+    <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white">
       {anniversaries.map((item) => {
         const date = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "long", timeZone: "UTC" })
           .format(new Date(`${item.occurrenceDate}T12:00:00Z`));
@@ -19,7 +19,7 @@ export function UpcomingFamilyAnniversaries({ anniversaries }: { anniversaries: 
               {item.persons.map((person, index) => (
                 <span key={person.id}>
                   {index > 0 && <span className="text-slate-600"> et </span>}
-                  <Link href={`/persons/${person.id}`} className="text-slate-800 hover:underline">{person.firstName} {person.lastName}</Link>
+                  <Link href={`/persons/${person.id}`} className="inline-flex min-h-11 items-center text-slate-800 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]">{person.firstName} {person.lastName}</Link>
                 </span>
               ))}
             </div>

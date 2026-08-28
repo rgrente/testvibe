@@ -33,6 +33,9 @@ describe("FamilyTreeFanChart", () => {
   it("affiche chaque ascendant et distingue la personne racine", () => {
     render(<FamilyTreeFanChart tree={makeTree()} />);
 
+    expect(screen.getByRole("heading", { name: "Éventail d’ascendance" })).toBeInTheDocument();
+    expect(screen.getByText("Racine Test · 2 générations · 3/3 connus")).toBeInTheDocument();
+    expect(screen.getByText("0 manquant")).toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(3);
     expect(screen.getByRole("link", { name: "Racine Test, personne racine" })).toHaveClass("focus-visible:outline-2");
     expect(screen.getByText("1950 – 2020")).toBeInTheDocument();
@@ -43,6 +46,12 @@ describe("FamilyTreeFanChart", () => {
     render(<FamilyTreeFanChart tree={makeTree()} />);
     fireEvent.click(screen.getByRole("link", { name: "Parent Test, génération 1" }));
     expect(push).toHaveBeenCalledWith("/?personId=2");
+  });
+
+  it("permet à la fixture d'exercer la navigation sans quitter sa surface", () => {
+    render(<FamilyTreeFanChart tree={makeTree()} personRoute="/visual-fixtures/secondary" />);
+    fireEvent.click(screen.getByRole("link", { name: "Parent Test, génération 1" }));
+    expect(push).toHaveBeenCalledWith("/visual-fixtures/secondary?personId=2");
   });
 
   it.each(["Enter", " "])("navigue au clavier avec %p", (key) => {

@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatFamilyDate, type MapLocation } from "@testvibe/core";
+import type { MapLocation } from "@testvibe/core";
+import { formatFamilyDate } from "../lib/family-date";
 
 interface MapClientProps {
   locations: MapLocation[];
@@ -131,33 +132,36 @@ export default function MapClient({
   return (
     <div>
       {/* Filtres */}
-      <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-slate-200 bg-white p-4 sm:grid-cols-4">
+      <section aria-label="Filtres de la carte" className="mb-4 grid grid-cols-1 gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-subtle)] sm:grid-cols-4">
         <div>
-          <label className="block text-xs font-medium text-slate-600">De</label>
+          <label htmlFor="map-date-from" className="block text-xs font-medium text-slate-600">De</label>
           <input
+            id="map-date-from"
             type="date"
             value={dateFrom}
             onChange={(e) => onDateFromChange(e.target.value)}
-            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600">À</label>
+          <label htmlFor="map-date-to" className="block text-xs font-medium text-slate-600">À</label>
           <input
+            id="map-date-to"
             type="date"
             value={dateTo}
             onChange={(e) => onDateToChange(e.target.value)}
-            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           />
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600">Personne</label>
+          <label htmlFor="map-person" className="block text-xs font-medium text-slate-600">Personne</label>
           <select
+            id="map-person"
             value={selectedPersonId ?? ""}
             onChange={(e) =>
               onSelectPerson(e.target.value ? Number(e.target.value) : null)
             }
-            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           >
             <option value="">Toutes</option>
             {allPersons.map((p) => (
@@ -168,15 +172,16 @@ export default function MapClient({
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-600">Branche</label>
+          <label htmlFor="map-branch" className="block text-xs font-medium text-slate-600">Branche</label>
           <select
+            id="map-branch"
             value={branchMode}
             onChange={(e) =>
               onBranchModeChange(
                 e.target.value as "none" | "ancestors" | "descendants",
               )
             }
-            className="w-full rounded-sm border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
             disabled={!selectedPersonId}
           >
             <option value="none">Aucune</option>
@@ -184,10 +189,10 @@ export default function MapClient({
             <option value="descendants">Descendants</option>
           </select>
         </div>
-      </div>
+      </section>
 
       {/* Carte */}
-      <div className="mb-4 h-[500px] w-full overflow-hidden rounded-lg border border-slate-200">
+      <section aria-label="Carte des origines" className="mb-4 h-[360px] w-full overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] sm:h-[500px]">
         {MapComp ? (
           <MapComp locations={filtered} onMarkerClick={setSelectedMarker} />
         ) : (
@@ -195,7 +200,7 @@ export default function MapClient({
             Chargement de la carte…
           </div>
         )}
-      </div>
+      </section>
       <p className="mb-4 text-xs text-slate-400">
         Fond de carte ©{" "}
         <a
@@ -211,7 +216,7 @@ export default function MapClient({
 
       {/* Popup d'info */}
       {selectedMarker && (
-        <div className="mb-4 rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+        <div role="dialog" aria-label={`Détail du lieu ${selectedMarker.place}`} className="mb-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-subtle)]">
           <div className="flex items-start justify-between">
             <div>
               <p className="font-semibold text-slate-900">
@@ -230,9 +235,10 @@ export default function MapClient({
               </p>
             </div>
             <button
+              type="button"
               onClick={() => setSelectedMarker(null)}
-              className="text-slate-400 hover:text-slate-600"
-              aria-label="Fermer"
+              className="min-h-11 min-w-11 rounded-[var(--radius-md)] text-slate-500 hover:bg-[var(--color-canvas)] hover:text-slate-700"
+              aria-label="Fermer le détail"
             >
               ✕
             </button>
@@ -262,12 +268,14 @@ export default function MapClient({
                 <span className="ml-1 text-sm text-slate-500">
                   ({formatFamilyDate(loc.eventDate)})
                 </span>
-                <span className="ml-1 text-sm text-slate-500">
-                  — {loc.place}
+                <span className="ml-1 text-sm text-slate-500">— </span>
+                <span data-testid="map-location-place" style={{ color: "#15181c", font: "400 11.5px 'Instrument Sans', sans-serif" }}>
+                  {loc.place}
                 </span>
                 <button
+                  type="button"
                   onClick={() => setSelectedMarker(loc)}
-                  className="ml-2 text-xs text-blue-600 underline hover:text-blue-800"
+                  className="ml-2 min-h-11 rounded-[var(--radius-sm)] px-2 text-xs text-blue-700 underline hover:bg-[var(--color-canvas)] focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
                 >
                   Voir sur la carte
                 </button>

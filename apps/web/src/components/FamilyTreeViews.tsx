@@ -12,8 +12,8 @@ type FamilyTreeView = "tree" | "list" | "fan";
 const STORAGE_KEY = "family-tree-view";
 const LEGACY_STORAGE_KEY = "family-tree-mobile-view";
 
-export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
-  const [view, setView] = useState<FamilyTreeView>("tree");
+export function FamilyTreeViews({ tree, initialView = "tree", fanPersonRoute }: { tree: FamilyTree; initialView?: FamilyTreeView; fanPersonRoute?: string }) {
+  const [view, setView] = useState<FamilyTreeView>(initialView);
   const [generationDepth, setGenerationDepth] = useState<number | null>(3);
   const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
 
@@ -82,7 +82,7 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
               : <FamilyTreeMobileList tree={tree} />}
           </div>
         </>
-      ) : view === "list" ? <FamilyTreeMobileList tree={tree} /> : <FamilyTreeFanChart tree={tree} />}
+      ) : view === "list" ? <FamilyTreeMobileList tree={tree} /> : <FamilyTreeFanChart tree={tree} personRoute={fanPersonRoute} />}
     </>
   );
 }
