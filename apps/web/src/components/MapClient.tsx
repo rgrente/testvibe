@@ -268,8 +268,9 @@ export default function MapClient({
                 <span className="ml-1 text-sm text-slate-500">
                   ({formatFamilyDate(loc.eventDate)})
                 </span>
-                <span className="ml-1 text-sm text-slate-500">
-                  — {loc.place}
+                <span className="ml-1 text-sm text-slate-500">— </span>
+                <span data-testid="map-location-place" style={{ color: "#15181c", font: "400 11.5px 'Instrument Sans', sans-serif" }}>
+                  {loc.place}
                 </span>
                 <button
                   type="button"

@@ -1,5 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Locator, type Page } from "@playwright/test";
+// Playwright's own PNG comparator is internal but is the authoritative implementation behind toHaveScreenshot.
+// @ts-expect-error Playwright does not publish declarations for this internal comparator.
+import * as comparators from "../../../../node_modules/.pnpm/playwright-core@1.51.1/node_modules/playwright-core/lib/server/utils/comparators.js";
+
+const { getComparator } = comparators as unknown as {
+  getComparator: (mimeType: string) => (actual: Buffer, expected: Buffer, options: { threshold: number; maxDiffPixelRatio: number }) => { errorMessage: string } | null;
+};
 
 const views = ["fan", "statistics", "map", "gedcom", "on-this-day"] as const;
 
@@ -82,37 +89,61 @@ async function expectAccessibleControl(control: Locator) {
   expect(contract.contrast).toBeGreaterThanOrEqual(4.5);
 }
 
-async function expectReferenceBorder(page: Page, view: typeof views[number], surface: Locator) {
+type ReferenceRegion = {
+  view: typeof views[number];
+  referenceRect: { x: number; y: number; width: number; height: number };
+  expectedPadding: number;
+  actualHeight?: number;
+  capturePadding?: { x: number; y: number };
+  surface: (page: Page) => Locator;
+};
+
+async function expectReferenceRegion(page: Page, region: ReferenceRegion) {
+  const { view, referenceRect, surface: locateSurface, expectedPadding, actualHeight, capturePadding } = region;
+  const surface = locateSurface(page);
   const reference = await readFile(`${process.cwd()}/tests/visual/reference-1e/${view}.png`);
-  const actual = await surface.screenshot({ animations: "disabled", caret: "initial" });
-  const ratio = await page.evaluate(async ({ referenceUrl, actualUrl }) => {
+  await surface.scrollIntoViewIfNeeded();
+  const box = await surface.boundingBox();
+  if (!box) throw new Error(`${view}: zone produit introuvable`);
+  const paddingX = capturePadding?.x ?? 0;
+  const paddingY = capturePadding?.y ?? 0;
+  const actual = actualHeight || capturePadding
+    ? await page.screenshot({
+      animations: "disabled",
+      caret: "initial",
+      clip: {
+        x: Math.max(0, box.x - paddingX),
+        y: Math.max(0, box.y - paddingY),
+        width: actualHeight ? Math.min(box.width, referenceRect.width) : Math.min(page.viewportSize()!.width, box.width + (2 * paddingX)),
+        height: actualHeight ?? box.height + (2 * paddingY),
+      },
+    })
+    : await surface.screenshot({ animations: "disabled", caret: "initial" });
+  const expectedBase64 = await page.evaluate(async ({ referenceUrl, actualUrl, referenceRect: crop, nativeSize }) => {
     const decode = async (url: string) => createImageBitmap(await (await fetch(url)).blob());
     const [expected, received] = await Promise.all([decode(referenceUrl), decode(actualUrl)]);
-    const sample = (image: ImageBitmap) => {
+    const sample = (image: ImageBitmap, source: { x: number; y: number; width: number; height: number }) => {
       const canvas = document.createElement("canvas");
-      canvas.width = 4;
-      canvas.height = 24;
+      canvas.width = received.width;
+      canvas.height = received.height;
       const context = canvas.getContext("2d", { willReadFrequently: true })!;
-      context.drawImage(image, image.width - 4, Math.floor((image.height - 24) / 2), 4, 24, 0, 0, 4, 24);
-      return context.getImageData(0, 0, 4, 24).data;
+      context.drawImage(image, source.x, source.y, source.width, source.height, 0, 0, received.width, received.height);
+      return canvas;
     };
-    const expectedPixels = sample(expected);
-    const receivedPixels = sample(received);
-    let different = 0;
-    for (let index = 0; index < expectedPixels.length; index += 4) {
-      const delta = Math.max(
-        Math.abs(expectedPixels[index] - receivedPixels[index]),
-        Math.abs(expectedPixels[index + 1] - receivedPixels[index + 1]),
-        Math.abs(expectedPixels[index + 2] - receivedPixels[index + 2]),
-      );
-      if (delta > 51) different += 1;
-    }
-    return different / (expectedPixels.length / 4);
+    const expectedCanvas = nativeSize
+      ? sample(expected, { ...crop, width: received.width, height: received.height })
+      : sample(expected, crop);
+    return expectedCanvas.toDataURL("image/png").split(",")[1];
   }, {
     referenceUrl: `data:image/png;base64,${reference.toString("base64")}`,
     actualUrl: `data:image/png;base64,${actual.toString("base64")}`,
+    referenceRect,
+    nativeSize: Boolean(actualHeight),
   });
-  expect(ratio, `${view}: diff pixel non masqué de la bande surface/bordure 1e`).toBeLessThanOrEqual(0.05);
+  const comparison = getComparator("image/png")(actual, Buffer.from(expectedBase64, "base64"), { threshold: 0.2, maxDiffPixelRatio: 0.05 });
+  const padding = await surface.evaluate((element) => Number.parseFloat(getComputedStyle(element).paddingTop));
+  expect(Math.abs(padding - expectedPadding), `${view}: géométrie structurante (padding) ±8 px`).toBeLessThanOrEqual(8);
+  expect(comparison?.errorMessage, `${view}: diff pixel Playwright non masqué de la zone ${referenceRect.width}×${referenceRect.height} intégrale`).toBeUndefined();
 }
 
 for (const view of views) {
@@ -186,17 +217,19 @@ test("vraies surfaces — interactions, états et accessibilité", async ({ page
   await expect(page.getByText("Aucun anniversaire familial à cette date.")).toBeVisible();
 });
 
-for (const { view, surface } of [
-  { view: "fan", surface: (page: Page) => page.getByTestId("family-tree-fan-chart") },
-  { view: "statistics", surface: (page: Page) => page.getByTestId("statistics-summary").locator("div").first() },
-  { view: "map", surface: (page: Page) => page.getByRole("region", { name: "Filtres de la carte" }) },
-  { view: "gedcom", surface: (page: Page) => page.getByRole("region", { name: "Importer un fichier GEDCOM" }) },
-  { view: "on-this-day", surface: (page: Page) => page.getByRole("list").first() },
-] as const) {
+const referenceRegions: ReferenceRegion[] = [
+  { view: "fan", referenceRect: { x: 0, y: 0, width: 394, height: 39 }, expectedPadding: 20, actualHeight: 39, surface: (page) => page.getByTestId("family-tree-fan-chart") },
+  { view: "statistics", referenceRect: { x: 20, y: 70, width: 145, height: 65 }, expectedPadding: 12, surface: (page) => page.getByTestId("statistics-summary").locator(":scope > div").first() },
+  { view: "map", referenceRect: { x: 3, y: 248, width: 103, height: 94 }, expectedPadding: 0, capturePadding: { x: 20, y: 40 }, surface: (page) => page.getByTestId("map-location-place").first() },
+  { view: "gedcom", referenceRect: { x: 0, y: 0, width: 394, height: 39 }, expectedPadding: 20, actualHeight: 39, surface: (page) => page.getByRole("region", { name: "Importer un fichier GEDCOM" }) },
+  { view: "on-this-day", referenceRect: { x: 0, y: 46, width: 392, height: 102 }, expectedPadding: 8, capturePadding: { x: 20, y: 20 }, surface: (page) => page.getByRole("list").first().locator(":scope > li").first() },
+];
+
+for (const region of referenceRegions) {
   for (const viewport of [{ width: 1264, height: 730 }, { width: 390, height: 844 }]) {
-    test(`pixel-diff 1e traçable — ${view} — ${viewport.width}×${viewport.height}`, async ({ page }) => {
-      await openFixture(page, view, viewport.width, viewport.height);
-      await expectReferenceBorder(page, view, surface(page));
+    test(`pixel-diff 1e traçable — ${region.view} — ${viewport.width}×${viewport.height}`, async ({ page }) => {
+      await openFixture(page, region.view, viewport.width, viewport.height);
+      await expectReferenceRegion(page, region);
     });
   }
 }

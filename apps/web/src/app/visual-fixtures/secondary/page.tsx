@@ -20,8 +20,8 @@ const pascal = person(2, "Pascal", "Grente", "M");
 const laurence = person(3, "Laurence", "Durand-Moreau", "F");
 
 const anniversaries: FamilyAnniversary[] = [
-  { key: "birth-1", eventId: 1, event: { type: "naissance", label: null, eventDate: "1958-08-27", description: null }, person: martine, yearsElapsed: 68 },
   { key: "union-2", eventId: 2, event: { type: "mariage", label: "Union", eventDate: "1988-08-27", description: null }, person: pascal, yearsElapsed: 38 },
+  { key: "birth-1", eventId: 1, event: { type: "naissance", label: null, eventDate: "1958-08-27", description: null }, person: martine, yearsElapsed: 68 },
 ];
 
 const upcoming: UpcomingFamilyAnniversary[] = [

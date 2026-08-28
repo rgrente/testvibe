@@ -74,8 +74,8 @@ export default async function GedcomPage({
       )}
 
       {/* Import */}
-      <section aria-labelledby="gedcom-import-heading" className="mb-5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-subtle)] sm:p-6">
-        <h2 id="gedcom-import-heading" className="mb-4 text-lg font-semibold text-slate-800">Importer un fichier GEDCOM</h2>
+      <section aria-label="Importer un fichier GEDCOM" className="mb-5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-subtle)]">
+        <h2 id="gedcom-import-heading" className="mb-4 w-fit text-[var(--color-ink)]" style={{ fontSize: "14px", fontWeight: 700, lineHeight: "normal" }}>Import GEDCOM</h2>
         <p className="mb-4 text-sm text-slate-600">
           Sélectionnez un fichier <code className="rounded-sm bg-slate-100 px-1 py-0.5 text-xs">.ged</code>{" "}
           au format GEDCOM 5.5.1. L&apos;import est atomique : en cas d&apos;erreur, aucune donnée

@@ -17,12 +17,12 @@ export function FamilyAnniversaries({ anniversaries, compact = false }: { annive
   }
   const visible = compact ? anniversaries.slice(0, 4) : anniversaries;
   return (
-    <ul className="divide-y divide-[var(--color-border)] overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white">
+    <ul className="space-y-[9px]">
       {visible.map((item) => {
         const eventName = item.event.label?.trim() || typeLabels[item.event.type];
         const eventHref = item.eventId == null ? `/persons/${item.person.id}` : `/persons/${item.person.id}#event-${item.eventId}`;
         return (
-          <li key={item.key} className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <li key={item.key} className="flex flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white px-3 py-2 first:bg-[var(--color-canvas)] sm:flex-row sm:items-center sm:justify-between">
             <div>
               <Link href={eventHref} className="inline-flex min-h-11 items-center font-medium text-amber-950 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]">{eventName}</Link>
               <span className="text-slate-600"> — </span>

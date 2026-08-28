@@ -15,8 +15,8 @@ export function FamilyTreeFanChart({ tree, personRoute = "/" }: { tree: FamilyTr
   const missingPeople = Math.max(0, possiblePeople - layout.nodes.length);
 
   return (
-    <section className="w-full min-w-0 max-w-full overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-subtle)] sm:p-5" data-testid="family-tree-fan-chart" aria-labelledby="fan-heading">
-      <h2 id="fan-heading" className="text-sm font-bold text-[var(--color-ink)]">Éventail d’ascendance</h2>
+    <section className="w-full min-w-0 max-w-full overflow-hidden rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-subtle)]" data-testid="family-tree-fan-chart" aria-labelledby="fan-heading">
+      <h2 id="fan-heading" aria-label="Éventail d’ascendance" className="w-fit text-[var(--color-ink)]" style={{ fontSize: "14px", fontWeight: 700, lineHeight: "normal" }}>Éventail d&apos;ascendance</h2>
       <p className="family-tree-mono mt-1 text-[10.5px] text-[var(--color-muted)]">
         {root?.label ?? "Personne racine"} · {generations} générations · {layout.nodes.length}/{possiblePeople} connus
       </p>
