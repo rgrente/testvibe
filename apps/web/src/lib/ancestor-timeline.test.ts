@@ -28,6 +28,7 @@ describe("selectAncestorTimeline", () => {
     expect(selection.personIds).toEqual([4, 2, 3, 1]);
     expect(selection.connections).toContainEqual({ parentId: 2, childId: 1, age: 30 });
     expect(selection.branchByPersonId.get(4)).toBe(selection.branchByPersonId.get(2));
+    expect(selection.personIds.map((id) => selection.generationByPersonId.get(id))).toEqual([1, 2, 2, 3]);
     expect(selection.personIds).not.toContain(9);
   });
 

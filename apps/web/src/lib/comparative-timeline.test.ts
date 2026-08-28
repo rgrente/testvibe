@@ -46,6 +46,37 @@ describe("prepareComparativeTimeline", () => {
     });
   });
 
+  it("résume la fixture normative de 12 personnes et 27 faits canoniques", () => {
+    const rows: ComparativeTimelineRow[] = Array.from({ length: 12 }, (_, index) => ({
+      person: person({
+        id: index + 1,
+        firstName: `Personne ${index + 1}`,
+        lastName: "Fixture",
+        birthDate: index === 11 ? null : `${1960 + index * 5}${index % 2 === 0 ? "-06" : ""}`,
+        deathDate: index < 2 ? `${2017 + index}` : null,
+      }),
+      events: Array.from({ length: index < 3 ? 3 : index === 3 ? 1 : 2 }, (_, eventIndex) => {
+        const eventId = index * 3 + eventIndex + 1;
+        return {
+          id: eventId,
+          identity: `event:${eventId}` as `event:${number}`,
+          type: "libre" as const,
+          label: `Repère ${eventId}`,
+          eventDate: eventIndex === 1 && index === 10 ? null : `${1970 + index * 4 + eventIndex}`,
+        };
+      }),
+    }));
+    rows[0].events.push({ id: 100, identity: "union:7", type: "mariage", label: "Union", eventDate: "1990" });
+    rows[1].events.push({ id: 101, identity: "union:7", type: "mariage", label: "Union", eventDate: "1990" });
+
+    expect(summarizeComparativeTimeline(rows, 2026)).toEqual({
+      startYear: 1960,
+      endYear: 2030,
+      personCount: 12,
+      eventCount: 27,
+    });
+  });
+
   it("peut préserver l'ordre fourni pour une vue d'ascendance", () => {
     const recent = person({ id: 50, firstName: "Recent", lastName: "First", birthDate: "2000" });
     const old = person({ id: 51, firstName: "Old", lastName: "Second", birthDate: "1900" });
