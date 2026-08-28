@@ -7,7 +7,9 @@ import type { TimelineLayers } from "../lib/comparative-timeline";
 export function TimelineControls({ persons, selectedId, generations, layers }: { persons: Person[]; selectedId: number; generations: number; layers: TimelineLayers }) {
   const router = useRouter();
   const navigate = (personId: number, generationCount: number) =>
-    router.push(`/timeline?personId=${personId}&generations=${generationCount}`);
+    router.push(
+      `/timeline?personId=${personId}&generations=${generationCount}&persons=${layers.persons ? 1 : 0}&events=${layers.events ? 1 : 0}&generationLayer=${layers.generations ? 1 : 0}`,
+    );
   const navigateLayers = (nextLayers: TimelineLayers) => router.push(
     `/timeline?personId=${selectedId}&generations=${generations}&persons=${nextLayers.persons ? 1 : 0}&events=${nextLayers.events ? 1 : 0}&generationLayer=${nextLayers.generations ? 1 : 0}`,
   );
