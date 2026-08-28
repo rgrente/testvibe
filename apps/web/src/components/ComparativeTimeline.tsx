@@ -12,14 +12,14 @@ const EVENT_TYPE_LABELS: Record<FamilyFactCategory, string> = {
   libre: "Événement",
 };
 
-function personColor(id: number): string {
+export function personColor(id: number): string {
   const hue = (id * 137.5) % 360;
-  return `hsl(${hue}, 65%, 55%)`;
+  return `hsl(${hue}, 65%, 35%)`;
 }
 
 function personColorDark(id: number): string {
   const hue = (id * 137.5) % 360;
-  return `hsl(${hue}, 65%, 35%)`;
+  return `hsl(${hue}, 65%, 25%)`;
 }
 
 function year(value: string | null): number | null {

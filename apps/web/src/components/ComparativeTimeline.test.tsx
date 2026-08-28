@@ -2,7 +2,29 @@ import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
 import { describe, expect, it } from "vitest";
-import { ComparativeTimeline } from "./ComparativeTimeline";
+import { ComparativeTimeline, personColor } from "./ComparativeTimeline";
+
+function hslToRgb(color: string): [number, number, number] {
+  const match = color.match(/^hsl\(([\d.]+), ([\d.]+)%, ([\d.]+)%\)$/);
+  if (!match) throw new Error(`Couleur HSL invalide : ${color}`);
+  const hue = Number(match[1]) / 360;
+  const saturation = Number(match[2]) / 100;
+  const lightness = Number(match[3]) / 100;
+  const channel = (offset: number) => {
+    const position = (offset + hue) % 1;
+    const factor = saturation * Math.min(lightness, 1 - lightness);
+    return lightness - factor * Math.max(-1, Math.min(position * 12 - 3, 9 - position * 12, 1));
+  };
+  return [channel(0), channel(2 / 3), channel(1 / 3)];
+}
+
+function contrastAgainstWhite(color: string): number {
+  const [red, green, blue] = hslToRgb(color).map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 1.05 / (luminance + 0.05);
+}
 
 function person(overrides: Partial<Person> & Pick<Person, "id" | "firstName" | "lastName">): Person {
   return {
@@ -28,6 +50,12 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
 }
 
 describe("ComparativeTimeline", () => {
+  it("garantit un contraste graphique de 3:1 pour toute la palette de la fixture", () => {
+    for (let personId = 1; personId <= 12; personId += 1) {
+      expect(contrastAgainstWhite(personColor(personId + 1)), `personne ${personId}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("affiche une ligne de vie et les événements identifiables sur l'échelle commune", () => {
     const ada = person({
       id: 1,
@@ -127,7 +155,7 @@ describe("ComparativeTimeline", () => {
     expect(screen.getByTestId("timeline-connection-child-arm-20-10")).toHaveStyle({ gridRow: "1" });
     expect(within(connector).getByText("30 ans")).toBeInTheDocument();
     const parentLife = screen.getByLabelText(/Vie de Parent Test/);
-    expect(parentLife).toHaveStyle({ backgroundColor: "hsl(52.5, 65%, 55%)" });
+    expect(parentLife).toHaveStyle({ backgroundColor: "hsl(52.5, 65%, 35%)" });
   });
 
   it("route les liens de branches non adjacentes dans le couloir dédié", () => {
