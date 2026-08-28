@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.9.0](https://github.com/rgrente/testvibe/compare/v1.8.0...v1.9.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align tree views with desktop and mobile mockups ([#87](https://github.com/rgrente/testvibe/issues/87)) ([315b534](https://github.com/rgrente/testvibe/commit/315b534ac3f6323af5209b26758a3a29cb7395bd)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
 # [1.8.0](https://github.com/rgrente/testvibe/compare/v1.7.1...v1.8.0) (2026-08-27)
 
 
