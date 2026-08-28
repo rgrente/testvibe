@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { formatFamilyDate, type MapLocation } from "@testvibe/core";
+import type { MapLocation } from "@testvibe/core";
+import { formatFamilyDate } from "../lib/family-date";
 
 interface MapClientProps {
   locations: MapLocation[];

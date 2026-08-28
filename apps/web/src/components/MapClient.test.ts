@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MapLocation } from "@testvibe/core";
 import { filterMapLocations, getEventDateRange, getMapLocationTypeLabel } from "./MapClient";
+import { formatFamilyDate } from "../lib/family-date";
 
 function location(
   eventId: number,
@@ -31,6 +32,15 @@ describe("getEventDateRange", () => {
       start: Date.UTC(1900, 1, 1),
       end: Date.UTC(1900, 2, 1) - 1,
     });
+  });
+});
+
+describe("formatFamilyDate côté navigateur", () => {
+  it("préserve les précisions année, mois et jour du contrat domaine", () => {
+    expect(formatFamilyDate("1900")).toBe("1900");
+    expect(formatFamilyDate("1900-02")).toBe("février 1900");
+    expect(formatFamilyDate("1900-02-03")).toBe("3 février 1900");
+    expect(formatFamilyDate("1900-02-30")).toBe("Date inconnue");
   });
 });
 
