@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.13.0](https://github.com/rgrente/testvibe/compare/v1.12.1...v1.13.0) (2026-08-28)
+
+
+### Features
+
+* **web:** harmonise public layout and tree toolbar ([#93](https://github.com/rgrente/testvibe/issues/93)) ([a76fda2](https://github.com/rgrente/testvibe/commit/a76fda24cf79f8646567047ee1355d08c010ba35)), closes [#92](https://github.com/rgrente/testvibe/issues/92)
+
 ## [1.12.1](https://github.com/rgrente/testvibe/compare/v1.12.0...v1.12.1) (2026-08-28)
 
 
