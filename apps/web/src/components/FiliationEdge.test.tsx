@@ -47,6 +47,7 @@ describe("FiliationEdge", () => {
     const trigger = screen.getByRole("button", { name: "Filiation vers la personne 7" });
     expect(trigger).toHaveTextContent("");
     expect(trigger).toHaveClass("bg-transparent");
+    expect(trigger).toHaveClass("h-11", "w-11", "focus:ring-2");
   });
 
   it("affiche les rôles uniques dans l'ordre contractuel au survol puis les masque à la sortie", () => {

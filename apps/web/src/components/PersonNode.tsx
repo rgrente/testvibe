@@ -32,7 +32,7 @@ function PersonNodeComponent({ data }: NodeProps<PersonFlowNode>) {
   return (
     <div
       data-testid={`person-node-${data.personId}`}
-      className={`family-tree-sans h-[72px] cursor-pointer overflow-hidden rounded-[10px] border font-sans shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "w-[180px] px-3 py-2.5"} ${
+      className={`family-tree-sans h-[72px] cursor-pointer overflow-hidden rounded-[10px] border font-sans shadow-xs ${data.layoutProfile === "mobile" ? "w-[150px] px-2.5 py-2" : "w-[184px] px-3 py-2.5"} ${
         data.isRoot
           ? "border-blue-600 bg-blue-50 font-semibold text-blue-900"
           : "border-slate-300 bg-white text-slate-800"

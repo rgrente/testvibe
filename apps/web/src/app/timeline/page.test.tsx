@@ -33,7 +33,7 @@ describe("TimelinePage", () => {
     const { container } = render(await TimelinePage());
 
     expect(getComparativeTimelineForWeb).toHaveBeenCalledOnce();
-    expect(screen.getByRole("heading", { level: 1, name: "Timeline comparative" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Chronologie familiale" })).toBeInTheDocument();
     expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
     expect(container.querySelector("main")).toHaveClass("page-container-wide", "page-container-timeline");
   });
@@ -54,6 +54,7 @@ describe("TimelinePage", () => {
     expect(screen.getByRole("group", { name: "Timeline de Parent Three" })).toBeInTheDocument();
     expect(screen.getByRole("group", { name: "Timeline de Root Two" })).toBeInTheDocument();
     expect(screen.queryByRole("group", { name: "Timeline de Root One" })).not.toBeInTheDocument();
+    expect(screen.getByText("1940 → 2030 · 2 personnes · 0 événements")).toBeInTheDocument();
   });
 
   it.each([
