@@ -45,7 +45,7 @@ export default async function SecondaryVisualFixturePage({ searchParams }: { sea
   const empty = params.state === "empty";
   const view: View = requested === "statistics" || requested === "map" || requested === "gedcom" || requested === "on-this-day" ? requested : "fan";
 
-  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><FamilyTreeViews tree={grenteRenaultTree} initialView="fan" fanPersonRoute="/visual-fixtures/secondary" /></main>;
+  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><h1 className="sr-only">Arbre en éventail</h1><FamilyTreeViews tree={grenteRenaultTree} initialView="fan" fanPersonRoute="/visual-fixtures/secondary" /></main>;
   if (view === "statistics") return <div data-testid="secondary-statistics"><StatisticsView statistics={empty ? { ...statistics, totals: { persons: 0, unions: 0, events: 0, generations: 0 } } : statistics} /></div>;
   if (view === "map") return <main data-testid="secondary-map" className="mx-auto max-w-5xl px-4 py-6 sm:px-6"><h1 className="mb-5 text-xl font-bold sm:text-2xl">Carte familiale</h1><SecondaryMapFixture empty={empty} /></main>;
   if (view === "gedcom") return <div data-testid="secondary-gedcom">{await GedcomPage({ searchParams: Promise.resolve(params.state === "error" ? { error: "import_echoue", detail: "Ligne invalide" } : {}) })}</div>;

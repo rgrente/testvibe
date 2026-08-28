@@ -67,7 +67,7 @@ export function FamilyTreeMobileList({ tree }: FamilyTreeMobileListProps) {
         return (
         <section key={generation} data-testid={`mobile-generation-${generation}`} aria-labelledby={`generation-${generation}`}>
           <h2 id={`generation-${generation}`} className="family-tree-mono mb-2 flex items-baseline gap-2 border-b border-slate-200 pb-1 font-mono text-[9.5px] font-medium tracking-[0.1em] text-slate-500">
-            <span>G{generationDisplayNumber(generation)} · {generationSemanticLabel(generation)}</span><span className="ml-auto tracking-normal text-slate-400">{generationRows.length}</span>
+            <span>G{generationDisplayNumber(generation)} · {generationSemanticLabel(generation)}</span><span className="ml-auto tracking-normal text-slate-600">{generationRows.length}</span>
           </h2>
           {root ? (
             <div className="space-y-2">

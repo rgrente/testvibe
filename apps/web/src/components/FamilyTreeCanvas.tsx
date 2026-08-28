@@ -22,7 +22,7 @@ export interface FamilyTreeCanvasProps {
 function GenerationBands({ generations }: { generations: number[] }) {
   const viewport = useViewport();
   return (
-    <ol aria-label="Bandes de génération" className="family-tree-mono pointer-events-none absolute inset-0 z-10 font-mono text-[9.5px] tracking-[0.1em] text-slate-400">
+    <ol aria-label="Bandes de génération" className="family-tree-mono pointer-events-none absolute inset-0 z-10 font-mono text-[9.5px] tracking-[0.1em] text-slate-600">
       {generations.map((generation) => (
         <li
           key={generation}
@@ -89,6 +89,7 @@ export function FamilyTreeCanvas({ tree, profile = "desktop", className = "" }: 
       <ReactFlow
         nodes={graph.nodes}
         edges={graph.edges}
+        edgesFocusable={false}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         onInit={(instance) => {
