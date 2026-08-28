@@ -1,5 +1,26 @@
 # Changelog
 
+# [1.9.0](https://github.com/rgrente/testvibe/compare/v1.8.0...v1.9.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align tree views with desktop and mobile mockups ([#87](https://github.com/rgrente/testvibe/issues/87)) ([315b534](https://github.com/rgrente/testvibe/commit/315b534ac3f6323af5209b26758a3a29cb7395bd)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+# [1.8.0](https://github.com/rgrente/testvibe/compare/v1.7.1...v1.8.0) (2026-08-27)
+
+
+### Features
+
+* **web:** add responsive application shell ([#86](https://github.com/rgrente/testvibe/issues/86)) ([6f4deb5](https://github.com/rgrente/testvibe/commit/6f4deb51a41721f27c12496419cd9e0837d7bf64)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+## [1.7.1](https://github.com/rgrente/testvibe/compare/v1.7.0...v1.7.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **web:** add safe filiation routing fallback ([#84](https://github.com/rgrente/testvibe/issues/84)) ([9dcbd42](https://github.com/rgrente/testvibe/commit/9dcbd426e9aee7c7ad4cc5e79b05c44858c39157)), closes [#83](https://github.com/rgrente/testvibe/issues/83)
+
 # [1.7.0](https://github.com/rgrente/testvibe/compare/v1.6.0...v1.7.0) (2026-08-27)
 
 
