@@ -40,12 +40,46 @@ async function expectKeyboardFocus(page: Page, name: string) {
 async function expectAccessibleControl(control: Locator) {
   await control.focus();
   await expect(control).toBeFocused();
-  const contract = await control.evaluate((element) => ({
-    outline: Number.parseFloat(getComputedStyle(element).outlineWidth),
-    height: element.getBoundingClientRect().height,
-  }));
+  const contract = await control.evaluate((element) => {
+    const colorChannels = (color: string) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d", { willReadFrequently: true })!;
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      return [...context.getImageData(0, 0, 1, 1).data];
+    };
+    const luminance = (rgb: number[]) => rgb.slice(0, 3).map((channel) => {
+      const value = channel / 255;
+      return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+    }).reduce((sum, value, index) => sum + value * [0.2126, 0.7152, 0.0722][index], 0);
+    const textElement = element.querySelector("text") ?? element;
+    const textStyle = getComputedStyle(textElement);
+    const foreground = colorChannels(textElement instanceof SVGElement ? textStyle.fill : textStyle.color);
+    let backgroundElement: Element | null = element;
+    let background = [255, 255, 255, 255];
+    while (backgroundElement) {
+      const candidate = colorChannels(getComputedStyle(backgroundElement).backgroundColor);
+      if (candidate[3] > 0) {
+        background = candidate;
+        break;
+      }
+      backgroundElement = backgroundElement.parentElement;
+    }
+    const foregroundLuminance = luminance(foreground);
+    const backgroundLuminance = luminance(background);
+    return {
+      outline: Number.parseFloat(getComputedStyle(element).outlineWidth),
+      height: element.getBoundingClientRect().height,
+      contrast: (Math.max(foregroundLuminance, backgroundLuminance) + 0.05)
+        / (Math.min(foregroundLuminance, backgroundLuminance) + 0.05),
+    };
+  });
   expect(contract.outline).toBeGreaterThanOrEqual(2);
   expect(contract.height).toBeGreaterThanOrEqual(44);
+  expect(contract.contrast).toBeGreaterThanOrEqual(4.5);
 }
 
 async function expectReferenceBorder(page: Page, view: typeof views[number], surface: Locator) {
