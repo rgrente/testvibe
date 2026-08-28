@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 
 vi.mock("./FamilyTreeCanvas", () => ({
-  FamilyTreeCanvas: ({ profile }: { profile: string }) => <div data-testid={`canvas-${profile}`} />,
+  FamilyTreeCanvas: ({ profile, tree }: { profile: string; tree: { nodes: unknown[] } }) => <div data-testid={`canvas-${profile}`}>{tree.nodes.length}</div>,
 }));
 vi.mock("./FamilyTreeMobileList", () => ({
   FamilyTreeMobileList: () => <div data-testid="mobile-list" />,
@@ -19,11 +19,24 @@ const tree = { rootId: 1, nodes: [], edges: [] } as never;
 describe("FamilyTreeViews", () => {
   beforeEach(() => window.localStorage.clear());
 
-  it("affiche l’arbre visuel mobile par défaut", () => {
+  it("affiche la composition mobile 1b dans le mode Arbre par défaut", () => {
     render(<FamilyTreeViews tree={tree} />);
+    expect(screen.getByTestId("mobile-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-mobile")).not.toBeInTheDocument();
+    expect(screen.getByTestId("canvas-desktop")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Arbre" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("permet d’ouvrir puis de refermer le canevas mobile interactif depuis la composition 1b", () => {
+    render(<FamilyTreeViews tree={tree} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Ouvrir le canevas interactif" }));
     expect(screen.getByTestId("canvas-mobile")).toBeInTheDocument();
     expect(screen.queryByTestId("mobile-list")).not.toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Arbre" })).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: "Revenir à la vue mobile" }));
+    expect(screen.getByTestId("mobile-list")).toBeInTheDocument();
+    expect(screen.queryByTestId("canvas-mobile")).not.toBeInTheDocument();
   });
 
   it("bascule vers la liste et mémorise le choix localement", () => {
@@ -52,5 +65,20 @@ describe("FamilyTreeViews", () => {
     expect(screen.getByTestId("fan-chart")).toBeInTheDocument();
     expect(window.localStorage.getItem("family-tree-view")).toBe("fan");
     expect(window.localStorage.getItem("family-tree-mobile-view")).toBeNull();
+  });
+
+  it("offre les profondeurs 2/3/4/Tout et l’ajout sans masquer les autres modes", () => {
+    const deepTree = {
+      rootId: 1,
+      nodes: [-2, -1, 0, 1, 2].map((generation, index) => ({ person: { id: index + 1 }, generation })),
+      edges: [],
+    } as never;
+    render(<FamilyTreeViews tree={deepTree} />);
+
+    expect(screen.getByRole("button", { name: "Afficher 3 générations" })).toHaveAttribute("aria-pressed", "true");
+    fireEvent.click(screen.getByRole("button", { name: "Afficher 2 générations" }));
+    expect(screen.getByTestId("canvas-desktop")).toHaveTextContent("2");
+    expect(screen.getByRole("button", { name: "Afficher tout l’arbre" })).toHaveAttribute("aria-pressed", "false");
+    expect(screen.getByRole("link", { name: "Ajouter une personne" })).toHaveAttribute("href", "/admin/persons");
   });
 });

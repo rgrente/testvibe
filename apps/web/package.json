@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:visual": "playwright test --config playwright.config.ts"
   },
   "dependencies": {
     "@testvibe/core": "workspace:*",
@@ -19,6 +20,7 @@
     "@xyflow/react": "^12.11.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.51.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.0.1",
