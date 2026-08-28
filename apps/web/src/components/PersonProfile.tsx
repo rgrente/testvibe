@@ -139,7 +139,7 @@ export function PersonProfile({ person, facts, medias, relations }: PersonProfil
             {documents.map((media) => (
               <li key={media.id} className="flex min-h-11 items-center justify-between gap-3 px-3 py-2 text-sm">
                 <span className="min-w-0 truncate">{media.originalName}</span>
-                <a href={`/api/media/${media.filename}`} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${media.originalName}`} className="shrink-0 rounded-lg border border-slate-300 px-3 py-2 font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">Ouvrir</a>
+                <a href={`/api/media/${media.filename}`} target="_blank" rel="noopener noreferrer" aria-label={`Ouvrir ${media.originalName}`} className="inline-flex min-h-11 shrink-0 items-center rounded-lg border border-slate-300 px-3 py-2 font-semibold hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-950">Ouvrir</a>
               </li>
             ))}
           </ul>
@@ -155,6 +155,7 @@ export function PersonProfile({ person, facts, medias, relations }: PersonProfil
             {facts.map((fact) => (
               <li key={fact.identity} id={`event-${fact.id}`} className="relative scroll-mt-4 pb-5 last:pb-0">
                 <span aria-hidden="true" className="absolute -left-[25px] top-1 h-2 w-2 rounded-full border border-blue-700 bg-white" />
+                {fact.label && <p className="family-tree-mono text-[10px] font-medium uppercase tracking-[0.08em] text-slate-500">{EVENT_LABELS[fact.category] ?? fact.category}</p>}
                 <h3 className="text-sm font-semibold">{fact.label ?? EVENT_LABELS[fact.category] ?? fact.category}</h3>
                 <p className="mt-0.5 family-tree-mono text-[11px] text-slate-600">{dateAndPlace(fact.eventDate, fact.place)}</p>
                 {fact.description && <p className="mt-1 text-sm text-slate-700">{fact.description}</p>}

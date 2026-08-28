@@ -91,9 +91,16 @@ describe("PersonProfile", () => {
     expect(screen.getByRole("link", { name: "Retour à l’arbre" })).toHaveAttribute("href", "/");
 
     const events = screen.getByRole("region", { name: "Événements" });
-    expect(within(events).getByText("Arrivée dans la famille")).toBeInTheDocument();
+    const birthEvent = document.querySelector("#event-1");
+    const baptismEvent = document.querySelector("#event-2");
+    expect(birthEvent).not.toBeNull();
+    expect(baptismEvent).not.toBeNull();
+    expect(within(birthEvent as HTMLElement).getByText("Naissance")).toBeInTheDocument();
+    expect(within(birthEvent as HTMLElement).getByText("Arrivée dans la famille")).toBeInTheDocument();
+    expect(within(baptismEvent as HTMLElement).getByText("Événement")).toBeInTheDocument();
+    expect(within(baptismEvent as HTMLElement).getByText("Baptême civil")).toBeInTheDocument();
     expect(within(events).getByText("Un événement décrit sans perte.")).toBeInTheDocument();
-    expect(document.querySelector("#event-2")).toBeInTheDocument();
+    expect(baptismEvent).toBeInTheDocument();
   });
 
   it("affiche des replis utiles pour une personne minimale et des sections vides", () => {
