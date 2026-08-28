@@ -43,7 +43,7 @@ describe("ComparativeTimeline", () => {
       },
     ];
 
-    render(<ComparativeTimeline rows={rows} />);
+    render(<ComparativeTimeline rows={rows} generationByPersonId={new Map([[1, 1]])} nowYear={2026} />);
 
     expect(screen.getByText("1810")).toBeInTheDocument();
     expect(screen.getByText("1860")).toBeInTheDocument();
@@ -51,7 +51,9 @@ describe("ComparativeTimeline", () => {
     expect(within(row).getByRole("link", { name: "Ada Lovelace" })).toHaveAttribute("href", "/persons/1");
     expect(within(row).getByLabelText("Vie de Ada Lovelace : 1815-12-10 – 1852-11-27")).toBeInTheDocument();
     expect(within(row).getByLabelText("Événement, Publication, 1843")).toBeInTheDocument();
-    expect(within(row).getByText("Publication · Événement · 1843")).toBeInTheDocument();
+    expect(within(row).getByText("G1 · 36 ans")).toBeInTheDocument();
+    expect(within(row).getByTestId("timeline-person-1")).toHaveStyle({ height: "36px" });
+    expect(screen.getByTestId("timeline-person-column")).toHaveStyle({ width: "158px" });
   });
 
   it("explique les dates manquantes et garde les événements non positionnables", () => {
@@ -76,7 +78,7 @@ describe("ComparativeTimeline", () => {
       { person: person({ id: 6, firstName: "Récente", lastName: "Histoire", birthDate: "2020" }), events: [] },
     ];
 
-    render(<ComparativeTimeline rows={rows} />);
+    render(<ComparativeTimeline rows={rows} nowYear={2020} />);
 
     expect(screen.getByTestId("timeline-scroll")).toHaveClass("overflow-x-auto");
     expect(screen.getByTestId("timeline-canvas")).toHaveStyle({ minWidth: "2160px" });
@@ -86,6 +88,20 @@ describe("ComparativeTimeline", () => {
     render(<ComparativeTimeline rows={[]} />);
 
     expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Retour à l’arbre" })).toHaveAttribute("href", "/");
+  });
+
+  it("rend les couches sans dépendre uniquement de la couleur et rend la barre navigable", () => {
+    const rows: ComparativeTimelineRow[] = [{
+      person: person({ id: 8, firstName: "Vie", lastName: "Test", birthDate: "2000" }),
+      events: [event({ id: 9, personId: 8, type: "libre", label: "Repère", eventDate: "2020" })],
+    }];
+    render(<ComparativeTimeline rows={rows} layers={{ persons: true, events: true, generations: false }} nowYear={2026} />);
+
+    expect(screen.getByRole("link", { name: /Vie de Vie Test/ })).toHaveAttribute("href", "/persons/8");
+    expect(screen.getByLabelText("Naissance de Vie Test")).toBeInTheDocument();
+    expect(screen.getByLabelText("Événement, Repère, 2020")).toBeInTheDocument();
+    expect(screen.queryByText(/G\d/)).not.toBeInTheDocument();
   });
 
   it("préserve l'ordre d'ascendance, colore par branche et relie réellement les lignes", () => {

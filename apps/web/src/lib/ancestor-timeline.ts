@@ -5,6 +5,7 @@ export interface AncestorTimelineSelection {
   personIds: number[];
   connections: TimelineConnection[];
   branchByPersonId: Map<number, number>;
+  generationByPersonId: Map<number, number>;
 }
 
 function year(date: string | null): number | null {
@@ -57,5 +58,7 @@ export function selectAncestorTimeline(tree: FamilyTree, generations: number): A
     return branchDifference || a - b;
   });
   const included = new Set(personIds);
-  return { personIds, connections: connections.filter((edge) => included.has(edge.parentId)), branchByPersonId };
+  const maxDepth = Math.max(...depth.values());
+  const generationByPersonId = new Map([...depth].map(([personId, personDepth]) => [personId, maxDepth - personDepth + 1]));
+  return { personIds, connections: connections.filter((edge) => included.has(edge.parentId)), branchByPersonId, generationByPersonId };
 }

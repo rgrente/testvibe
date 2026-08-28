@@ -39,6 +39,19 @@ export interface PreparedComparativeTimeline {
   rows: PreparedTimelineRow[];
 }
 
+export interface TimelineLayers {
+  persons: boolean;
+  events: boolean;
+  generations: boolean;
+}
+
+export interface ComparativeTimelineSummary {
+  startYear: number | null;
+  endYear: number | null;
+  personCount: number;
+  eventCount: number;
+}
+
 function dateValue(value: string | null): number | null {
   const match = value?.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/);
   if (!match) {
@@ -116,11 +129,12 @@ export function assignConnectionLanes(ranges: ConnectionRowRange[]): number[] {
 
 export function prepareComparativeTimeline(
   rows: ComparativeTimelineRow[],
-  { preserveRowOrder = false }: { preserveRowOrder?: boolean } = {},
+  { preserveRowOrder = false, nowYear }: { preserveRowOrder?: boolean; nowYear?: number } = {},
 ): PreparedComparativeTimeline {
   const values = rows.flatMap(({ person, events }) => [
     dateValue(person.birthDate),
     dateValue(person.deathDate),
+    ...(nowYear !== undefined && person.birthDate !== null && person.deathDate === null ? [nowYear] : []),
     ...events.map((event) => dateValue(event.eventDate)),
   ]).filter((value): value is number => value !== null);
 
@@ -204,4 +218,15 @@ export function prepareComparativeTimeline(
   if (ticks.at(-1) !== endYear) ticks.push(endYear);
 
   return { startYear, endYear, ticks, rows: orderedRows };
+}
+
+export function summarizeComparativeTimeline(rows: ComparativeTimelineRow[], nowYear: number): ComparativeTimelineSummary {
+  const timeline = prepareComparativeTimeline(rows, { preserveRowOrder: true, nowYear });
+  const eventIdentities = new Set(rows.flatMap(({ events }) => events.map((event) => event.identity ?? `event:${event.id}`)));
+  return {
+    startYear: timeline.startYear,
+    endYear: timeline.endYear,
+    personCount: new Set(rows.map(({ person }) => person.id)).size,
+    eventCount: eventIdentities.size,
+  };
 }

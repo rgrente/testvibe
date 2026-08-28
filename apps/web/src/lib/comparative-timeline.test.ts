@@ -1,6 +1,6 @@
 import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
 import { describe, expect, it } from "vitest";
-import { prepareComparativeTimeline } from "./comparative-timeline";
+import { prepareComparativeTimeline, summarizeComparativeTimeline } from "./comparative-timeline";
 
 function person(overrides: Partial<Person> & Pick<Person, "id" | "firstName" | "lastName">): Person {
   return {
@@ -26,6 +26,26 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
 }
 
 describe("prepareComparativeTimeline", () => {
+  it("résume la fixture sans compter deux fois un fait d’union partagé", () => {
+    const rows: ComparativeTimelineRow[] = [
+      {
+        person: person({ id: 1, firstName: "A", lastName: "Test", birthDate: "1962" }),
+        events: [{ id: 10, identity: "union:7", type: "mariage", label: null, eventDate: "1990" }],
+      },
+      {
+        person: person({ id: 2, firstName: "B", lastName: "Test", birthDate: "1964" }),
+        events: [{ id: 11, identity: "union:7", type: "mariage", label: null, eventDate: "1990" }],
+      },
+    ];
+
+    expect(summarizeComparativeTimeline(rows, 2026)).toEqual({
+      startYear: 1960,
+      endYear: 2030,
+      personCount: 2,
+      eventCount: 1,
+    });
+  });
+
   it("peut préserver l'ordre fourni pour une vue d'ascendance", () => {
     const recent = person({ id: 50, firstName: "Recent", lastName: "First", birthDate: "2000" });
     const old = person({ id: 51, firstName: "Old", lastName: "Second", birthDate: "1900" });
