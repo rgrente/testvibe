@@ -1,15 +1,22 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@testvibe/core", () => ({
+const { adminImportGedcom, redirect } = vi.hoisted(() => ({
   adminImportGedcom: vi.fn(),
-  adminExportGedcom: vi.fn(),
+  redirect: vi.fn((destination: string) => {
+    throw new Error(`NEXT_REDIRECT:${destination}`);
+  }),
 }));
 
-import GedcomPage from "./page";
+vi.mock("@testvibe/core", () => ({ adminImportGedcom }));
+vi.mock("next/navigation", () => ({ redirect }));
+
+import GedcomPage, { importGedcomAction } from "./page";
 
 describe("GedcomPage", () => {
+  beforeEach(() => vi.clearAllMocks());
+
   it("préserve import/export 5.5.1 dans des panneaux accessibles", async () => {
     render(await GedcomPage({ searchParams: Promise.resolve({}) }));
 
@@ -27,5 +34,22 @@ describe("GedcomPage", () => {
 
     render(await GedcomPage({ searchParams: Promise.resolve({ success: "import" }) }));
     expect(screen.getByRole("status")).toHaveTextContent("Import GEDCOM réussi");
+  });
+
+  it("câble un import valide et permet de réessayer après une erreur sans mutation intermédiaire", async () => {
+    const formData = (text: string) => ({
+      get: () => ({ size: text.length, text: async () => text }),
+    }) as unknown as FormData;
+    adminImportGedcom.mockRejectedValueOnce(new Error("Ligne invalide")).mockResolvedValueOnce(undefined);
+
+    await expect(importGedcomAction(formData("0 HEAD"))).rejects.toThrow(
+      "NEXT_REDIRECT:/admin/gedcom?error=import_echoue&detail=Ligne%20invalide",
+    );
+    await expect(importGedcomAction(formData("0 HEAD\n0 TRLR"))).rejects.toThrow(
+      "NEXT_REDIRECT:/admin/gedcom?success=import",
+    );
+
+    expect(adminImportGedcom).toHaveBeenNthCalledWith(1, "0 HEAD");
+    expect(adminImportGedcom).toHaveBeenNthCalledWith(2, "0 HEAD\n0 TRLR");
   });
 });

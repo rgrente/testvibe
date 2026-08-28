@@ -1,4 +1,4 @@
-import { adminImportGedcom, adminExportGedcom } from "@testvibe/core";
+import { adminImportGedcom } from "@testvibe/core";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 // ─── Server Actions ──────────────────────────────────────────────────────────
 
-async function importGedcomAction(formData: FormData) {
+export async function importGedcomAction(formData: FormData) {
   "use server";
 
   const file = formData.get("gedcom") as File | null;
