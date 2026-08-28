@@ -4,7 +4,7 @@
   --color-ink: #15181c;
   --color-surface: #ffffff;
   --color-canvas: oklch(0.985 0.002 255);
-  --color-muted: rgb(21 24 28 / 58%);
+  --color-muted: rgb(21 24 28 / 62%);
   --color-border: rgb(17 20 24 / 10%);
   --color-border-strong: rgb(17 20 24 / 18%);
   --color-accent: oklch(0.52 0.14 255);
@@ -45,6 +45,11 @@
 }
 
 @layer base {
+  :where(a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
   body {
     font-family: var(--font-instrument-sans), ui-sans-serif, system-ui, sans-serif;
   }

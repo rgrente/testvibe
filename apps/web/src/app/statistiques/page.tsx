@@ -12,7 +12,7 @@ function Ranking({ title, items }: { title: string; items: RankedStatistic[] }) 
         <ol className="mt-4 space-y-3">
           {items.map((item, index) => (
             <li key={item.label} className="flex items-center justify-between gap-4">
-              <span className="font-medium text-slate-700"><span className="mr-2 text-slate-400">#{index + 1}</span>{item.label}</span>
+              <span className="font-medium text-slate-700"><span className="mr-2 text-slate-600">#{index + 1}</span>{item.label}</span>
               <span className="family-tree-mono rounded-[var(--radius-sm)] bg-[var(--color-canvas)] px-2 py-1 text-xs font-semibold text-[var(--color-ink)]">{item.count}</span>
             </li>
           ))}

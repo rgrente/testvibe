@@ -196,12 +196,12 @@ export default function MapClient({
         {MapComp ? (
           <MapComp locations={filtered} onMarkerClick={setSelectedMarker} />
         ) : (
-          <div className="flex h-full items-center justify-center text-sm text-slate-400">
+          <div className="flex h-full items-center justify-center text-sm text-slate-600">
             Chargement de la carte…
           </div>
         )}
       </section>
-      <p className="mb-4 text-xs text-slate-400">
+      <p className="mb-4 text-xs text-slate-600">
         Fond de carte ©{" "}
         <a
           href="https://www.openstreetmap.org/copyright"
