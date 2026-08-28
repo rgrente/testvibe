@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.11.0](https://github.com/rgrente/testvibe/compare/v1.10.0...v1.11.0) (2026-08-28)
+
+
+### Features
+
+* **web:** redesign responsive person profile ([#89](https://github.com/rgrente/testvibe/issues/89)) ([49619bd](https://github.com/rgrente/testvibe/commit/49619bd27bd8ce483d506d9e1700b3beb20ddfe3)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
 # [1.10.0](https://github.com/rgrente/testvibe/compare/v1.9.0...v1.10.0) (2026-08-28)
 
 
