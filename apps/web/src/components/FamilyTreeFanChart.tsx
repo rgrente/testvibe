@@ -11,7 +11,12 @@ export function FamilyTreeFanChart({ tree }: { tree: FamilyTree }) {
   const positions = new Map(layout.nodes.map((node) => [node.personId, node]));
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50" data-testid="family-tree-fan-chart">
+    <div
+      className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500"
+      data-testid="family-tree-fan-chart"
+      tabIndex={0}
+      aria-label="Éventail des ancêtres défilable horizontalement"
+    >
       <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="min-h-[440px] min-w-[720px] w-full" role="img" aria-labelledby="fan-chart-title fan-chart-description">
         <title id="fan-chart-title">Éventail des ancêtres</title>
         <desc id="fan-chart-description">La personne racine est au centre, ses ancêtres sont répartis par génération.</desc>
