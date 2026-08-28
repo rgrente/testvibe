@@ -20,7 +20,7 @@ function navigationLinkClass(active: boolean, mobile = false) {
   const common =
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]";
   if (mobile) {
-    return `${common} flex min-h-11 flex-1 items-center justify-center border-t-2 px-1 text-center text-[10.5px] ${
+    return `${common} flex min-h-11 flex-1 items-center justify-center border-t-2 px-1 text-center text-base ${
       active
         ? "border-[var(--color-ink)] font-semibold text-[var(--color-ink)]"
         : "border-transparent font-medium text-[var(--color-muted)]"

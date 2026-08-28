@@ -30,7 +30,7 @@ export function StatisticsView({ statistics }: { statistics: FamilyStatistics })
   const { totals } = statistics;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+    <main className="page-container py-6 sm:py-8">
       <h1 className="text-xl font-bold text-[var(--color-ink)] sm:text-2xl">Statistiques familiales</h1>
       <p className="family-tree-mono mt-1 text-[10.5px] text-[var(--color-muted)]">Vue d’ensemble de votre arbre familial.</p>
 

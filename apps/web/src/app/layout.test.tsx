@@ -30,6 +30,8 @@ describe("RootLayout", () => {
     expect(header?.classList.contains("border-b")).toBe(true);
     expect(header?.classList.contains("h-[52px]")).toBe(true);
     expect(header?.classList.contains("md:flex")).toBe(true);
+    expect(document.documentElement.classList.contains("overflow-x-clip")).toBe(true);
+    expect(document.body.classList.contains("min-w-0")).toBe(true);
   });
 
   it("propose la Timeline dans la navigation principale", () => {
@@ -121,6 +123,7 @@ describe("RootLayout", () => {
     expect(footer?.textContent).toContain("Fait avec ❤️");
     expect(footer?.classList.contains("text-xs")).toBe(true);
     expect(footer?.classList.contains("text-[var(--color-muted)]")).toBe(true);
+    expect(footer?.querySelector(":scope > .page-container")).not.toBeNull();
     expect(body?.classList.contains("min-h-screen")).toBe(true);
     expect(body?.classList.contains("grid-rows-[auto_1fr_auto]")).toBe(true);
   });

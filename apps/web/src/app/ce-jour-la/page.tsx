@@ -16,7 +16,7 @@ interface OnThisDayViewProps {
 
 export function OnThisDayView({ date, today, formattedDate, anniversaries, upcomingAnniversaries }: OnThisDayViewProps) {
   return (
-    <main data-testid="on-this-day-page" className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
+    <main data-testid="on-this-day-page" className="page-container py-6 sm:py-8">
       <h1 className="text-xl font-bold text-[var(--color-ink)] sm:text-2xl">Ce jour-là dans la famille</h1>
       <p className="family-tree-mono mb-6 mt-1 text-[10.5px] text-[var(--color-muted)]">Anniversaires du {formattedDate}.</p>
       <form method="GET" className="mb-6 flex flex-wrap items-end gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-4">

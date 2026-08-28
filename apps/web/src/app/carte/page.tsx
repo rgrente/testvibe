@@ -35,7 +35,7 @@ export default async function CartePage({ searchParams }: CartePageProps) {
   }
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-8">
+    <main className="page-container py-8">
       <h1 className="mb-6 text-2xl font-bold text-slate-900">
         Carte familiale
       </h1>

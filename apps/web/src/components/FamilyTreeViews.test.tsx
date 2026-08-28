@@ -73,6 +73,15 @@ describe("FamilyTreeViews", () => {
     expect(window.localStorage.getItem("family-tree-mobile-view")).toBeNull();
   });
 
+  it("réunit la personne racine et les modes dans une toolbar responsive", () => {
+    render(<FamilyTreeViews tree={tree} rootControl={<label>Personne racine<select /></label>} />);
+
+    const toolbar = screen.getByRole("group", { name: "Contrôles de l’arbre" });
+    expect(toolbar).toHaveClass("flex-wrap", "md:flex-nowrap");
+    expect(toolbar).toContainElement(screen.getByText("Personne racine"));
+    expect(screen.getByRole("button", { name: "Arbre" })).toHaveClass("min-h-11");
+  });
+
   it("offre les profondeurs 2/3/4/Tout et l’ajout sans masquer les autres modes", () => {
     const deepTree = {
       rootId: 1,

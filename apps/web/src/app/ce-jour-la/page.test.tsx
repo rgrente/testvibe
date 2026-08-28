@@ -34,7 +34,7 @@ describe("OnThisDayPage", () => {
     expect(getUpcomingFamilyAnniversariesForWeb).toHaveBeenCalledWith("2026-01-01", 30);
     expect(screen.getByLabelText("Parcourir une autre date")).toHaveValue("2026-01-01");
     expect(screen.getByLabelText("Parcourir une autre date")).toHaveClass("min-h-11");
-    expect(screen.getByTestId("on-this-day-page")).toHaveClass("max-w-5xl");
+    expect(screen.getByTestId("on-this-day-page")).toHaveClass("page-container");
     expect(screen.getByRole("heading", { name: "Prochains anniversaires" })).toBeInTheDocument();
   });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import type { FamilyTree } from "@testvibe/core";
 import { FamilyTreeCanvas } from "./FamilyTreeCanvas";
@@ -12,7 +12,7 @@ type FamilyTreeView = "tree" | "list" | "fan";
 const STORAGE_KEY = "family-tree-view";
 const LEGACY_STORAGE_KEY = "family-tree-mobile-view";
 
-export function FamilyTreeViews({ tree, initialView = "tree", fanPersonRoute }: { tree: FamilyTree; initialView?: FamilyTreeView; fanPersonRoute?: string }) {
+export function FamilyTreeViews({ tree, initialView = "tree", fanPersonRoute, rootControl }: { tree: FamilyTree; initialView?: FamilyTreeView; fanPersonRoute?: string; rootControl?: ReactNode }) {
   const [view, setView] = useState<FamilyTreeView>(initialView);
   const [generationDepth, setGenerationDepth] = useState<number | null>(3);
   const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
@@ -49,13 +49,16 @@ export function FamilyTreeViews({ tree, initialView = "tree", fanPersonRoute }: 
 
   return (
     <>
-      <SharedToolbar label="Mode d’affichage" className="mb-3 rounded-[var(--radius-md)]">
-        {(["tree", "list", "fan"] as const).map((option) => (
-          <button key={option} type="button" className={`rounded-md px-4 text-sm font-medium ${view === option ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-50"}`} aria-pressed={view === option} onClick={() => chooseView(option)}>
-            {option === "tree" ? "Arbre" : option === "list" ? "Liste" : "Éventail"}
-          </button>
-        ))}
-      </SharedToolbar>
+      <div className="mb-3 flex flex-wrap items-end gap-3 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-canvas)] p-3 md:flex-nowrap" role="group" aria-label="Contrôles de l’arbre">
+        {rootControl}
+        <SharedToolbar label="Mode d’affichage" className="min-w-0 flex-wrap rounded-[var(--radius-md)] sm:flex-nowrap">
+          {(["tree", "list", "fan"] as const).map((option) => (
+            <button key={option} type="button" className={`rounded-md px-4 text-sm font-medium ${view === option ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-50"}`} aria-pressed={view === option} onClick={() => chooseView(option)}>
+              {option === "tree" ? "Arbre" : option === "list" ? "Liste" : "Éventail"}
+            </button>
+          ))}
+        </SharedToolbar>
+      </div>
       {view === "tree" ? (
         <SharedToolbar label="Profondeur de l’arbre" className="mb-3 hidden md:flex">
           <span key="depth-label" className="family-tree-mono mr-1 font-mono text-[9.5px] tracking-[0.09em] text-slate-500">GÉNÉRATIONS</span>

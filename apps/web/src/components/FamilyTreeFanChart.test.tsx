@@ -30,6 +30,16 @@ function makeTree(): FamilyTree {
 describe("FamilyTreeFanChart", () => {
   beforeEach(() => push.mockReset());
 
+  it("rend le viewport défilable accessible au clavier", () => {
+    render(<FamilyTreeFanChart tree={makeTree()} />);
+
+    const viewport = screen.getByTestId("family-tree-fan-chart");
+    viewport.focus();
+
+    expect(viewport).toHaveFocus();
+    expect(viewport).toHaveAccessibleName("Éventail des ancêtres défilable horizontalement");
+  });
+
   it("affiche chaque ascendant et distingue la personne racine", () => {
     render(<FamilyTreeFanChart tree={makeTree()} />);
 

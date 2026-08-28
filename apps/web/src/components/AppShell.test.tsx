@@ -48,7 +48,7 @@ describe("AppShell", () => {
 
     const mobileNavigation = screen.getByRole("navigation", { name: "Navigation mobile" });
     for (const link of Array.from(mobileNavigation.querySelectorAll("a"))) {
-      expect(link).toHaveClass("min-h-11", "focus-visible:outline-2");
+      expect(link).toHaveClass("min-h-11", "text-base", "focus-visible:outline-2");
     }
   });
 

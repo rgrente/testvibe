@@ -33,7 +33,7 @@ export default async function TimelinePage({ searchParams = Promise.resolve({}) 
     : `${summary.startYear} → ${summary.endYear} · ${summary.personCount} ${personLabel} · ${summary.eventCount} ${eventLabel}`;
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+    <main className="page-container-wide page-container-timeline min-w-0 py-6">
       <header className="mb-4">
         <h1 className="text-xl font-bold text-slate-950">Chronologie familiale</h1>
         <p className="mt-1 font-mono text-xs text-slate-500">{summaryText}</p>

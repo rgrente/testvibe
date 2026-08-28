@@ -34,7 +34,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
   ]);
 
   return (
-    <main className="min-h-full bg-[var(--color-canvas)] px-0 py-0 sm:px-6 sm:py-8">
+    <main className="page-container min-h-full bg-[var(--color-canvas)] py-0 sm:py-8">
       <PersonProfile
         person={person}
         facts={facts}
