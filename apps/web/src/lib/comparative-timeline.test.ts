@@ -1,6 +1,6 @@
 import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
 import { describe, expect, it } from "vitest";
-import { prepareComparativeTimeline } from "./comparative-timeline";
+import { prepareComparativeTimeline, summarizeComparativeTimeline } from "./comparative-timeline";
 
 function person(overrides: Partial<Person> & Pick<Person, "id" | "firstName" | "lastName">): Person {
   return {
@@ -26,6 +26,57 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
 }
 
 describe("prepareComparativeTimeline", () => {
+  it("résume la fixture sans compter deux fois un fait d’union partagé", () => {
+    const rows: ComparativeTimelineRow[] = [
+      {
+        person: person({ id: 1, firstName: "A", lastName: "Test", birthDate: "1962" }),
+        events: [{ id: 10, identity: "union:7", type: "mariage", label: null, eventDate: "1990" }],
+      },
+      {
+        person: person({ id: 2, firstName: "B", lastName: "Test", birthDate: "1964" }),
+        events: [{ id: 11, identity: "union:7", type: "mariage", label: null, eventDate: "1990" }],
+      },
+    ];
+
+    expect(summarizeComparativeTimeline(rows, 2026)).toEqual({
+      startYear: 1960,
+      endYear: 2030,
+      personCount: 2,
+      eventCount: 1,
+    });
+  });
+
+  it("résume la fixture normative de 12 personnes et 27 faits canoniques", () => {
+    const rows: ComparativeTimelineRow[] = Array.from({ length: 12 }, (_, index) => ({
+      person: person({
+        id: index + 1,
+        firstName: `Personne ${index + 1}`,
+        lastName: "Fixture",
+        birthDate: index === 11 ? null : `${1960 + index * 5}${index % 2 === 0 ? "-06" : ""}`,
+        deathDate: index < 2 ? `${2017 + index}` : null,
+      }),
+      events: Array.from({ length: index < 3 ? 3 : index === 3 ? 1 : 2 }, (_, eventIndex) => {
+        const eventId = index * 3 + eventIndex + 1;
+        return {
+          id: eventId,
+          identity: `event:${eventId}` as `event:${number}`,
+          type: "libre" as const,
+          label: `Repère ${eventId}`,
+          eventDate: eventIndex === 1 && index === 10 ? null : `${1970 + index * 4 + eventIndex}`,
+        };
+      }),
+    }));
+    rows[0].events.push({ id: 100, identity: "union:7", type: "mariage", label: "Union", eventDate: "1990" });
+    rows[1].events.push({ id: 101, identity: "union:7", type: "mariage", label: "Union", eventDate: "1990" });
+
+    expect(summarizeComparativeTimeline(rows, 2026)).toEqual({
+      startYear: 1960,
+      endYear: 2030,
+      personCount: 12,
+      eventCount: 27,
+    });
+  });
+
   it("peut préserver l'ordre fourni pour une vue d'ascendance", () => {
     const recent = person({ id: 50, firstName: "Recent", lastName: "First", birthDate: "2000" });
     const old = person({ id: 51, firstName: "Old", lastName: "Second", birthDate: "1900" });

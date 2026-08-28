@@ -2,7 +2,29 @@ import { render, screen, within } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import type { ComparativeTimelineRow, Event, Person } from "@testvibe/core";
 import { describe, expect, it } from "vitest";
-import { ComparativeTimeline } from "./ComparativeTimeline";
+import { ComparativeTimeline, personColor } from "./ComparativeTimeline";
+
+function hslToRgb(color: string): [number, number, number] {
+  const match = color.match(/^hsl\(([\d.]+), ([\d.]+)%, ([\d.]+)%\)$/);
+  if (!match) throw new Error(`Couleur HSL invalide : ${color}`);
+  const hue = Number(match[1]) / 360;
+  const saturation = Number(match[2]) / 100;
+  const lightness = Number(match[3]) / 100;
+  const channel = (offset: number) => {
+    const position = (offset + hue) % 1;
+    const factor = saturation * Math.min(lightness, 1 - lightness);
+    return lightness - factor * Math.max(-1, Math.min(position * 12 - 3, 9 - position * 12, 1));
+  };
+  return [channel(0), channel(2 / 3), channel(1 / 3)];
+}
+
+function contrastAgainstWhite(color: string): number {
+  const [red, green, blue] = hslToRgb(color).map((channel) =>
+    channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4,
+  );
+  const luminance = 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+  return 1.05 / (luminance + 0.05);
+}
 
 function person(overrides: Partial<Person> & Pick<Person, "id" | "firstName" | "lastName">): Person {
   return {
@@ -28,6 +50,12 @@ function event(overrides: Partial<Event> & Pick<Event, "id" | "personId" | "type
 }
 
 describe("ComparativeTimeline", () => {
+  it("garantit un contraste graphique de 3:1 pour toute la palette de la fixture", () => {
+    for (let personId = 1; personId <= 12; personId += 1) {
+      expect(contrastAgainstWhite(personColor(personId + 1)), `personne ${personId}`).toBeGreaterThanOrEqual(3);
+    }
+  });
+
   it("affiche une ligne de vie et les événements identifiables sur l'échelle commune", () => {
     const ada = person({
       id: 1,
@@ -43,7 +71,7 @@ describe("ComparativeTimeline", () => {
       },
     ];
 
-    render(<ComparativeTimeline rows={rows} />);
+    render(<ComparativeTimeline rows={rows} generationByPersonId={new Map([[1, 1]])} nowYear={2026} />);
 
     expect(screen.getByText("1810")).toBeInTheDocument();
     expect(screen.getByText("1860")).toBeInTheDocument();
@@ -51,7 +79,9 @@ describe("ComparativeTimeline", () => {
     expect(within(row).getByRole("link", { name: "Ada Lovelace" })).toHaveAttribute("href", "/persons/1");
     expect(within(row).getByLabelText("Vie de Ada Lovelace : 1815-12-10 – 1852-11-27")).toBeInTheDocument();
     expect(within(row).getByLabelText("Événement, Publication, 1843")).toBeInTheDocument();
-    expect(within(row).getByText("Publication · Événement · 1843")).toBeInTheDocument();
+    expect(within(row).getByText("G1 · 36 ans")).toBeInTheDocument();
+    expect(within(row).getByTestId("timeline-person-1")).toHaveStyle({ height: "36px" });
+    expect(screen.getByTestId("timeline-person-column")).toHaveStyle({ width: "158px" });
   });
 
   it("explique les dates manquantes et garde les événements non positionnables", () => {
@@ -76,7 +106,7 @@ describe("ComparativeTimeline", () => {
       { person: person({ id: 6, firstName: "Récente", lastName: "Histoire", birthDate: "2020" }), events: [] },
     ];
 
-    render(<ComparativeTimeline rows={rows} />);
+    render(<ComparativeTimeline rows={rows} nowYear={2020} />);
 
     expect(screen.getByTestId("timeline-scroll")).toHaveClass("overflow-x-auto");
     expect(screen.getByTestId("timeline-canvas")).toHaveStyle({ minWidth: "2160px" });
@@ -86,6 +116,20 @@ describe("ComparativeTimeline", () => {
     render(<ComparativeTimeline rows={[]} />);
 
     expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Retour à l’arbre" })).toHaveAttribute("href", "/");
+  });
+
+  it("rend les couches sans dépendre uniquement de la couleur et rend la barre navigable", () => {
+    const rows: ComparativeTimelineRow[] = [{
+      person: person({ id: 8, firstName: "Vie", lastName: "Test", birthDate: "2000" }),
+      events: [event({ id: 9, personId: 8, type: "libre", label: "Repère", eventDate: "2020" })],
+    }];
+    render(<ComparativeTimeline rows={rows} layers={{ persons: true, events: true, generations: false }} nowYear={2026} />);
+
+    expect(screen.getByRole("link", { name: /Vie de Vie Test/ })).toHaveAttribute("href", "/persons/8");
+    expect(screen.getByLabelText("Naissance de Vie Test")).toBeInTheDocument();
+    expect(screen.getByLabelText("Événement, Repère, 2020")).toBeInTheDocument();
+    expect(screen.queryByText(/G\d/)).not.toBeInTheDocument();
   });
 
   it("préserve l'ordre d'ascendance, colore par branche et relie réellement les lignes", () => {
@@ -111,7 +155,7 @@ describe("ComparativeTimeline", () => {
     expect(screen.getByTestId("timeline-connection-child-arm-20-10")).toHaveStyle({ gridRow: "1" });
     expect(within(connector).getByText("30 ans")).toBeInTheDocument();
     const parentLife = screen.getByLabelText(/Vie de Parent Test/);
-    expect(parentLife).toHaveStyle({ backgroundColor: "hsl(52.5, 65%, 55%)" });
+    expect(parentLife).toHaveStyle({ backgroundColor: "hsl(52.5, 65%, 35%)" });
   });
 
   it("route les liens de branches non adjacentes dans le couloir dédié", () => {
