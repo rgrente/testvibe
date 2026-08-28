@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.12.0](https://github.com/rgrente/testvibe/compare/v1.11.0...v1.12.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align secondary views with reference ([#90](https://github.com/rgrente/testvibe/issues/90)) ([9ebce4a](https://github.com/rgrente/testvibe/commit/9ebce4a3ee402e0d0832cdc784740017ddf17cde))
+
 # [1.11.0](https://github.com/rgrente/testvibe/compare/v1.10.0...v1.11.0) (2026-08-28)
 
 
