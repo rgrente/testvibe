@@ -1,9 +1,9 @@
 import type { FamilyAnniversary, Person, UpcomingFamilyAnniversary } from "@testvibe/core";
 import { notFound } from "next/navigation";
 import GedcomPage from "../../admin/gedcom/page";
-import { FamilyAnniversaries } from "../../../components/FamilyAnniversaries";
-import { FamilyTreeFanChart } from "../../../components/FamilyTreeFanChart";
-import { UpcomingFamilyAnniversaries } from "../../../components/UpcomingFamilyAnniversaries";
+import { OnThisDayView } from "../../ce-jour-la/page";
+import { StatisticsView } from "../../statistiques/page";
+import { FamilyTreeViews } from "../../../components/FamilyTreeViews";
 import { grenteRenaultTree } from "../../../test-fixtures/grente-renault-tree";
 import { SecondaryMapFixture } from "./SecondaryMapFixture";
 
@@ -29,43 +29,23 @@ const upcoming: UpcomingFamilyAnniversary[] = [
   { key: "upcoming-2", type: "mariage", occurrenceDate: "2026-09-14", daysUntil: 18, yearsElapsed: 38, persons: [pascal, laurence] },
 ];
 
-function StatisticsFixture() {
-  const summaries = [["Personnes", "12"], ["Générations", "3"], ["Événements", "27"], ["Longévité moyenne", "64 ans"]];
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-xl font-bold sm:text-2xl">Statistiques familiales</h1>
-      <p className="family-tree-mono mt-1 text-[10.5px] text-[var(--color-muted)]">Famille Grente–Renault</p>
-      <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {summaries.map(([label, value]) => <div key={label} className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-4 shadow-[var(--shadow-subtle)]"><dd className="text-2xl font-semibold">{value}</dd><dt className="family-tree-mono mt-1 text-[9.5px] uppercase text-[var(--color-muted)]">{label}</dt></div>)}
-      </dl>
-      <section aria-label="Naissances par décennie" className="mt-5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-white p-5 shadow-[var(--shadow-subtle)]">
-        <h2 className="family-tree-mono text-[9.5px] uppercase tracking-[.1em] text-[var(--color-muted)]">Naissances par décennie</h2>
-        <div className="mt-4 flex h-32 items-end gap-3" aria-label="Graphique : 12 naissances réparties sur sept décennies">{[36, 12, 12, 36, 20, 60, 100].map((height, index) => <div key={index} className="flex-1 rounded-t bg-[var(--color-accent)]" style={{ height: `${height}%` }} />)}</div>
-        <div className="family-tree-mono mt-2 flex justify-between text-[9px] text-[var(--color-muted)]"><span>1960</span><span>1970</span><span>1980</span><span>1990</span><span>2000</span><span>2010</span><span>2020</span></div>
-      </section>
-    </main>
-  );
-}
-
-function OnThisDayFixture() {
-  return (
-    <main className="mx-auto max-w-5xl px-4 py-6 sm:px-6 sm:py-8">
-      <h1 className="text-xl font-bold sm:text-2xl">Ce jour-là</h1>
-      <p className="family-tree-mono mb-5 mt-1 text-[10.5px] text-[var(--color-muted)]">27 août · 2 événements · 2 à venir</p>
-      <FamilyAnniversaries anniversaries={anniversaries} />
-      <section className="mt-8"><h2 className="mb-3 text-lg font-semibold">À venir · 30 jours</h2><UpcomingFamilyAnniversaries anniversaries={upcoming} /></section>
-    </main>
-  );
-}
+const statistics = {
+  totals: { persons: 12, unions: 4, events: 27, generations: 3 },
+  agePyramid: [{ decade: 60, women: 2, men: 1, other: 0 }, { decade: 30, women: 2, men: 2, other: 0 }],
+  averageLongevity: 64,
+  topFirstNames: [{ label: "Martine", count: 2 }],
+  topBirthPlaces: [{ label: "Rennes", count: 5 }],
+  topResidencePlaces: [{ label: "Vitré", count: 3 }],
+};
 
 export default async function SecondaryVisualFixturePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
   if (process.env.TREE_VISUAL_FIXTURE !== "1") notFound();
   const requested = (await searchParams).view;
   const view: View = requested === "statistics" || requested === "map" || requested === "gedcom" || requested === "on-this-day" ? requested : "fan";
 
-  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><FamilyTreeFanChart tree={grenteRenaultTree} /></main>;
-  if (view === "statistics") return <div data-testid="secondary-statistics"><StatisticsFixture /></div>;
+  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><FamilyTreeViews tree={grenteRenaultTree} initialView="fan" /></main>;
+  if (view === "statistics") return <div data-testid="secondary-statistics"><StatisticsView statistics={statistics} /></div>;
   if (view === "map") return <main data-testid="secondary-map" className="mx-auto max-w-5xl px-4 py-6 sm:px-6"><h1 className="mb-5 text-xl font-bold sm:text-2xl">Carte familiale</h1><SecondaryMapFixture /></main>;
   if (view === "gedcom") return <div data-testid="secondary-gedcom">{await GedcomPage({ searchParams: Promise.resolve({}) })}</div>;
-  return <div data-testid="secondary-on-this-day"><OnThisDayFixture /></div>;
+  return <div data-testid="secondary-on-this-day"><OnThisDayView date="2026-08-27" today="2026-08-28" formattedDate="27 août 2026" anniversaries={anniversaries} upcomingAnniversaries={upcoming} /></div>;
 }

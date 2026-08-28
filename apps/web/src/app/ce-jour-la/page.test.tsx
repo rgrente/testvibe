@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import OnThisDayPage from "./page";
+import OnThisDayPage, { OnThisDayView } from "./page";
 
 const { getFamilyAnniversariesForWeb, getUpcomingFamilyAnniversariesForWeb } = vi.hoisted(() => ({
   getFamilyAnniversariesForWeb: vi.fn(),
@@ -42,5 +42,19 @@ describe("OnThisDayPage", () => {
     render(await OnThisDayPage({ searchParams: Promise.resolve({ date: "1999-06-12" }) }));
     expect(getFamilyAnniversariesForWeb).toHaveBeenCalledWith("1999-06-12");
     expect(screen.getByRole("link", { name: "Revenir à aujourd’hui" })).toHaveAttribute("href", "/ce-jour-la");
+  });
+
+  it("expose la vraie surface avec formulaire, retour et données déterministes", () => {
+    render(<OnThisDayView
+      date="1999-06-12"
+      today="2026-08-27"
+      formattedDate="12 juin 1999"
+      anniversaries={[]}
+      upcomingAnniversaries={[]}
+    />);
+
+    expect(screen.getByLabelText("Parcourir une autre date")).toHaveValue("1999-06-12");
+    expect(screen.getByRole("button", { name: "Afficher" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Revenir à aujourd’hui" })).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { getFamilyStatisticsForWeb, type RankedStatistic } from "@testvibe/core";
+import { getFamilyStatisticsForWeb, type FamilyStatistics, type RankedStatistic } from "@testvibe/core";
 
 export const dynamic = "force-dynamic";
 
@@ -26,8 +26,7 @@ function plural(count: number, singular: string, pluralForm: string): string {
   return `${count} ${count === 1 ? singular : pluralForm}`;
 }
 
-export default async function StatisticsPage() {
-  const statistics = await getFamilyStatisticsForWeb();
+export function StatisticsView({ statistics }: { statistics: FamilyStatistics }) {
   const { totals } = statistics;
 
   return (
@@ -98,4 +97,8 @@ export default async function StatisticsPage() {
       )}
     </main>
   );
+}
+
+export default async function StatisticsPage() {
+  return <StatisticsView statistics={await getFamilyStatisticsForWeb()} />;
 }

@@ -12,8 +12,8 @@ type FamilyTreeView = "tree" | "list" | "fan";
 const STORAGE_KEY = "family-tree-view";
 const LEGACY_STORAGE_KEY = "family-tree-mobile-view";
 
-export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
-  const [view, setView] = useState<FamilyTreeView>("tree");
+export function FamilyTreeViews({ tree, initialView = "tree" }: { tree: FamilyTree; initialView?: FamilyTreeView }) {
+  const [view, setView] = useState<FamilyTreeView>(initialView);
   const [generationDepth, setGenerationDepth] = useState<number | null>(3);
   const [mobileCanvasOpen, setMobileCanvasOpen] = useState(false);
 

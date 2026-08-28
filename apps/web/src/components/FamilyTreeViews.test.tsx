@@ -59,6 +59,12 @@ describe("FamilyTreeViews", () => {
     expect(window.localStorage.getItem("family-tree-view")).toBe("fan");
   });
 
+  it("permet à une fixture de démarrer sur l’éventail sans contourner la toolbar", () => {
+    render(<FamilyTreeViews tree={tree} initialView="fan" />);
+    expect(screen.getByRole("button", { name: "Éventail" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByTestId("fan-chart")).toBeInTheDocument();
+  });
+
   it("migre le choix mémorisé sous l’ancienne clé", () => {
     window.localStorage.setItem("family-tree-mobile-view", "fan");
     render(<FamilyTreeViews tree={tree} />);
