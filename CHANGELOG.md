@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.10.0](https://github.com/rgrente/testvibe/compare/v1.9.0...v1.10.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align timeline with reference design ([#88](https://github.com/rgrente/testvibe/issues/88)) ([8cb4adf](https://github.com/rgrente/testvibe/commit/8cb4adf11e97ef9ed3e39561773d70c013d8f0ca))
+
 # [1.9.0](https://github.com/rgrente/testvibe/compare/v1.8.0...v1.9.0) (2026-08-28)
 
 
