@@ -7,10 +7,10 @@ const locations: MapLocation[] = [
   { eventId: 3, source: "event", personId: 3, personName: "Léni-Éléonore Grente de la Vallée", type: "naissance", label: null, eventDate: "2016-09-14", place: "Nantes (44)", latitude: 47.2184, longitude: -1.5536 },
 ];
 
-export function SecondaryMapFixture() {
+export function SecondaryMapFixture({ empty = false }: { empty?: boolean }) {
   return (
     <CarteClient
-      locations={locations}
+      locations={empty ? [] : locations}
       allPersons={[
         { id: 1, name: "Martine Renault" },
         { id: 2, name: "Romain Grente" },
@@ -21,6 +21,7 @@ export function SecondaryMapFixture() {
       initialDateFrom=""
       initialDateTo=""
       branchPersonIds={[]}
+      routePath="/visual-fixtures/secondary"
     />
   );
 }

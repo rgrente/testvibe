@@ -38,14 +38,16 @@ const statistics = {
   topResidencePlaces: [{ label: "Vitré", count: 3 }],
 };
 
-export default async function SecondaryVisualFixturePage({ searchParams }: { searchParams: Promise<{ view?: string }> }) {
+export default async function SecondaryVisualFixturePage({ searchParams }: { searchParams: Promise<{ view?: string; state?: string }> }) {
   if (process.env.TREE_VISUAL_FIXTURE !== "1") notFound();
-  const requested = (await searchParams).view;
+  const params = await searchParams;
+  const requested = params.view;
+  const empty = params.state === "empty";
   const view: View = requested === "statistics" || requested === "map" || requested === "gedcom" || requested === "on-this-day" ? requested : "fan";
 
-  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><FamilyTreeViews tree={grenteRenaultTree} initialView="fan" /></main>;
-  if (view === "statistics") return <div data-testid="secondary-statistics"><StatisticsView statistics={statistics} /></div>;
-  if (view === "map") return <main data-testid="secondary-map" className="mx-auto max-w-5xl px-4 py-6 sm:px-6"><h1 className="mb-5 text-xl font-bold sm:text-2xl">Carte familiale</h1><SecondaryMapFixture /></main>;
-  if (view === "gedcom") return <div data-testid="secondary-gedcom">{await GedcomPage({ searchParams: Promise.resolve({}) })}</div>;
-  return <div data-testid="secondary-on-this-day"><OnThisDayView date="2026-08-27" today="2026-08-28" formattedDate="27 août 2026" anniversaries={anniversaries} upcomingAnniversaries={upcoming} /></div>;
+  if (view === "fan") return <main data-testid="secondary-fan" className="mx-auto w-full min-w-0 max-w-full overflow-hidden p-4 sm:max-w-5xl sm:p-6"><FamilyTreeViews tree={grenteRenaultTree} initialView="fan" fanPersonRoute="/visual-fixtures/secondary" /></main>;
+  if (view === "statistics") return <div data-testid="secondary-statistics"><StatisticsView statistics={empty ? { ...statistics, totals: { persons: 0, unions: 0, events: 0, generations: 0 } } : statistics} /></div>;
+  if (view === "map") return <main data-testid="secondary-map" className="mx-auto max-w-5xl px-4 py-6 sm:px-6"><h1 className="mb-5 text-xl font-bold sm:text-2xl">Carte familiale</h1><SecondaryMapFixture empty={empty} /></main>;
+  if (view === "gedcom") return <div data-testid="secondary-gedcom">{await GedcomPage({ searchParams: Promise.resolve(params.state === "error" ? { error: "import_echoue", detail: "Ligne invalide" } : {}) })}</div>;
+  return <div data-testid="secondary-on-this-day"><OnThisDayView date="2026-08-27" today="2026-08-28" formattedDate="27 août 2026" anniversaries={empty ? [] : anniversaries} upcomingAnniversaries={empty ? [] : upcoming} /></div>;
 }

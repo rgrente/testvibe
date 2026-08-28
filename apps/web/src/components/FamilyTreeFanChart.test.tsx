@@ -48,6 +48,12 @@ describe("FamilyTreeFanChart", () => {
     expect(push).toHaveBeenCalledWith("/?personId=2");
   });
 
+  it("permet à la fixture d'exercer la navigation sans quitter sa surface", () => {
+    render(<FamilyTreeFanChart tree={makeTree()} personRoute="/visual-fixtures/secondary" />);
+    fireEvent.click(screen.getByRole("link", { name: "Parent Test, génération 1" }));
+    expect(push).toHaveBeenCalledWith("/visual-fixtures/secondary?personId=2");
+  });
+
   it.each(["Enter", " "])("navigue au clavier avec %p", (key) => {
     render(<FamilyTreeFanChart tree={makeTree()} />);
     fireEvent.keyDown(screen.getByRole("link", { name: "Parent Test, génération 1" }), { key });
