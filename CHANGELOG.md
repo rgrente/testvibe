@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.12.1](https://github.com/rgrente/testvibe/compare/v1.12.0...v1.12.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **web:** close final accessibility gaps ([#91](https://github.com/rgrente/testvibe/issues/91)) ([d8e44eb](https://github.com/rgrente/testvibe/commit/d8e44eb05bc97634d05fa9066bdf67867903eb35)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
 # [1.12.0](https://github.com/rgrente/testvibe/compare/v1.11.0...v1.12.0) (2026-08-28)
 
 
