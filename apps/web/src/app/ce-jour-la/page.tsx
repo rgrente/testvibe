@@ -17,7 +17,7 @@ export default async function OnThisDayPage({ searchParams }: { searchParams: Pr
   const formattedDate = new Intl.DateTimeFormat("fr-FR", { dateStyle: "long", timeZone: "UTC" }).format(new Date(`${date}T12:00:00Z`));
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="page-container py-8">
       <h1 className="text-3xl font-bold text-slate-900">Ce jour-là dans la famille</h1>
       <p className="mb-6 mt-2 text-slate-600">Anniversaires du {formattedDate}.</p>
       <form method="GET" className="mb-8 flex flex-wrap items-end gap-3">

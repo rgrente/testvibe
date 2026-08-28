@@ -39,7 +39,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
   if (persons.length === 0) {
     return (
-      <main className="mx-auto max-w-2xl px-4 py-12">
+      <main className="page-container py-12">
         <h1 className="mb-4 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
         {anniversaryBlock}
         <p className="text-slate-600">
@@ -64,8 +64,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const root = tree.nodes.find((n) => n.person.id === rootId)!.person;
 
   return (
-    <main className="px-4 py-8 sm:px-6">
-      <div className="mx-auto max-w-5xl">
+    <main className="min-w-0 py-8">
+      <div className="page-container">
         <h1 className="mb-2 text-2xl font-bold text-slate-900">Arbre généalogique</h1>
         {anniversaryBlock}
 
@@ -149,13 +149,12 @@ export default async function HomePage({ searchParams }: HomePageProps) {
 
       {/* Arbre généalogique : pleine largeur pour exploiter tout l'écran sur desktop */}
       {!searchQuery && (
-        <div className="mx-auto max-w-[1920px]">
-          <RootPersonSelect persons={persons} selectedId={rootId} />
-          <FamilyTreeViews tree={tree} />
+        <div className="page-container-wide">
+          <FamilyTreeViews tree={tree} rootControl={<RootPersonSelect persons={persons} selectedId={rootId} />} />
         </div>
       )}
 
-      <p className="mx-auto mt-8 max-w-5xl text-right text-xs text-slate-400">
+      <p className="page-container mt-8 text-right text-xs text-slate-400">
         <Link href="/admin" className="hover:text-slate-600">
           Mode édition
         </Link>

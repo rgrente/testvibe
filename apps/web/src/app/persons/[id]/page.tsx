@@ -57,7 +57,7 @@ export default async function PersonDetailPage({ params }: PersonDetailPageProps
   const docMedias = medias.filter((m) => !m.mimeType.startsWith("image/"));
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-8">
+    <main className="page-container py-8">
       {/* Entête */}
       <div className="mb-6 flex items-start justify-between">
         <div>

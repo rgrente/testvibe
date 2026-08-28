@@ -24,8 +24,7 @@ describe("RootLayout", () => {
     expect(header?.querySelector(':scope > div > a[href="/"]')?.textContent).toBe("Genealogie");
     expect(header?.nextElementSibling).toBe(main);
     expect(header?.classList.contains("border-b")).toBe(true);
-    expect(header?.classList.contains("px-4")).toBe(true);
-    expect(header?.classList.contains("sm:px-6")).toBe(true);
+    expect(header?.querySelector(":scope > .page-container")).not.toBeNull();
   });
 
   it("propose la Timeline dans la navigation principale", () => {
@@ -74,7 +73,22 @@ describe("RootLayout", () => {
     expect(headerContent?.classList.contains("flex-col")).toBe(true);
     expect(headerContent?.classList.contains("sm:flex-row")).toBe(true);
     expect(navigation?.classList.contains("flex-wrap")).toBe(true);
-    expect(navigation?.classList.contains("gap-y-2")).toBe(true);
+    expect(navigation?.classList.contains("gap-1")).toBe(true);
+    expect(headerContent?.classList.contains("page-container")).toBe(true);
+    for (const link of Array.from(navigation?.querySelectorAll("a") ?? [])) {
+      expect(link.classList.contains("min-h-11")).toBe(true);
+      expect(link.classList.contains("text-base")).toBe(true);
+      expect(link.className).toContain("focus-visible:");
+    }
+  });
+
+  it("borne le document et aligne le footer sur le conteneur de lecture", () => {
+    const markup = renderToStaticMarkup(<RootLayout><main>Contenu</main></RootLayout>);
+    const document = new DOMParser().parseFromString(markup, "text/html");
+
+    expect(document.documentElement.classList.contains("overflow-x-clip")).toBe(true);
+    expect(document.body.classList.contains("min-w-0")).toBe(true);
+    expect(document.querySelector("footer > div")?.classList.contains("page-container")).toBe(true);
   });
 
   it("affiche un footer global discret avec la version de l'application", () => {

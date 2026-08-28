@@ -31,7 +31,7 @@ export default async function StatisticsPage() {
   const { totals } = statistics;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 py-8 sm:px-6">
+    <main className="page-container py-8">
       <h1 className="text-3xl font-bold text-slate-900">Statistiques familiales</h1>
       <p className="mt-2 text-slate-600">Un coup d’œil ludique sur l’ensemble de votre arbre familial.</p>
 

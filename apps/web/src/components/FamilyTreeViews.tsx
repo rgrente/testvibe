@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { FamilyTree } from "@testvibe/core";
 import { FamilyTreeCanvas } from "./FamilyTreeCanvas";
 import { FamilyTreeMobileList } from "./FamilyTreeMobileList";
@@ -10,7 +10,7 @@ type FamilyTreeView = "tree" | "list" | "fan";
 const STORAGE_KEY = "family-tree-view";
 const LEGACY_STORAGE_KEY = "family-tree-mobile-view";
 
-export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
+export function FamilyTreeViews({ tree, rootControl }: { tree: FamilyTree; rootControl?: ReactNode }) {
   const [view, setView] = useState<FamilyTreeView>("tree");
 
   useEffect(() => {
@@ -29,8 +29,9 @@ export function FamilyTreeViews({ tree }: { tree: FamilyTree }) {
 
   return (
     <>
-      <div className="mb-3">
-        <div className="inline-flex rounded-lg border border-slate-300 p-1" role="group" aria-label="Mode d’affichage">
+      <div className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-300 bg-slate-50 p-3 md:flex-nowrap" role="group" aria-label="Contrôles de l’arbre">
+        {rootControl}
+        <div className="inline-flex max-w-full rounded-lg border border-slate-300 bg-white p-1" role="group" aria-label="Mode d’affichage">
           {(["tree", "list", "fan"] as const).map((option) => (
             <button key={option} type="button" className={`min-h-11 rounded-md px-4 text-sm font-medium ${view === option ? "bg-slate-800 text-white" : "text-slate-700 hover:bg-slate-50"}`} aria-pressed={view === option} onClick={() => chooseView(option)}>
               {option === "tree" ? "Arbre" : option === "list" ? "Liste" : "Éventail"}

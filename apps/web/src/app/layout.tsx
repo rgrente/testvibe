@@ -12,35 +12,35 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="fr" className={`${instrumentSans.variable} ${jetBrainsMono.variable}`}>
-      <body className="grid min-h-screen grid-rows-[auto_1fr_auto]">
-        <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
-          <div className="mx-auto flex max-w-5xl flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <html lang="fr" className={`${instrumentSans.variable} ${jetBrainsMono.variable} overflow-x-clip`}>
+      <body className="grid min-h-screen min-w-0 grid-rows-[auto_1fr_auto]">
+        <header className="border-b border-slate-200 bg-white py-3">
+          <div className="page-container flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between">
             <Link href="/" className="text-lg font-semibold text-slate-900">
               Genealogie
             </Link>
             <nav
               aria-label="Navigation principale"
-              className="flex flex-wrap items-center gap-x-4 gap-y-2"
+              className="flex w-full flex-wrap items-center gap-1 sm:w-auto"
             >
-              <Link href="/" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/" className="inline-flex min-h-11 min-w-11 items-center rounded-md px-3 text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                 Arbre
               </Link>
-              <Link href="/timeline" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/timeline" className="inline-flex min-h-11 min-w-11 items-center rounded-md px-3 text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                 Timeline
               </Link>
-              <Link href="/ce-jour-la" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/ce-jour-la" className="inline-flex min-h-11 min-w-11 items-center rounded-md px-3 text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                 Ce jour-là
               </Link>
-              <Link href="/carte" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/carte" className="inline-flex min-h-11 min-w-11 items-center rounded-md px-3 text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                 Carte
               </Link>
-              <Link href="/statistiques" className="text-sm font-medium text-slate-600 hover:text-slate-900">
+              <Link href="/statistiques" className="inline-flex min-h-11 min-w-11 items-center rounded-md px-3 text-base font-medium text-slate-600 hover:bg-slate-50 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
                 Statistiques
               </Link>
               <Link
                 href="/admin"
-                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900"
+                className="inline-flex min-h-11 min-w-11 items-center rounded-md border border-slate-300 px-3 text-base font-medium text-slate-700 hover:border-slate-400 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               >
                 Mode édition
               </Link>
@@ -48,8 +48,8 @@ export default function RootLayout({
           </div>
         </header>
         {children}
-        <footer className="border-t border-slate-200 bg-slate-50 px-4 py-3 text-center text-xs text-slate-400 sm:px-6">
-          Version {version} · Fait avec ❤️
+        <footer className="border-t border-slate-200 bg-slate-50 py-3 text-center text-xs text-slate-400">
+          <div className="page-container">Version {version} · Fait avec ❤️</div>
         </footer>
       </body>
     </html>

@@ -20,7 +20,7 @@ export default async function TimelinePage({ searchParams = Promise.resolve({}) 
   const rows = selection ? selection.personIds.map((id) => rowsById.get(id)).filter((row): row is NonNullable<typeof row> => row !== undefined) : [];
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 py-8 sm:px-6">
+    <main className="page-container-wide page-container-timeline min-w-0 py-8">
       <h1 className="text-3xl font-bold text-slate-900">Timeline comparative</h1>
       <p className="mb-8 mt-2 text-slate-600">
         Comparez les durées de vie de la personne choisie et de ses ascendants sur une même échelle chronologique.

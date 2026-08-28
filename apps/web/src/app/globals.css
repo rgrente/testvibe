@@ -25,3 +25,31 @@
 @utility family-tree-mono {
   font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
 }
+
+@layer components {
+  .page-container,
+  .page-container-wide {
+    width: 100%;
+    margin-inline: auto;
+    padding-inline: 1rem;
+  }
+
+  .page-container {
+    max-width: 64rem;
+  }
+
+  .page-container-wide {
+    max-width: 120rem;
+  }
+
+  .page-container-timeline {
+    max-width: 100rem;
+  }
+
+  @media (min-width: 40rem) {
+    .page-container,
+    .page-container-wide {
+      padding-inline: 1.5rem;
+    }
+  }
+}

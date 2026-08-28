@@ -30,11 +30,12 @@ describe("TimelinePage", () => {
   });
 
   it("charge la timeline comparative et affiche la page dédiée", async () => {
-    render(await TimelinePage());
+    const { container } = render(await TimelinePage());
 
     expect(getComparativeTimelineForWeb).toHaveBeenCalledOnce();
     expect(screen.getByRole("heading", { level: 1, name: "Timeline comparative" })).toBeInTheDocument();
     expect(screen.getByText("Aucune personne n’est encore disponible.")).toBeInTheDocument();
+    expect(container.querySelector("main")).toHaveClass("page-container-wide", "page-container-timeline");
   });
 
   it("sélectionne la racine demandée et limite la vue à ses ascendants", async () => {
