@@ -33,6 +33,9 @@ describe("FamilyTreeFanChart", () => {
   it("affiche chaque ascendant et distingue la personne racine", () => {
     render(<FamilyTreeFanChart tree={makeTree()} />);
 
+    expect(screen.getByRole("heading", { name: "Éventail d’ascendance" })).toBeInTheDocument();
+    expect(screen.getByText("Racine Test · 2 générations · 3/3 connus")).toBeInTheDocument();
+    expect(screen.getByText("0 manquant")).toBeInTheDocument();
     expect(screen.getAllByRole("link")).toHaveLength(3);
     expect(screen.getByRole("link", { name: "Racine Test, personne racine" })).toHaveClass("focus-visible:outline-2");
     expect(screen.getByText("1950 – 2020")).toBeInTheDocument();

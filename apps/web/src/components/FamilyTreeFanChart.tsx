@@ -9,9 +9,18 @@ export function FamilyTreeFanChart({ tree }: { tree: FamilyTree }) {
   const router = useRouter();
   const layout = useMemo(() => buildRadialLayout(tree), [tree]);
   const positions = new Map(layout.nodes.map((node) => [node.personId, node]));
+  const root = layout.nodes.find((node) => node.personId === tree.rootId);
+  const generations = Math.max(1, ...layout.nodes.map((node) => node.generation + 1));
+  const possiblePeople = (2 ** generations) - 1;
+  const missingPeople = Math.max(0, possiblePeople - layout.nodes.length);
 
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-slate-200 bg-slate-50" data-testid="family-tree-fan-chart">
+    <section className="w-full rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-subtle)] sm:p-5" data-testid="family-tree-fan-chart" aria-labelledby="fan-heading">
+      <h2 id="fan-heading" className="text-sm font-bold text-[var(--color-ink)]">Éventail d’ascendance</h2>
+      <p className="family-tree-mono mt-1 text-[10.5px] text-[var(--color-muted)]">
+        {root?.label ?? "Personne racine"} · {generations} générations · {layout.nodes.length}/{possiblePeople} connus
+      </p>
+      <div className="mt-4 w-full overflow-x-auto rounded-[var(--radius-card)] bg-[var(--color-canvas)]">
       <svg viewBox={`0 0 ${layout.width} ${layout.height}`} className="min-h-[440px] min-w-[720px] w-full" role="img" aria-labelledby="fan-chart-title fan-chart-description">
         <title id="fan-chart-title">Éventail des ancêtres</title>
         <desc id="fan-chart-description">La personne racine est au centre, ses ancêtres sont répartis par génération.</desc>
@@ -38,6 +47,8 @@ export function FamilyTreeFanChart({ tree }: { tree: FamilyTree }) {
           );
         })}
       </svg>
-    </div>
+      </div>
+      <p className="family-tree-mono mt-3 text-center text-[10px] text-[var(--color-muted)]">{missingPeople} manquant{missingPeople > 1 ? "s" : ""}</p>
+    </section>
   );
 }

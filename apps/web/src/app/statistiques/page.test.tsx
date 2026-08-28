@@ -26,6 +26,9 @@ describe("StatisticsPage", () => {
 
     expect(getFamilyStatisticsForWeb).toHaveBeenCalledOnce();
     expect(screen.getByRole("heading", { level: 1, name: "Statistiques familiales" })).toBeInTheDocument();
+    expect(screen.getByTestId("statistics-summary")).toHaveClass("sm:grid-cols-4");
+    expect(screen.getByRole("region", { name: "Pyramide des âges" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Classements familiaux" })).toBeInTheDocument();
     expect(screen.getByText("8", { selector: "dd" })).toBeInTheDocument();
     expect(screen.getByText("4 générations")).toBeInTheDocument();
     expect(screen.getByText("74,6 ans")).toBeInTheDocument();
