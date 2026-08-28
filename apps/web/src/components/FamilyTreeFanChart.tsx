@@ -34,13 +34,13 @@ export function FamilyTreeFanChart({ tree, personRoute = "/" }: { tree: FamilyTr
         {layout.nodes.map((node) => {
           const dates = [node.birthDate?.slice(0, 4), node.deathDate?.slice(0, 4)].filter(Boolean).join(" – ");
           return (
-            <g key={node.personId} transform={`translate(${node.x}, ${node.y})`} role="link" tabIndex={0} aria-label={`${node.label}${node.isRoot ? ", personne racine" : `, génération ${node.generation}`}`} className="cursor-pointer focus:outline-hidden focus-visible:outline-2 focus-visible:outline-blue-500" onClick={() => router.push(`${personRoute}?personId=${node.personId}`)} onKeyDown={(event) => {
+            <g key={node.personId} transform={`translate(${node.x}, ${node.y})`} role="link" tabIndex={0} aria-label={`${node.label}${node.isRoot ? ", personne racine" : `, génération ${node.generation}`}`} className="cursor-pointer outline-2 outline-transparent focus-visible:outline-2 focus-visible:outline-blue-500" onClick={() => router.push(`${personRoute}?personId=${node.personId}`)} onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 router.push(`${personRoute}?personId=${node.personId}`);
               }
             }}>
-              <rect x="-62" y="-25" width="124" height="50" rx="8" fill={node.isRoot ? "#eff6ff" : "white"} stroke={node.isRoot ? "#2563eb" : "#94a3b8"} strokeWidth={node.isRoot ? 3 : 1.5} />
+              <rect x="-62" y="-30" width="124" height="60" rx="8" fill={node.isRoot ? "#eff6ff" : "white"} stroke={node.isRoot ? "#2563eb" : "#94a3b8"} strokeWidth={node.isRoot ? 3 : 1.5} />
               <text textAnchor="middle" y={dates ? -3 : 5} className="fill-slate-900 text-[13px] font-semibold">{node.label.length > 18 ? `${node.label.slice(0, 17)}…` : node.label}</text>
               {dates ? <text textAnchor="middle" y="15" className="fill-slate-500 text-[11px]">{dates}</text> : null}
             </g>

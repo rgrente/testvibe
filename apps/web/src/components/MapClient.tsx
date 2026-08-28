@@ -140,7 +140,7 @@ export default function MapClient({
             type="date"
             value={dateFrom}
             onChange={(e) => onDateFromChange(e.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           />
         </div>
         <div>
@@ -150,7 +150,7 @@ export default function MapClient({
             type="date"
             value={dateTo}
             onChange={(e) => onDateToChange(e.target.value)}
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           />
         </div>
         <div>
@@ -161,7 +161,7 @@ export default function MapClient({
             onChange={(e) =>
               onSelectPerson(e.target.value ? Number(e.target.value) : null)
             }
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           >
             <option value="">Toutes</option>
             {allPersons.map((p) => (
@@ -181,7 +181,7 @@ export default function MapClient({
                 e.target.value as "none" | "ancestors" | "descendants",
               )
             }
-            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm"
+            className="min-h-11 w-full rounded-[var(--radius-md)] border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
             disabled={!selectedPersonId}
           >
             <option value="none">Aucune</option>
@@ -274,7 +274,7 @@ export default function MapClient({
                 <button
                   type="button"
                   onClick={() => setSelectedMarker(loc)}
-                  className="ml-2 min-h-11 rounded-[var(--radius-sm)] px-2 text-xs text-blue-700 underline hover:bg-[var(--color-canvas)]"
+                  className="ml-2 min-h-11 rounded-[var(--radius-sm)] px-2 text-xs text-blue-700 underline hover:bg-[var(--color-canvas)] focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
                 >
                   Voir sur la carte
                 </button>

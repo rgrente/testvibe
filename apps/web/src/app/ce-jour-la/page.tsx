@@ -24,7 +24,7 @@ export function OnThisDayView({ date, today, formattedDate, anniversaries, upcom
           <input name="date" type="date" defaultValue={date} className="mt-1 block min-h-11 rounded-[var(--radius-md)] border border-[var(--color-border-strong)] bg-white px-3 py-2 focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]" />
         </label>
         <button type="submit" className="min-h-11 rounded-[var(--radius-md)] bg-[var(--color-ink)] px-4 py-2 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]">Afficher</button>
-        {date !== today && <Link href="/ce-jour-la" className="min-h-11 py-2 text-sm text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]">Revenir à aujourd’hui</Link>}
+        {date !== today && <Link href="/ce-jour-la" className="inline-flex min-h-11 items-center py-2 text-sm text-blue-700 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]">Revenir à aujourd’hui</Link>}
       </form>
       <FamilyAnniversaries anniversaries={anniversaries} />
       <section className="mt-10">

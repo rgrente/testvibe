@@ -88,7 +88,7 @@ export default async function GedcomPage({
             name="gedcom"
             accept=".ged,.gedcom"
             required
-            className="block w-full text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded-sm file:border file:border-slate-200 file:bg-white file:px-4 file:py-2 file:text-sm file:text-slate-700 hover:file:bg-slate-50"
+            className="block min-h-11 w-full text-sm text-slate-600 file:mr-4 file:cursor-pointer file:rounded-sm file:border file:border-slate-200 file:bg-white file:px-4 file:py-2 file:text-sm file:text-slate-700 hover:file:bg-slate-50 focus-visible:outline-2 focus-visible:outline-[var(--color-accent)]"
           />
           <div>
             <button
