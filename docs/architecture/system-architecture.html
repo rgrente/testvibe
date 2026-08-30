@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture applicative TestVibe</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap">
+<style>
+:root{--paper:#f5f5f5;--ink:#2d3142;--muted:#4f5d75;--soft:#7a8399;--accent:#eb6c36;--link:#2e5aa8;--rule:rgba(45,49,66,.12)}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font-family:Geist,sans-serif}.page{max-width:1120px;margin:auto;padding:32px}.eyebrow{font:500 8px 'Geist Mono',monospace;letter-spacing:.18em;color:var(--muted);text-transform:uppercase;margin:0 0 8px}.page h1{font:400 32px 'Instrument Serif',serif;margin:0 0 20px}.frame{overflow-x:auto;border:1px solid var(--rule);border-radius:8px;background:var(--paper);padding:16px}svg{display:block;width:100%;min-width:960px;height:auto}.node{fill:#fff;stroke:var(--ink);stroke-width:1}.store{fill:rgba(45,49,66,.05);stroke:var(--muted)}.external{fill:rgba(45,49,66,.03);stroke:rgba(45,49,66,.3);stroke-dasharray:4 3}.focal{fill:rgba(235,108,54,.08);stroke:var(--accent);stroke-width:1.2}.zone{fill:rgba(45,49,66,.02);stroke:rgba(45,49,66,.12);stroke-width:.8}.name{font:600 12px Geist,sans-serif;fill:var(--ink)}.sub{font:400 9px 'Geist Mono',monospace;fill:var(--muted)}.tag{font:500 8px 'Geist Mono',monospace;letter-spacing:.12em;fill:var(--soft)}.arrow{fill:none;stroke:var(--muted);stroke-width:1.2;marker-end:url(#arch-arrow)}.arrow-link{fill:none;stroke:var(--link);stroke-width:1.2;marker-end:url(#arch-arrow-link)}.arrow-accent{fill:none;stroke:var(--accent);stroke-width:1.2;marker-end:url(#arch-arrow-accent)}.label-mask{fill:var(--paper)}.label{font:500 8px 'Geist Mono',monospace;letter-spacing:.06em;fill:var(--soft)}
+</style>
+</head>
+<body><main class="page"><p class="eyebrow">TestVibe · vue système</p><h1>Architecture applicative</h1><figure class="frame">
+<svg viewBox="0 0 1040 520" role="img" aria-labelledby="system-architecture-title system-architecture-desc">
+<title id="system-architecture-title">Architecture applicative TestVibe</title>
+<desc id="system-architecture-desc">Vue des clients publics et administrateurs traversant Next.js et le domaine métier vers SQLite, les médias locaux et le service de géocodage.</desc>
+<defs>
+<marker id="arch-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#4f5d75"/></marker>
+<marker id="arch-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#eb6c36"/></marker>
+<marker id="arch-arrow-link" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#2e5aa8"/></marker>
+</defs>
+<rect width="1040" height="520" fill="#f5f5f5"/>
+<!-- zones -->
+<rect class="zone" x="28" y="60" width="176" height="348" rx="8"/><rect class="label-mask" x="44" y="64" width="96" height="16" rx="2"/><text class="tag" x="92" y="76" text-anchor="middle">UTILISATEURS</text>
+<rect class="zone" x="240" y="60" width="468" height="348" rx="8"/><rect class="label-mask" x="256" y="64" width="88" height="16" rx="2"/><text class="tag" x="300" y="76" text-anchor="middle">APPLICATION</text>
+<rect class="zone" x="744" y="60" width="268" height="348" rx="8"/><rect class="label-mask" x="760" y="64" width="64" height="16" rx="2"/><text class="tag" x="792" y="76" text-anchor="middle">DONNÉES</text>
+<!-- arrows behind nodes -->
+<line class="arrow-link" x1="184" y1="148" x2="280" y2="148"/>
+<path class="arrow-accent" d="M 184 300 H 228 Q 236 300 236 292 V 244 Q 236 236 244 236 H 280"/>
+<line class="arrow-accent" x1="440" y1="196" x2="492" y2="196"/>
+<line class="arrow" x1="668" y1="196" x2="760" y2="196"/>
+<line class="arrow" x1="844" y1="228" x2="844" y2="244"/>
+<path class="arrow" d="M 668 212 H 704 Q 712 212 712 220 V 352 Q 712 360 720 360 H 780"/>
+<path class="arrow-link" d="M 360 244 V 336 Q 360 344 368 344 H 492"/>
+<!-- labels -->
+<rect class="label-mask" x="204" y="126" width="60" height="12" rx="2"/><text class="label" x="234" y="135" text-anchor="middle">CONSULTE</text>
+<rect class="label-mask" x="444" y="174" width="44" height="12" rx="2"/><text class="label" x="466" y="183" text-anchor="middle">APPELLE</text>
+<rect class="label-mask" x="684" y="174" width="64" height="12" rx="2"/><text class="label" x="716" y="183" text-anchor="middle">PERSISTE</text>
+<!-- nodes -->
+<rect class="node" x="52" y="112" width="132" height="72" rx="6"/><text class="tag" x="64" y="128">PUBLIC</text><text class="name" x="118" y="150" text-anchor="middle">Consultation</text><text class="sub" x="118" y="166" text-anchor="middle">mobile · desktop</text>
+<rect class="node" x="52" y="264" width="132" height="72" rx="6"/><text class="tag" x="64" y="280">ADMIN</text><text class="name" x="118" y="302" text-anchor="middle">Mode édition</text><text class="sub" x="118" y="318" text-anchor="middle">session protégée</text>
+<rect class="focal" x="280" y="148" width="160" height="96" rx="6"/><text class="tag" x="292" y="164">WEB</text><text class="name" x="360" y="194" text-anchor="middle">Next.js 16</text><text class="sub" x="360" y="212" text-anchor="middle">App Router · React 19</text><text class="sub" x="360" y="228" text-anchor="middle">pages · API · actions</text>
+<rect class="node" x="492" y="148" width="176" height="96" rx="6"/><text class="tag" x="504" y="164">DOMAINE</text><text class="name" x="580" y="194" text-anchor="middle">@testvibe/core</text><text class="sub" x="580" y="212" text-anchor="middle">règles · projections</text><text class="sub" x="580" y="228" text-anchor="middle">GEDCOM · arbre · stats</text>
+<rect class="node" x="760" y="148" width="168" height="80" rx="6"/><text class="tag" x="772" y="164">ACCÈS DATA</text><text class="name" x="844" y="190" text-anchor="middle">@testvibe/db</text><text class="sub" x="844" y="208" text-anchor="middle">Drizzle · libSQL</text>
+<rect class="store" x="780" y="244" width="148" height="64" rx="6"/><text class="tag" x="792" y="260">STORE</text><text class="name" x="854" y="282" text-anchor="middle">SQLite</text><text class="sub" x="854" y="298" text-anchor="middle">données métier</text>
+<rect class="store" x="780" y="324" width="148" height="64" rx="6"/><text class="tag" x="792" y="340">FILES</text><text class="name" x="854" y="362" text-anchor="middle">Médias</text><text class="sub" x="854" y="378" text-anchor="middle">photos · documents</text>
+<rect class="external" x="492" y="308" width="176" height="72" rx="6"/><text class="tag" x="504" y="324">EXTERNE</text><text class="name" x="580" y="346" text-anchor="middle">Géocodage</text><text class="sub" x="580" y="362" text-anchor="middle">Nominatim · Photon</text>
+<!-- legend -->
+<line x1="40" y1="440" x2="1000" y2="440" stroke="rgba(45,49,66,.12)" stroke-width=".8"/><text class="tag" x="40" y="464">LÉGENDE</text><rect x="128" y="452" width="28" height="16" rx="4" fill="rgba(235,108,54,.08)" stroke="#eb6c36"/><text class="sub" x="164" y="464">point d’entrée</text><rect x="292" y="452" width="28" height="16" rx="4" fill="rgba(45,49,66,.05)" stroke="#4f5d75"/><text class="sub" x="328" y="464">persistance</text><rect x="444" y="452" width="28" height="16" rx="4" fill="rgba(45,49,66,.03)" stroke="rgba(45,49,66,.3)" stroke-dasharray="4 3"/><text class="sub" x="480" y="464">service externe</text>
+</svg></figure></main></body></html>
