@@ -13,6 +13,7 @@ interface CarteClientProps {
   initialDateFrom: string;
   initialDateTo: string;
   branchPersonIds: number[];
+  routePath?: string;
 }
 
 export default function CarteClient({
@@ -23,6 +24,7 @@ export default function CarteClient({
   initialDateFrom,
   initialDateTo,
   branchPersonIds,
+  routePath = "/carte",
 }: CarteClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -53,7 +55,7 @@ export default function CarteClient({
     else params.delete("from");
     if (to) params.set("to", to);
     else params.delete("to");
-    router.push(`/carte?${params.toString()}`, { scroll: false });
+    router.push(`${routePath}?${params.toString()}`, { scroll: false });
   };
 
   // Navigate so the server resolves the selected branch
@@ -63,7 +65,12 @@ export default function CarteClient({
   ) => {
     if (branch !== "none" && person) {
       // Include the branch param to trigger server-side resolution
-      router.push(`/carte?person=${person}&branche=${branch}&from=${dateFrom}&to=${dateTo}`);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("person", String(person));
+      params.set("branche", branch);
+      if (dateFrom) params.set("from", dateFrom); else params.delete("from");
+      if (dateTo) params.set("to", dateTo); else params.delete("to");
+      router.push(`${routePath}?${params.toString()}`);
     } else {
       // Clear branch filter client-side
       setSelectedPersonIds([]);

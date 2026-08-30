@@ -19,13 +19,19 @@ describe("RootLayout", () => {
     const document = new DOMParser().parseFromString(markup, "text/html");
     const header = document.querySelector("body > header");
     const main = document.querySelector("body > main");
+    const mobileGridSlot = document.querySelector("body > [data-mobile-grid-slot]");
 
     expect(header).not.toBeNull();
-    expect(header?.querySelector(':scope > div > a[href="/"]')?.textContent).toBe("Genealogie");
-    expect(header?.nextElementSibling).toBe(main);
+    expect(header?.querySelector(':scope > a[href="/"]')?.textContent).toContain("Genealogie");
+    expect(document.querySelector('nav[aria-label="Navigation mobile"]')?.nextElementSibling).toBe(
+      mobileGridSlot,
+    );
+    expect(mobileGridSlot?.nextElementSibling).toBe(main);
     expect(header?.classList.contains("border-b")).toBe(true);
-    expect(header?.classList.contains("px-4")).toBe(true);
-    expect(header?.classList.contains("sm:px-6")).toBe(true);
+    expect(header?.classList.contains("h-[52px]")).toBe(true);
+    expect(header?.classList.contains("md:flex")).toBe(true);
+    expect(document.documentElement.classList.contains("overflow-x-clip")).toBe(true);
+    expect(document.body.classList.contains("min-w-0")).toBe(true);
   });
 
   it("propose la Timeline dans la navigation principale", () => {
@@ -68,13 +74,39 @@ describe("RootLayout", () => {
       </RootLayout>,
     );
     const document = new DOMParser().parseFromString(markup, "text/html");
-    const headerContent = document.querySelector("header > div");
-    const navigation = headerContent?.querySelector("nav");
+    const header = document.querySelector("header");
+    const navigation = document.querySelector('nav[aria-label="Navigation mobile"]');
+    const body = document.querySelector("body");
 
-    expect(headerContent?.classList.contains("flex-col")).toBe(true);
-    expect(headerContent?.classList.contains("sm:flex-row")).toBe(true);
-    expect(navigation?.classList.contains("flex-wrap")).toBe(true);
-    expect(navigation?.classList.contains("gap-y-2")).toBe(true);
+    expect(header?.classList.contains("hidden")).toBe(true);
+    expect(header?.classList.contains("md:flex")).toBe(true);
+    expect(navigation?.classList.contains("md:hidden")).toBe(true);
+    expect(navigation?.classList.contains("h-[60px]")).toBe(true);
+    expect(body?.classList.contains("overflow-x-hidden")).toBe(true);
+  });
+
+  it("réserve la première ligne mobile pour laisser le contenu en 1fr et le footer intrinsèque", () => {
+    const markup = renderToStaticMarkup(
+      <RootLayout>
+        <main>Contenu de la page</main>
+      </RootLayout>,
+    );
+    const document = new DOMParser().parseFromString(markup, "text/html");
+    const bodyChildren = Array.from(document.body.children).filter(
+      (element) => element.tagName !== "SCRIPT",
+    );
+    const mobileGridSlot = document.querySelector("body > [data-mobile-grid-slot]");
+
+    expect(bodyChildren.map((element) => element.tagName)).toEqual([
+      "HEADER",
+      "NAV",
+      "DIV",
+      "MAIN",
+      "FOOTER",
+    ]);
+    expect(mobileGridSlot?.classList.contains("h-0")).toBe(true);
+    expect(mobileGridSlot?.classList.contains("md:hidden")).toBe(true);
+    expect(mobileGridSlot?.nextElementSibling?.tagName).toBe("MAIN");
   });
 
   it("affiche un footer global discret avec la version de l'application", () => {
@@ -90,7 +122,8 @@ describe("RootLayout", () => {
     expect(footer?.textContent).toContain(`Version ${version}`);
     expect(footer?.textContent).toContain("Fait avec ❤️");
     expect(footer?.classList.contains("text-xs")).toBe(true);
-    expect(footer?.classList.contains("text-slate-400")).toBe(true);
+    expect(footer?.classList.contains("text-[var(--color-muted)]")).toBe(true);
+    expect(footer?.querySelector(":scope > .page-container")).not.toBeNull();
     expect(body?.classList.contains("min-h-screen")).toBe(true);
     expect(body?.classList.contains("grid-rows-[auto_1fr_auto]")).toBe(true);
   });
@@ -107,9 +140,15 @@ describe("RootLayout", () => {
     const bodyChildren = Array.from(document.body.children).filter(
       (element) => element.tagName !== "SCRIPT",
     );
-    const adminLayout = bodyChildren[1];
+    const adminLayout = bodyChildren[3];
 
-    expect(bodyChildren.map((element) => element.tagName)).toEqual(["HEADER", "DIV", "FOOTER"]);
+    expect(bodyChildren.map((element) => element.tagName)).toEqual([
+      "HEADER",
+      "NAV",
+      "DIV",
+      "DIV",
+      "FOOTER",
+    ]);
     expect(adminLayout?.querySelector(":scope > nav")).not.toBeNull();
     expect(adminLayout?.querySelector(":scope > main")?.textContent).toBe(
       "Contenu de la page d'administration",

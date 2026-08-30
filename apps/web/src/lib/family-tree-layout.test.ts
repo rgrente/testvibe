@@ -30,6 +30,52 @@ function makeTree(): FamilyTree {
   };
 }
 
+function makeBlockedFiliationTree(): FamilyTree {
+  return {
+    rootId: 1,
+    nodes: [
+      { person: { id: 1, firstName: "Parent", lastName: "Gauche", birthDate: null, deathDate: null, gender: "M" } as any, generation: 0 },
+      { person: { id: 2, firstName: "Parent", lastName: "Droite", birthDate: null, deathDate: null, gender: "F" } as any, generation: 0 },
+      { person: { id: 3, firstName: "Carte", lastName: "Bloquante", birthDate: null, deathDate: null, gender: null } as any, generation: 0 },
+      ...[10, 11, 12, 13, 14, 15, 16].map((id) => ({
+        person: { id, firstName: "Enfant", lastName: String(id), birthDate: null, deathDate: null, gender: null } as any,
+        generation: 1,
+      })),
+      { person: { id: 30, firstName: "Enfant", lastName: "Obstacle", birthDate: null, deathDate: null, gender: null } as any, generation: 1 },
+      { person: { id: 20, firstName: "Petit-enfant", lastName: "Test", birthDate: null, deathDate: null, gender: null } as any, generation: 2 },
+    ],
+    edges: [
+      { type: "union", unionId: 100, personIds: [1, 2] },
+      ...[10, 11, 12, 13, 14, 15, 16].flatMap((childId, index) => [
+        { type: "filiation" as const, filiationId: 10 + index * 2, parentId: 1, childId, role: "biologique" as const },
+        { type: "filiation" as const, filiationId: 11 + index * 2, parentId: 2, childId, role: "biologique" as const },
+      ]),
+      { type: "filiation", filiationId: 30, parentId: 3, childId: 30, role: "biologique" },
+      { type: "filiation", filiationId: 31, parentId: 16, childId: 20, role: "biologique" },
+    ],
+  };
+}
+
+function makeImpossibleFiliationTree(): FamilyTree {
+  return {
+    rootId: 1,
+    nodes: [1, 2, 3].map((id) => ({
+      person: { id, firstName: "Parent", lastName: String(id), birthDate: null, deathDate: null, gender: null } as any,
+      generation: 0,
+    })).concat({
+      person: { id: 10, firstName: "Enfant", lastName: "Test", birthDate: null, deathDate: null, gender: null } as any,
+      generation: 1,
+    }),
+    edges: [
+      { type: "union", unionId: 100, personIds: [1, 2] },
+      { type: "union", unionId: 101, personIds: [1, 3] },
+      { type: "union", unionId: 102, personIds: [2, 3] },
+      { type: "filiation", filiationId: 10, parentId: 2, childId: 10, role: "biologique" },
+      { type: "filiation", filiationId: 11, parentId: 3, childId: 10, role: "biologique" },
+    ],
+  };
+}
+
 function personData(node: ReturnType<typeof buildReactFlowGraph>["nodes"][number]): PersonNodeData {
   return node.data as PersonNodeData;
 }
@@ -62,12 +108,12 @@ describe("buildReactFlowGraph", () => {
     const person = (id: number) => graph.nodes.find((node) => node.id === String(id))!;
     const junction = graph.nodes.find((node) => node.id === "union-10")!;
 
-    expect(PERSON_NODE_WIDTH).toBe(180);
+    expect(PERSON_NODE_WIDTH).toBe(184);
     expect(GENERATION_ROW_HEIGHT).toBe(140);
     expect(SIBLING_PITCH).toBe(220);
     expect(person(8).position.y).toBe(-140);
     expect(person(9).position.y).toBe(280);
-    expect(person(1).style).toMatchObject({ width: 180 });
+    expect(person(1).style).toMatchObject({ width: 184 });
     expect(person(4).position.x + PERSON_NODE_WIDTH / 2).toBe(junction.position.x + 4);
     expect(person(4).position.x - person(3).position.x).toBe(220);
     expect(person(5).position.x - person(4).position.x).toBe(220);
@@ -139,7 +185,7 @@ describe("buildReactFlowGraph", () => {
     const graph = buildReactFlowGraph(makeTree());
     const cards = graph.nodes
       .filter((node) => node.type === "person")
-      .map((node) => ({ left: node.position.x, right: node.position.x + 180, top: node.position.y, bottom: node.position.y + PERSON_NODE_HEIGHT }));
+      .map((node) => ({ left: node.position.x, right: node.position.x + PERSON_NODE_WIDTH, top: node.position.y, bottom: node.position.y + PERSON_NODE_HEIGHT }));
     const routedSegments = graph.edges.flatMap((edge) =>
       edge.type === "filiation" ? ((edge.data as RoutedFiliationEdgeData).segments ?? []) : [],
     );
@@ -157,6 +203,44 @@ describe("buildReactFlowGraph", () => {
       expect(cards.filter((card) => crossesInterior(segment, card))).toHaveLength(0);
     }
   });
+
+  it("ne plante pas quand une fratrie nombreuse étend son bus derrière une carte de la génération source", () => {
+    const graph = buildReactFlowGraph(makeBlockedFiliationTree());
+    const data = graph.edges.find((edge) => edge.id === "union-100-children")!.data as RoutedFiliationEdgeData;
+    const blocker = graph.nodes.find((node) => node.id === "3")!;
+    const blockerBottom = blocker.position.y + PERSON_NODE_HEIGHT + 12;
+    const sourceX = graph.nodes.find((node) => node.id === "union-100")!.position.x + 4;
+
+    expect(sourceX).not.toBe(data.targets[Math.floor(data.targets.length / 2)].x);
+    expect(data.bus.y1).toBe(blockerBottom);
+    expect(data.segments.every((segment) => {
+      if (segment.x1 === segment.x2) return true;
+      return segment.y1 <= blocker.position.y - 12 || segment.y1 >= blockerBottom
+        || Math.max(segment.x1, segment.x2) <= blocker.position.x - 12
+        || Math.min(segment.x1, segment.x2) >= blocker.position.x + PERSON_NODE_WIDTH + 12;
+    })).toBe(true);
+  });
+
+  it("retourne un fallback orthogonal déterministe quand la source se trouve derrière une carte obstacle", () => {
+    const tree = makeImpossibleFiliationTree();
+    const permuted = { ...tree, nodes: [...tree.nodes].reverse(), edges: [...tree.edges].reverse() };
+    const route = (input: FamilyTree) => {
+      const graph = buildReactFlowGraph(input);
+      return graph.edges.find((edge) => edge.id === "union-102-children")!.data as RoutedFiliationEdgeData;
+    };
+
+    const first = route(tree);
+    const second = route(tree);
+    const reordered = route(permuted);
+    expect(second.segments).toEqual(first.segments);
+    expect(reordered.segments).toEqual(first.segments);
+    expect(first.segments.every((segment) =>
+      [segment.x1, segment.y1, segment.x2, segment.y2].every(Number.isFinite)
+      && (segment.x1 === segment.x2 || segment.y1 === segment.y2))).toBe(true);
+    expect(first.segments[0]).toMatchObject({ x1: 392, y1: 24, kind: "stem" });
+    expect(first.segments.some((segment) => segment.x2 === first.targets[0].x && segment.y2 === first.targets[0].y)).toBe(true);
+  });
+
   it("utilise un profil mobile compact sans changer la sémantique du graphe", () => {
     const desktop = buildReactFlowGraph(makeTree(), "desktop");
     const mobile = buildReactFlowGraph(makeTree(), "mobile");

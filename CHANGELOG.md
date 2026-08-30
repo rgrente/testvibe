@@ -1,5 +1,61 @@
 # Changelog
 
+# [1.13.0](https://github.com/rgrente/testvibe/compare/v1.12.1...v1.13.0) (2026-08-28)
+
+
+### Features
+
+* **web:** harmonise public layout and tree toolbar ([#93](https://github.com/rgrente/testvibe/issues/93)) ([a76fda2](https://github.com/rgrente/testvibe/commit/a76fda24cf79f8646567047ee1355d08c010ba35)), closes [#92](https://github.com/rgrente/testvibe/issues/92)
+
+## [1.12.1](https://github.com/rgrente/testvibe/compare/v1.12.0...v1.12.1) (2026-08-28)
+
+
+### Bug Fixes
+
+* **web:** close final accessibility gaps ([#91](https://github.com/rgrente/testvibe/issues/91)) ([d8e44eb](https://github.com/rgrente/testvibe/commit/d8e44eb05bc97634d05fa9066bdf67867903eb35)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+# [1.12.0](https://github.com/rgrente/testvibe/compare/v1.11.0...v1.12.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align secondary views with reference ([#90](https://github.com/rgrente/testvibe/issues/90)) ([9ebce4a](https://github.com/rgrente/testvibe/commit/9ebce4a3ee402e0d0832cdc784740017ddf17cde))
+
+# [1.11.0](https://github.com/rgrente/testvibe/compare/v1.10.0...v1.11.0) (2026-08-28)
+
+
+### Features
+
+* **web:** redesign responsive person profile ([#89](https://github.com/rgrente/testvibe/issues/89)) ([49619bd](https://github.com/rgrente/testvibe/commit/49619bd27bd8ce483d506d9e1700b3beb20ddfe3)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+# [1.10.0](https://github.com/rgrente/testvibe/compare/v1.9.0...v1.10.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align timeline with reference design ([#88](https://github.com/rgrente/testvibe/issues/88)) ([8cb4adf](https://github.com/rgrente/testvibe/commit/8cb4adf11e97ef9ed3e39561773d70c013d8f0ca))
+
+# [1.9.0](https://github.com/rgrente/testvibe/compare/v1.8.0...v1.9.0) (2026-08-28)
+
+
+### Features
+
+* **web:** align tree views with desktop and mobile mockups ([#87](https://github.com/rgrente/testvibe/issues/87)) ([315b534](https://github.com/rgrente/testvibe/commit/315b534ac3f6323af5209b26758a3a29cb7395bd)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+# [1.8.0](https://github.com/rgrente/testvibe/compare/v1.7.1...v1.8.0) (2026-08-27)
+
+
+### Features
+
+* **web:** add responsive application shell ([#86](https://github.com/rgrente/testvibe/issues/86)) ([6f4deb5](https://github.com/rgrente/testvibe/commit/6f4deb51a41721f27c12496419cd9e0837d7bf64)), closes [#85](https://github.com/rgrente/testvibe/issues/85)
+
+## [1.7.1](https://github.com/rgrente/testvibe/compare/v1.7.0...v1.7.1) (2026-08-27)
+
+
+### Bug Fixes
+
+* **web:** add safe filiation routing fallback ([#84](https://github.com/rgrente/testvibe/issues/84)) ([9dcbd42](https://github.com/rgrente/testvibe/commit/9dcbd426e9aee7c7ad4cc5e79b05c44858c39157)), closes [#83](https://github.com/rgrente/testvibe/issues/83)
+
 # [1.7.0](https://github.com/rgrente/testvibe/compare/v1.6.0...v1.7.0) (2026-08-27)
 
 
