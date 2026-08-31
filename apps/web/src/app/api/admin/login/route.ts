@@ -16,7 +16,8 @@ import {
 } from "@/lib/session";
 
 export async function POST(request: Request) {
-  if (!isAllowedOrigin(request.url, request.headers.get("origin"))) {
+  const canonicalOrigin = process.env.ADMIN_ORIGIN;
+  if (!canonicalOrigin || !isAllowedOrigin(canonicalOrigin, request.headers.get("origin"))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

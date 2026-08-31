@@ -35,6 +35,7 @@ describe("POST /api/admin/login persistent rate limit", () => {
     `);
     process.env.DATABASE_URL = `file:${databasePath}`;
     process.env.ADMIN_SECRET = "configured-admin-value";
+    process.env.ADMIN_ORIGIN = "https://family.example";
     process.env.ADMIN_TRUSTED_PROXY = "1";
     vi.resetModules();
     ({ POST } = await import("./route"));
@@ -45,6 +46,7 @@ describe("POST /api/admin/login persistent rate limit", () => {
     database.close();
     delete process.env.DATABASE_URL;
     delete process.env.ADMIN_SECRET;
+    delete process.env.ADMIN_ORIGIN;
     delete process.env.ADMIN_TRUSTED_PROXY;
     await rm(directory, { recursive: true, force: true });
   });
