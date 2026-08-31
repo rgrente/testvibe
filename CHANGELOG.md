@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.14.1](https://github.com/rgrente/testvibe/compare/v1.14.0...v1.14.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **web:** validate admin login against canonical origin ([#102](https://github.com/rgrente/testvibe/issues/102)) ([526baf0](https://github.com/rgrente/testvibe/commit/526baf0fca4c67c092e7154834333e97c510508b)), closes [#101](https://github.com/rgrente/testvibe/issues/101)
+
 # [1.14.0](https://github.com/rgrente/testvibe/compare/v1.13.0...v1.14.0) (2026-08-31)
 
 
