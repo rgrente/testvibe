@@ -24,7 +24,7 @@ export const person = sqliteTable("person", {
   deathDate: text("death_date"),
   gender: text("gender"),
   livingStatus: text("living_status", { enum: ["living", "deceased"] }),
-  visibility: text("visibility", { enum: ["public", "family", "private"] }),
+  visibility: text("visibility", { enum: ["public", "family", "private"] }).default("public"),
 }, (table) => [
   check("person_living_status_valid", sql`${table.livingStatus} is null or ${table.livingStatus} in ('living', 'deceased')`),
   check("person_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),

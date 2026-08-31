@@ -171,7 +171,7 @@ describe("SQLite/libSQL integration", () => {
       await instance.client.execute("insert into media (person_id, filename, original_name, mime_type, size, created_at) values (1, 'fixture.pdf', 'fixture.pdf', 'application/pdf', 10, '2026-08-31')");
       await migrate(instance.db, { migrationsFolder });
       const upgraded = await instance.client.execute("select first_name, living_status, visibility from person");
-      expect(upgraded.rows).toMatchObject([{ first_name: "Existing", living_status: null, visibility: null }]);
+      expect(upgraded.rows).toMatchObject([{ first_name: "Existing", living_status: null, visibility: "public" }]);
       expect((await instance.client.execute("select count(*) as count from event")).rows[0]?.count).toBe(1);
       expect((await instance.client.execute("select count(*) as count from media")).rows[0]?.count).toBe(1);
 
@@ -183,6 +183,44 @@ describe("SQLite/libSQL integration", () => {
       expect(restored.rows).toMatchObject([{ first_name: "Existing", last_name: "Record" }]);
       const columns = await instance.client.execute("pragma table_info(person)");
       expect(columns.rows.map((row) => row.name)).not.toContain("visibility");
+    } finally {
+      instance.client.close();
+    }
+  });
+
+  it("backfills person visibility idempotently, defaults future rows to public, and rolls back the default", async () => {
+    const directory = await temporaryDirectory();
+    const preDefaultMigrations = resolve(directory, "migrations-0007");
+    await cp(migrationsFolder, preDefaultMigrations, { recursive: true });
+    await rm(resolve(preDefaultMigrations, "0008_clever_swordsman.sql"));
+    await rm(resolve(preDefaultMigrations, "meta/0008_snapshot.json"));
+    const journalPath = resolve(preDefaultMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 7);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+    const instance = createDb(`file:${resolve(directory, "person-default.db")}`);
+    try {
+      await migrate(instance.db, { migrationsFolder: preDefaultMigrations });
+      await instance.client.execute("insert into person (first_name, last_name, visibility) values ('Existing', 'Null', NULL), ('Explicit', 'Family', 'family'), ('Explicit', 'Private', 'private')");
+      await migrate(instance.db, { migrationsFolder });
+      await migrate(instance.db, { migrationsFolder });
+      await instance.client.execute("insert into person (first_name, last_name) values ('Future', 'Record')");
+      const upgraded = await instance.client.execute("select first_name, last_name, visibility from person order by id");
+      expect(upgraded.rows).toMatchObject([
+        { first_name: "Existing", last_name: "Null", visibility: "public" },
+        { first_name: "Explicit", last_name: "Family", visibility: "family" },
+        { first_name: "Explicit", last_name: "Private", visibility: "private" },
+        { first_name: "Future", last_name: "Record", visibility: "public" },
+      ]);
+
+      const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0008_public_person_visibility.sql"), "utf8");
+      for (const statement of rollback.split(";")) {
+        if (statement.trim()) await instance.db.run(sql.raw(statement));
+      }
+      const columns = await instance.client.execute("pragma table_info(person)");
+      expect(columns.rows.find((row) => row.name === "visibility")?.dflt_value).toBeNull();
+      expect((await instance.client.execute("select visibility from person order by id")).rows)
+        .toMatchObject([{ visibility: "public" }, { visibility: "family" }, { visibility: "private" }, { visibility: "public" }]);
     } finally {
       instance.client.close();
     }
