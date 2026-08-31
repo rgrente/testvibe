@@ -22,7 +22,7 @@ import { listAllMedia } from "./media.js";
 import { searchPersons } from "./search.js";
 import { listComparativeTimeline } from "./comparative-timeline.js";
 
-import { listFamilyAnniversaries, listUpcomingFamilyAnniversaries } from "./anniversary.js";
+import { anniversariesForDate, upcomingFamilyAnniversaries } from "./anniversary.js";
 import { calculateFamilyStatistics, type FamilyStatistics } from "./statistics.js";
 import { mapLocationsFromFacts, projectFamilyFacts } from "./projection.js";
 import { listUnions } from "./union.js";
@@ -99,16 +99,34 @@ export async function getFamilyTimelineForWeb(): Promise<FamilyTimelineItem[]> {
 
 /** Anniversaires familiaux publics correspondant à une date de calendrier. */
 export async function getFamilyAnniversariesForWeb(targetDate: string): Promise<FamilyAnniversary[]> {
-  const visibleIds = new Set((await privacyView()).persons.map(({ id }) => id));
-  return (await listFamilyAnniversaries(defaultDb, targetDate))
-    .filter(({ person }) => visibleIds.has(person.id));
+  const view = await privacyView();
+  const byId = new Map(view.persons.map((person) => [person.id, person]));
+  const timeline = projectFamilyFacts(view.persons, view.unions, view.events).flatMap((fact) =>
+    fact.personIds.flatMap((personId) => {
+      const person = byId.get(personId);
+      return person ? [{
+        key: fact.identity,
+        event: {
+          type: fact.category,
+          label: fact.label,
+          eventDate: fact.date,
+          description: fact.description,
+        },
+        person,
+      }] : [];
+    }));
+  return anniversariesForDate(timeline, targetDate);
 }
 
 /** Anniversaires de naissance et de mariage à venir. */
 export async function getUpcomingFamilyAnniversariesForWeb(targetDate: string, days: number): Promise<UpcomingFamilyAnniversary[]> {
-  const visibleIds = new Set((await privacyView()).persons.map(({ id }) => id));
-  return (await listUpcomingFamilyAnniversaries(defaultDb, targetDate, days))
-    .filter(({ persons }) => persons.length > 0 && persons.every(({ id }) => visibleIds.has(id)));
+  const view = await privacyView();
+  return upcomingFamilyAnniversaries(
+    projectFamilyFacts(view.persons, view.unions, view.events),
+    view.persons,
+    targetDate,
+    days,
+  );
 }
 
 /** Retourne une ligne par personne pour la timeline horizontale comparative. */
