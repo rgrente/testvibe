@@ -98,3 +98,16 @@ export const media = sqliteTable("media", {
   size: integer("size").notNull(),
   createdAt: text("created_at").notNull(),
 });
+
+export const adminSession = sqliteTable("admin_session", {
+  tokenHash: text("token_hash").primaryKey(),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+  revokedAt: text("revoked_at"),
+});
+
+export const loginRateLimit = sqliteTable("login_rate_limit", {
+  fingerprint: text("fingerprint").primaryKey(),
+  failures: integer("failures").notNull(),
+  windowStartedAt: text("window_started_at").notNull(),
+});

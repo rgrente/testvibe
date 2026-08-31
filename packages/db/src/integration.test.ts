@@ -7,7 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDb } from "./index.js";
-import { filiation, person, unionPartner, unions } from "./schema.js";
+import { adminSession, filiation, loginRateLimit, person, unionPartner, unions } from "./schema.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const migrationsFolder = resolve(packageRoot, "drizzle");
@@ -93,6 +93,41 @@ describe("SQLite/libSQL integration", () => {
       ]);
     } finally {
       copied.client.close();
+    }
+  });
+
+  it("migrates and rolls back admin security tables without changing genealogy data", async () => {
+    const directory = await temporaryDirectory();
+    const instance = createDb(`file:${resolve(directory, "security.db")}`);
+
+    try {
+      await migrate(instance.db, { migrationsFolder });
+      await instance.db.insert(person).values({ firstName: "Existing", lastName: "Record" });
+      await instance.db.insert(adminSession).values({
+        tokenHash: "opaque-token-hash",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+        createdAt: new Date().toISOString(),
+      });
+      await instance.db.insert(loginRateLimit).values({
+        fingerprint: "client-hmac",
+        failures: 1,
+        windowStartedAt: new Date().toISOString(),
+      });
+
+      const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0006_admin_security.sql"), "utf8");
+      for (const statement of rollback.split(";")) {
+        if (statement.trim()) await instance.db.run(sql.raw(statement));
+      }
+
+      expect(await instance.db.select().from(person)).toMatchObject([
+        { firstName: "Existing", lastName: "Record" },
+      ]);
+      const tables = await instance.client.execute(
+        "select name from sqlite_master where type = 'table' and name in ('admin_session', 'login_rate_limit')",
+      );
+      expect(tables.rows).toHaveLength(0);
+    } finally {
+      instance.client.close();
     }
   });
 
