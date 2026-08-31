@@ -42,7 +42,10 @@ const disk = vi.hoisted(() => ({
   }),
 }));
 
-vi.mock("@testvibe/core", () => core);
+vi.mock("@testvibe/core", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@testvibe/core")>(),
+  ...core,
+}));
 
 vi.mock("node:crypto", async (importOriginal) => ({
   ...await importOriginal<typeof import("node:crypto")>(),
@@ -148,5 +151,18 @@ describe("POST /api/media/upload", () => {
     state.failCreate = true;
     expect((await POST(uploadRequest() as never)).status).toBe(500);
     expect(state.files.size).toBe(0);
+  });
+
+  it("returns 503 and retains staged data when recovery cannot read the database", async () => {
+    const staged = "/uploads/.uploading-pending-known.png";
+    state.files.add(staged);
+    core.adminGetMediaByFilename.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = await POST(uploadRequest() as never);
+
+    expect(response.status).toBe(503);
+    expect(state.files).toContain(staged);
+    expect(disk.unlink).not.toHaveBeenCalled();
+    expect(core.adminCreateMedia).not.toHaveBeenCalled();
   });
 });

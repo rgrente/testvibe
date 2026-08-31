@@ -1,3 +1,4 @@
+import { NotFoundError } from "@testvibe/core";
 import { describe, expect, it, vi } from "vitest";
 import { recoverMediaArtifacts, type MediaRecoveryOps } from "./media-recovery.js";
 
@@ -11,11 +12,11 @@ function harness(records: Set<number>, entries: string[]) {
     }),
     unlink: vi.fn(async (path: string) => { files.delete(path.split("/").pop()!); }),
     getMedia: vi.fn(async (id: number) => {
-      if (!records.has(id)) throw new Error("missing");
+      if (!records.has(id)) throw new NotFoundError("Media", id);
       return { id, filename: "known.png" };
     }),
     getMediaByFilename: vi.fn(async (filename: string) => {
-      if (!records.has(7)) throw new Error("missing");
+      if (!records.has(7)) throw new NotFoundError("Media", filename);
       return { id: 7, filename };
     }),
   };
@@ -42,6 +43,20 @@ describe("durable media recovery", () => {
     expect(files.size).toBe(0);
   });
 
+  it("retains a staged upload while the database is unavailable, then promotes it on retry", async () => {
+    const { files, ops } = harness(new Set([7]), [".uploading-pending-known.png"]);
+    ops.getMediaByFilename = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({ id: 7, filename: "known.png" });
+
+    await expect(recoverMediaArtifacts("/uploads", ops)).rejects.toThrow("database unavailable");
+    expect([...files]).toEqual([".uploading-pending-known.png"]);
+
+    await recoverMediaArtifacts("/uploads", ops);
+    expect([...files]).toEqual(["known.png"]);
+  });
+
   it("restores quarantined deletion data when the database record remains", async () => {
     const { files, ops } = harness(new Set([7]), [".deleting-7-known.png"]);
     await recoverMediaArtifacts("/uploads", ops);
@@ -52,5 +67,19 @@ describe("durable media recovery", () => {
     const { files, ops } = harness(new Set(), [".deleting-7-known.png"]);
     await recoverMediaArtifacts("/uploads", ops);
     expect(files.size).toBe(0);
+  });
+
+  it("retains quarantined data while the database is unavailable, then restores it on retry", async () => {
+    const { files, ops } = harness(new Set([7]), [".deleting-7-known.png"]);
+    ops.getMedia = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("database unavailable"))
+      .mockResolvedValueOnce({ id: 7, filename: "known.png" });
+
+    await expect(recoverMediaArtifacts("/uploads", ops)).rejects.toThrow("database unavailable");
+    expect([...files]).toEqual([".deleting-7-known.png"]);
+
+    await recoverMediaArtifacts("/uploads", ops);
+    expect([...files]).toEqual(["known.png"]);
   });
 });

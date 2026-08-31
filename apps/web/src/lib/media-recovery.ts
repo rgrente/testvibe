@@ -1,3 +1,4 @@
+import { NotFoundError } from "@testvibe/core";
 import { join } from "node:path";
 
 export interface MediaRecoveryOps {
@@ -12,8 +13,9 @@ async function mediaRecordExists(ops: MediaRecoveryOps, id: number, filename: st
   try {
     const media = await ops.getMedia(id);
     return media.filename === filename;
-  } catch {
-    return false;
+  } catch (error) {
+    if (error instanceof NotFoundError) return false;
+    throw error;
   }
 }
 
@@ -27,7 +29,8 @@ export async function recoverMediaArtifacts(directory: string, ops: MediaRecover
         let media: { id: number; filename: string } | null = null;
         try {
           media = await ops.getMediaByFilename(upload[2]);
-        } catch {
+        } catch (error) {
+          if (!(error instanceof NotFoundError)) throw error;
           // No committed metadata means the staging file can be discarded.
         }
         if (media?.filename === upload[2]) {

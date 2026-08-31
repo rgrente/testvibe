@@ -37,13 +37,17 @@ async function cleanUpPartialUpload(filePath: string): Promise<boolean> {
 export async function POST(request: NextRequest) {
   const authorization = await authorizeMutationRequest(request);
   if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
-  let filePath: string | undefined;
-  let metadataCommitted = false;
   try {
     if (!uploadFileOps.existsSync(/* turbopackIgnore: true */ UPLOAD_DIR)) {
       await uploadFileOps.mkdir(UPLOAD_DIR, { recursive: true });
     }
     await recoverMediaArtifacts(UPLOAD_DIR, uploadFileOps);
+  } catch {
+    return NextResponse.json({ error: "Media recovery pending." }, { status: 503 });
+  }
+  let filePath: string | undefined;
+  let metadataCommitted = false;
+  try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
     const personIdRaw = formData.get("personId")?.toString();
