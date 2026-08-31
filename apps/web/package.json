@@ -13,15 +13,16 @@
   "dependencies": {
     "@testvibe/core": "workspace:*",
     "@types/leaflet": "^1.9.22",
+    "@xyflow/react": "^12.11.3",
     "leaflet": "^1.9.4",
     "next": "^16.3.2",
     "pdfjs-dist": "6.3.289",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "@xyflow/react": "^12.11.3",
     "sharp": "0.35.3"
   },
   "devDependencies": {
+    "@libsql/client": "0.17.4",
     "@playwright/test": "1.51.1",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.6.3",
