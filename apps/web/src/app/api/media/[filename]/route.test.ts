@@ -19,7 +19,7 @@ const core = vi.hoisted(() => ({
     throw new Error("missing");
   }),
   getMediaForWebByFilename: vi.fn(async () => ({ id: 7, filename: "known.png", mimeType: "image/png" })),
-  adminVerifySession: vi.fn(async () => state.verifySession),
+  adminVerifySession: vi.fn(async (token?: string) => Boolean(token) && state.verifySession),
 }));
 
 vi.mock("@testvibe/core", () => core);

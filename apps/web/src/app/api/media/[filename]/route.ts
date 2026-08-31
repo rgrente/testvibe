@@ -1,11 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename, getMediaForWebByFilename } from "@testvibe/core";
+import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename, adminVerifySession, getMediaForWebByFilename } from "@testvibe/core";
 import { readdir, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
-import { authorizeMutationRequest } from "@/lib/session";
+import { authorizeMutationRequest, SESSION_COOKIE_NAME } from "@/lib/session";
 import { recoverMediaArtifacts } from "@/lib/media-recovery";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
@@ -28,30 +28,43 @@ async function restoreQuarantine(quarantinePath: string, filePath: string): Prom
   return false;
 }
 
+function mediaNotFound() {
+  return NextResponse.json({ error: "Fichier introuvable." }, {
+    status: 404,
+    headers: { "Cache-Control": "private, no-store" },
+  });
+}
+
+function sessionToken(request: Request): string | undefined {
+  return request.headers.get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${SESSION_COOKIE_NAME}=`))
+    ?.slice(SESSION_COOKIE_NAME.length + 1);
+}
+
 /**
  * GET /api/media/[filename]
  * Sert un fichier média par son filename (UUID-based, sans traversal).
  */
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ filename: string }> },
 ) {
   const { filename } = await params;
   // Sanitize: no path traversal
   const safe = filename.replace(/[^a-zA-Z0-9.\-_]/g, "");
-  if (safe !== filename) {
-    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
-  }
+  if (safe !== filename) return mediaNotFound();
   let metadata;
   try {
-    metadata = await mediaFileOps.getPublicMedia(safe);
+    metadata = await adminVerifySession(sessionToken(request))
+      ? await mediaFileOps.getMediaByFilename(safe)
+      : await mediaFileOps.getPublicMedia(safe);
   } catch {
-    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
+    return mediaNotFound();
   }
   const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, safe);
-  if (!mediaFileOps.existsSync(/* turbopackIgnore: true */ filePath)) {
-    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
-  }
+  if (!mediaFileOps.existsSync(/* turbopackIgnore: true */ filePath)) return mediaNotFound();
   const stream = createReadStream(/* turbopackIgnore: true */ filePath);
   const webStream = Readable.toWeb(stream) as ReadableStream;
   return new NextResponse(webStream, {
