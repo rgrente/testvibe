@@ -12,6 +12,17 @@ const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
 export const uploadFileOps = { existsSync, mkdir, writeFile, unlink };
 
+async function cleanUpPartialUpload(filePath: string): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await uploadFileOps.unlink(filePath);
+      return true;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    }
+  }
+  return false;
+}
 
 /**
  * POST /api/media/upload
@@ -78,7 +89,10 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(media, { status: 201 });
   } catch {
-    if (filePath) await uploadFileOps.unlink(filePath).catch(() => undefined);
-    return NextResponse.json({ error: "Échec atomique de l’upload." }, { status: 500 });
+    const recovered = !filePath || await cleanUpPartialUpload(filePath);
+    return NextResponse.json(
+      { error: recovered ? "Échec atomique de l’upload." : "Upload incohérent, récupération requise." },
+      { status: recovered ? 500 : 503 },
+    );
   }
 }

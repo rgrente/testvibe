@@ -10,6 +10,18 @@ import { authorizeMutationRequest } from "@/lib/session";
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
 export const mediaFileOps = { existsSync, readFile, unlink, writeFile };
 
+async function restoreDeletedFile(filePath: string, contents: Buffer): Promise<boolean> {
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      await mediaFileOps.writeFile(filePath, contents);
+      return true;
+    } catch {
+      // Retry short transient disk faults; a persistent fault is surfaced below.
+    }
+  }
+  return false;
+}
+
 /**
  * GET /api/media/[filename]
  * Sert un fichier média par son filename (UUID-based, sans traversal).
@@ -79,8 +91,11 @@ export async function DELETE(
     try {
       await adminDeleteMedia(id);
     } catch {
-      await mediaFileOps.writeFile(filePath, contents);
-      throw new Error("database delete failed");
+      const recovered = await restoreDeletedFile(filePath, contents);
+      return NextResponse.json(
+        { error: recovered ? "Échec atomique de la suppression." : "Suppression incohérente, récupération requise." },
+        { status: recovered ? 500 : 503 },
+      );
     }
     return NextResponse.json({ success: true });
   } catch {

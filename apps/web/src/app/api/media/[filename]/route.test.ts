@@ -5,6 +5,7 @@ const state = vi.hoisted(() => ({
   deleted: false,
   failDelete: false,
   failUnlink: false,
+  restoreFailures: 0,
   restored: false,
   verifySession: true,
 }));
@@ -49,6 +50,7 @@ describe("DELETE /api/media/[filename]", () => {
       deleted: false,
       failDelete: false,
       failUnlink: false,
+      restoreFailures: 0,
       restored: false,
       verifySession: true,
     });
@@ -59,6 +61,10 @@ describe("DELETE /api/media/[filename]", () => {
       state.exists = false;
     });
     vi.spyOn(mediaFileOps, "writeFile").mockImplementation(async () => {
+      if (state.restoreFailures > 0) {
+        state.restoreFailures -= 1;
+        throw new Error("restore failure");
+      }
       state.exists = true;
       state.restored = true;
     });
@@ -101,8 +107,18 @@ describe("DELETE /api/media/[filename]", () => {
 
     state.failUnlink = false;
     state.failDelete = true;
+    state.restoreFailures = 1;
     expect((await remove()).status).toBe(500);
     expect(state.restored).toBe(true);
     expect(state.exists).toBe(true);
+    expect(mediaFileOps.writeFile).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports an unrecovered delete inconsistency instead of masking it", async () => {
+    state.failDelete = true;
+    state.restoreFailures = 3;
+    expect((await remove()).status).toBe(503);
+    expect(state.deleted).toBe(false);
+    expect(state.exists).toBe(false);
   });
 });

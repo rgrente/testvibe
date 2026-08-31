@@ -4,6 +4,8 @@ import { File as NodeFile } from "node:buffer";
 const state = vi.hoisted(() => ({
   files: new Set<string>(),
   failWrite: false,
+  partialWrite: false,
+  unlinkFailures: 0,
   failCreate: false,
   verifySession: true,
 }));
@@ -20,10 +22,17 @@ const disk = vi.hoisted(() => ({
   existsSync: vi.fn(() => true),
   mkdir: vi.fn(),
   writeFile: vi.fn(async (path: string) => {
+    if (state.partialWrite) state.files.add(path);
     if (state.failWrite) throw new Error("disk failure");
     state.files.add(path);
   }),
-  unlink: vi.fn(async (path: string) => { state.files.delete(path); }),
+  unlink: vi.fn(async (path: string) => {
+    if (state.unlinkFailures > 0) {
+      state.unlinkFailures -= 1;
+      throw new Error("cleanup failure");
+    }
+    state.files.delete(path);
+  }),
 }));
 
 vi.mock("@testvibe/core", () => core);
@@ -71,6 +80,8 @@ describe("POST /api/media/upload", () => {
     vi.clearAllMocks();
     state.files.clear();
     state.failWrite = false;
+    state.partialWrite = false;
+    state.unlinkFailures = 0;
     state.failCreate = false;
     state.verifySession = true;
     vi.spyOn(uploadFileOps, "existsSync").mockImplementation(disk.existsSync);
@@ -117,9 +128,12 @@ describe("POST /api/media/upload", () => {
 
   it("leaves no file or database orphan after disk or database faults", async () => {
     state.failWrite = true;
+    state.partialWrite = true;
+    state.unlinkFailures = 1;
     expect((await POST(uploadRequest() as never)).status).toBe(500);
     expect(core.adminCreateMedia).not.toHaveBeenCalled();
     expect(state.files.size).toBe(0);
+    expect(disk.unlink).toHaveBeenCalledTimes(2);
 
     state.failWrite = false;
     state.failCreate = true;
