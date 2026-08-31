@@ -25,9 +25,10 @@ function loginRequest(
   origin = "https://family.example",
   host = "family.example",
   forwardedFor = "203.0.113.8",
+  requestUrl = "https://family.example/api/admin/login",
 ) {
   const form = new URLSearchParams({ secret });
-  return new Request("https://family.example/api/admin/login", {
+  return new Request(requestUrl, {
     method: "POST",
     body: form,
     headers: {
@@ -44,14 +45,49 @@ describe("POST /api/admin/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ADMIN_SECRET = "configured-admin-value";
+    process.env.ADMIN_ORIGIN = "https://family.example";
     process.env.ADMIN_TRUSTED_PROXY = "1";
     rateLimit.failures.clear();
     rateLimit.startedAt.clear();
     security.adminCreateSession.mockResolvedValue("opaque-session-token");
   });
 
+  it("accepts the configured HTTPS origin when the internal request URL uses HTTP", async () => {
+    const response = await POST(loginRequest(
+      "configured-admin-value",
+      undefined,
+      undefined,
+      undefined,
+      "http://testvibe-web.testvibe.svc.cluster.local/api/admin/login",
+    ));
+    expect(response.status).toBe(303);
+    expect(security.adminCreateSession).toHaveBeenCalledOnce();
+  });
+
   it("rejects foreign origins before checking credentials", async () => {
     const response = await POST(loginRequest("configured-admin-value", "https://evil.example"));
+    expect(response.status).toBe(403);
+    expect(security.adminCreateSession).not.toHaveBeenCalled();
+  });
+
+  it("rejects requests without an Origin header", async () => {
+    const request = loginRequest("configured-admin-value");
+    request.headers.delete("origin");
+    const response = await POST(request);
+    expect(response.status).toBe(403);
+    expect(security.adminCreateSession).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when ADMIN_ORIGIN is missing", async () => {
+    delete process.env.ADMIN_ORIGIN;
+    const response = await POST(loginRequest("configured-admin-value"));
+    expect(response.status).toBe(403);
+    expect(security.adminCreateSession).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when ADMIN_ORIGIN is invalid", async () => {
+    process.env.ADMIN_ORIGIN = "not a URL";
+    const response = await POST(loginRequest("configured-admin-value"));
     expect(response.status).toBe(403);
     expect(security.adminCreateSession).not.toHaveBeenCalled();
   });
