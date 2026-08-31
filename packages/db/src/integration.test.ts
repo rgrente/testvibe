@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDb } from "./index.js";
+import { backupMigrationState, restoreMigrationState } from "./migration-backup.js";
 import { adminSession, filiation, loginRateLimit, person, unionPartner, unions } from "./schema.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -184,6 +185,42 @@ describe("SQLite/libSQL integration", () => {
       expect(columns.rows.map((row) => row.name)).not.toContain("visibility");
     } finally {
       instance.client.close();
+    }
+  });
+
+  it("restores database records and upload bytes from a migration backup", async () => {
+    const directory = await temporaryDirectory();
+    const databasePath = resolve(directory, "privacy.db");
+    const uploadsPath = resolve(directory, "uploads");
+    const backupPath = resolve(directory, "backup");
+    const fixtureBytes = new Uint8Array([0, 1, 2, 127, 128, 254, 255]);
+    await mkdir(uploadsPath);
+    await writeFile(resolve(uploadsPath, "fixture.bin"), fixtureBytes);
+
+    const before = createDb(`file:${databasePath}`);
+    await migrate(before.db, { migrationsFolder });
+    await before.db.insert(person).values({ firstName: "Backup", lastName: "Fixture" });
+    before.client.close();
+
+    await backupMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const changed = createDb(`file:${databasePath}`);
+    await changed.db.delete(person);
+    changed.client.close();
+    await writeFile(resolve(uploadsPath, "fixture.bin"), new Uint8Array([9, 9, 9]));
+    await writeFile(resolve(uploadsPath, "unexpected.bin"), new Uint8Array([8]));
+
+    await restoreMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const restored = createDb(`file:${databasePath}`);
+    try {
+      expect(await restored.db.select().from(person)).toMatchObject([
+        { firstName: "Backup", lastName: "Fixture" },
+      ]);
+      expect(await readFile(resolve(uploadsPath, "fixture.bin"))).toEqual(Buffer.from(fixtureBytes));
+      await expect(readFile(resolve(uploadsPath, "unexpected.bin"))).rejects.toThrow();
+    } finally {
+      restored.client.close();
     }
   });
 
