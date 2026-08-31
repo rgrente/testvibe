@@ -11,9 +11,10 @@
  * Next.js 16 exécute ce fichier dans le runtime Node.js.
  */
 import { type NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE_NAME, isValidSession, getAdminSecret } from "./lib/session";
+import { adminVerifySession } from "@testvibe/core";
+import { SESSION_COOKIE_NAME } from "./lib/session";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Les routes hors /admin ne sont pas concernées par ce proxy.
@@ -27,9 +28,7 @@ export function proxy(request: NextRequest) {
   }
 
   const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
-  const adminSecret = getAdminSecret();
-
-  if (!isValidSession(sessionCookie, adminSecret)) {
+  if (!(await adminVerifySession(sessionCookie))) {
     const loginUrl = new URL("/admin/login", request.url);
     return NextResponse.redirect(loginUrl);
   }

@@ -9,6 +9,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import type { FiliationRole } from "@testvibe/core";
 import { sortPersonsChronologically } from "@/lib/sort-persons";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export const dynamic = "force-dynamic";
 
 async function createFiliationAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const parentIds = formData.getAll("parentIds").map(Number).filter(Boolean);
   const childIds = formData.getAll("childIds").map(Number).filter(Boolean);
   const role = formData.get("role")?.toString() as FiliationRole;
@@ -34,6 +36,7 @@ async function createFiliationAction(formData: FormData) {
 
 async function deleteFiliationAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const id = Number(formData.get("id"));
   if (!id || Number.isNaN(id)) return;
   try {

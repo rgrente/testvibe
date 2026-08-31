@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { FiliationRole } from "@testvibe/core";
 import { sortPersonsChronologically } from "@/lib/sort-persons";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -38,6 +39,7 @@ export default async function EditFiliationPage({ params, searchParams }: EditFi
 
   async function updateFiliationAction(formData: FormData) {
     "use server";
+    await requireAdminMutation();
     const parentId = Number(formData.get("parentId"));
     const childId = Number(formData.get("childId"));
     const role = formData.get("role")?.toString() as FiliationRole;

@@ -1,6 +1,7 @@
 import { adminImportGedcom } from "@testvibe/core";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -8,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 export async function importGedcomAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
 
   const file = formData.get("gedcom") as File | null;
   if (!file || file.size === 0) {

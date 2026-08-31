@@ -3,8 +3,10 @@
 import { adminCreateEvent, adminUpdateEvent } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireAdminMutation } from "@/lib/session";
 
 export async function createEventAction(formData: FormData) {
+  await requireAdminMutation();
   const personId = Number(formData.get("personId"));
   const type = formData.get("type")?.toString() as
     | "naissance"
@@ -35,6 +37,7 @@ export async function createEventAction(formData: FormData) {
 }
 
 export async function updateEventAction(formData: FormData) {
+  await requireAdminMutation();
   const id = Number(formData.get("id"));
   const personId = Number(formData.get("personId"));
   const type = formData.get("type")?.toString() as

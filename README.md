@@ -61,6 +61,8 @@ committer :
 | --- | --- |
 | `DATABASE_URL` | URL libSQL ou chemin du fichier SQLite persistant. |
 | `ADMIN_SECRET` | Secret requis pour ouvrir la session d'administration. |
+| `ADMIN_ORIGIN` | Origine canonique complète (par exemple `https://famille.example`) autorisée pour les mutations admin. |
+| `ADMIN_TRUSTED_PROXY` | Mettre à `1` uniquement si le proxy frontal supprime les en-têtes d'adresse fournis par le client puis renseigne `X-Forwarded-For`; sans cette frontière explicite, le login admin échoue fermé. |
 | `UPLOAD_DIR` | Répertoire persistant des photos et documents. |
 | `FAMILY_TIME_ZONE` | Fuseau IANA utilisé pour les dates familiales. |
 

@@ -1,32 +1,4 @@
-import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 import Link from "next/link";
-import { SESSION_COOKIE_NAME, isValidSession, getAdminSecret } from "../../../lib/session";
-
-/**
- * Server Action : vérifie le secret soumis et pose le cookie de
- * session si correct. Ne lève jamais l'erreur côté client pour ne pas
- * exposer d'informations.
- */
-async function loginAction(formData: FormData) {
-  "use server";
-  const entered = formData.get("secret")?.toString() ?? "";
-  const adminSecret = getAdminSecret();
-
-  if (isValidSession(entered, adminSecret)) {
-    const cookieStore = await cookies();
-    cookieStore.set(SESSION_COOKIE_NAME, entered, {
-      httpOnly: true,
-      sameSite: "lax",
-      path: "/admin",
-      // En production, ajouter secure: true via une variable d'env
-      secure: process.env.NODE_ENV === "production",
-    });
-    redirect("/admin");
-  }
-  // En cas d'échec, on redirige vers la page de login avec un flag d'erreur
-  redirect("/admin/login?error=1");
-}
 
 interface LoginPageProps {
   searchParams: Promise<{ error?: string }>;
@@ -44,7 +16,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         </p>
       )}
 
-      <form action={loginAction} className="flex flex-col gap-4">
+      <form action="/api/admin/login" method="post" className="flex flex-col gap-4">
         <label htmlFor="secret" className="block text-sm font-medium text-slate-700">
           Secret admin
         </label>

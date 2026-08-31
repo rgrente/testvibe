@@ -15,6 +15,7 @@ export * from "./tree.js";
 export * from "./demo.js";
 export * from "./web-api.js";
 export * from "./admin-api.js";
+export * from "./admin-security.js";
 export * from "./gedcom.js";
 export * from "./event.js";
 export * from "./media.js";

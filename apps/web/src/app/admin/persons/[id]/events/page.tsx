@@ -8,6 +8,7 @@ import { redirect, notFound } from "next/navigation";
 import { createEventAction, updateEventAction } from "./actions";
 import Link from "next/link";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,7 @@ interface PersonEventsPageProps {
 
 async function deleteEventAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const id = Number(formData.get("id"));
   const personId = Number(formData.get("personId"));
   if (!id) return;
