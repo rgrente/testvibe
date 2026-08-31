@@ -26,3 +26,4 @@ export const client = defaultInstance.client;
 export const db = defaultInstance.db;
 
 export * from "./schema.js";
+export * from "./migration-backup.js";
