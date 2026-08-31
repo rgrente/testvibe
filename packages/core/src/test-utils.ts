@@ -7,16 +7,29 @@ import { migrate } from "drizzle-orm/libsql/migrator";
 import { createDb, type Database } from "@testvibe/db";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
+import { afterAll } from "vitest";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // Migrations définies une seule fois dans packages/db/drizzle.
 const migrationsFolder = resolve(__dirname, "../../db/drizzle");
+const temporaryDatabases: Array<{ path: string; close: () => void }> = [];
+
+afterAll(async () => {
+  await Promise.all(temporaryDatabases.splice(0).map(async ({ path, close }) => {
+    close();
+    await rm(path, { force: true });
+  }));
+});
 
 export async function createTestDb(): Promise<Database> {
-  // Chaque appel instancie une base SQLite en mémoire indépendante
-  // (aucun paramètre de partage/cache requis : un process Node par
-  // test suffit à garantir l'isolation).
-  const { db } = createDb(":memory:");
+  // Les transactions libSQL peuvent ouvrir une connexion distincte : un fichier
+  // temporaire garantit que toutes les connexions voient le même état.
+  const path = resolve(tmpdir(), `testvibe-core-${randomUUID()}.db`);
+  const { db, client } = createDb(`file:${path}`);
+  temporaryDatabases.push({ path, close: () => client.close() });
   await migrate(db, { migrationsFolder });
   return db;
 }

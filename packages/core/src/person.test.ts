@@ -4,6 +4,7 @@ import { createTestDb } from "./test-utils.js";
 import { createPerson, getPersonById, listPersons, updatePerson, deletePerson } from "./person.js";
 import { createEvent, listEventsByPerson } from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 describe("Person CRUD", () => {
   let db: Database;
@@ -116,6 +117,25 @@ describe("Auto-sync naissance/décès (syncBiographicalEvents)", () => {
 
   beforeEach(async () => {
     db = await createTestDb();
+  });
+
+  it("annule la création de la personne si la synchronisation d'événement échoue", async () => {
+    await db.run(sql.raw(`CREATE TRIGGER fail_birth BEFORE INSERT ON event
+      WHEN NEW.type = 'naissance' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
+    await expect(createPerson(db, {
+      firstName: "Atomic", lastName: "Create", birthDate: "2000-01-01",
+    })).rejects.toThrow();
+    expect(await listPersons(db)).toHaveLength(0);
+  });
+
+  it("annule la mise à jour de la personne si la synchronisation d'événement échoue", async () => {
+    const created = await createPerson(db, {
+      firstName: "Atomic", lastName: "Update", birthDate: "2000-01-01",
+    });
+    await db.run(sql.raw(`CREATE TRIGGER fail_birth_update BEFORE UPDATE ON event
+      WHEN NEW.type = 'naissance' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
+    await expect(updatePerson(db, created.id, { birthDate: "2001-01-01" })).rejects.toThrow();
+    expect((await getPersonById(db, created.id)).birthDate).toBe("2000-01-01");
   });
 
   it("crée automatiquement un événement naissance et décès pour une Person datée", async () => {

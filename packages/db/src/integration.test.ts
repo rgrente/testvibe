@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { afterEach, describe, expect, it } from "vitest";
-import { createDb } from "./index.js";
+import { auditGenealogyIntegrity, createDb } from "./index.js";
 import { backupMigrationState, restoreMigrationState } from "./migration-backup.js";
 import { adminSession, filiation, loginRateLimit, person, unionPartner, unions } from "./schema.js";
 
@@ -94,6 +94,88 @@ describe("SQLite/libSQL integration", () => {
       ]);
     } finally {
       copied.client.close();
+    }
+  });
+
+  it("enforces filiation integrity and uses foreign-key indexes for direct SQL", async () => {
+    const directory = await temporaryDirectory();
+    const instance = createDb(`file:${resolve(directory, "integrity.db")}`);
+    try {
+      await migrate(instance.db, { migrationsFolder });
+      await instance.db.run(sql`pragma foreign_keys = on`);
+      await instance.client.execute("insert into person (first_name, last_name) values ('A', 'Test'), ('B', 'Test'), ('C', 'Test')");
+      await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 1, 'biologique')")).rejects.toThrow();
+      await instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 2, 'biologique')");
+      await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 2, 'adopte')")).rejects.toThrow();
+      await instance.client.execute("insert into filiation (parent_id, child_id, role) values (2, 3, 'biologique')");
+      await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (3, 1, 'biologique')")).rejects.toThrow();
+      await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (999, 1, 'biologique')")).rejects.toThrow();
+      const indexes = await instance.client.execute("select name from sqlite_master where type = 'index' and name in ('filiation_parent_idx', 'filiation_child_idx') order by name");
+      expect(indexes.rows.map((row) => row.name)).toEqual(["filiation_child_idx", "filiation_parent_idx"]);
+      const plan = await instance.client.execute("explain query plan select * from filiation where parent_id = 1");
+      expect(plan.rows.map((row) => String(row.detail)).join(" ")).toContain("filiation_parent_idx");
+    } finally {
+      instance.client.close();
+    }
+  });
+
+  it("audits incompatible legacy rows before migration without mutating them", async () => {
+    const directory = await temporaryDirectory();
+    const legacyMigrations = resolve(directory, "migrations-0008");
+    await cp(migrationsFolder, legacyMigrations, { recursive: true });
+    await rm(resolve(legacyMigrations, "0009_fine_gressill.sql"));
+    await rm(resolve(legacyMigrations, "meta/0009_snapshot.json"));
+    const journalPath = resolve(legacyMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 8);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+    const instance = createDb(`file:${resolve(directory, "legacy-invalid.db")}`);
+    try {
+      await migrate(instance.db, { migrationsFolder: legacyMigrations });
+      await instance.client.execute("pragma foreign_keys = off");
+      await instance.client.execute("insert into person (id, first_name, last_name) values (1, 'A', 'Test'), (2, 'B', 'Test')");
+      await instance.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 1, 'biologique'), (11, 1, 2, 'biologique'), (12, 1, 2, 'adopte'), (13, 2, 1, 'biologique'), (14, 999, 2, 'biologique')");
+      expect(await auditGenealogyIntegrity(instance.client)).toEqual(expect.arrayContaining([
+        { kind: "missing-parent", ids: [14] },
+        { kind: "self-link", ids: [10] },
+        { kind: "duplicate-pair", ids: [11, 12] },
+        { kind: "cycle", ids: expect.arrayContaining([10, 11, 12, 13]) },
+      ]));
+      await expect(migrate(instance.db, { migrationsFolder })).rejects.toThrow();
+      expect((await instance.client.execute("select id from filiation order by id")).rows.map((row) => Number(row.id)))
+        .toEqual([10, 11, 12, 13, 14]);
+      expect((await instance.client.execute("select name from sqlite_master where type = 'index' and name = 'filiation_parent_child_unique'")).rows)
+        .toHaveLength(0);
+    } finally {
+      instance.client.close();
+    }
+  });
+
+  it("preserves compatible rows through genealogy migration and rollback", async () => {
+    const directory = await temporaryDirectory();
+    const legacyMigrations = resolve(directory, "migrations-0008-compatible");
+    await cp(migrationsFolder, legacyMigrations, { recursive: true });
+    await rm(resolve(legacyMigrations, "0009_fine_gressill.sql"));
+    await rm(resolve(legacyMigrations, "meta/0009_snapshot.json"));
+    const journalPath = resolve(legacyMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 8);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+    const instance = createDb(`file:${resolve(directory, "legacy-compatible.db")}`);
+    try {
+      await migrate(instance.db, { migrationsFolder: legacyMigrations });
+      await instance.client.execute("insert into person (id, first_name, last_name) values (1, 'A', 'Test'), (2, 'B', 'Test')");
+      await instance.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 2, 'biologique')");
+      await migrate(instance.db, { migrationsFolder });
+      expect((await instance.client.execute("select id, parent_id, child_id from filiation")).rows)
+        .toMatchObject([{ id: 10, parent_id: 1, child_id: 2 }]);
+      const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0009_genealogy_integrity.sql"), "utf8");
+      for (const statement of rollback.split(";")) if (statement.trim()) await instance.db.run(sql.raw(statement));
+      expect((await instance.client.execute("select id, parent_id, child_id from filiation")).rows)
+        .toMatchObject([{ id: 10, parent_id: 1, child_id: 2 }]);
+      expect((await instance.client.execute("pragma index_list(filiation)")).rows).toHaveLength(0);
+    } finally {
+      instance.client.close();
     }
   });
 

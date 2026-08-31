@@ -11,6 +11,7 @@ import type {
   FiliationRole,
 } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { runTransaction } from "./transaction.js";
 
 const VALID_ROLES: FiliationRole[] = ["biologique", "adopte", "beau-parent"];
 
@@ -32,6 +33,33 @@ function assertValidFiliationInput(input: FiliationInput): void {
   }
 }
 
+async function assertFiliationIntegrity(
+  db: Database,
+  input: FiliationInput,
+  excludedId?: number,
+): Promise<void> {
+  assertValidFiliationInput(input);
+  await assertPersonExists(db, input.parentId, "parentId");
+  await assertPersonExists(db, input.childId, "childId");
+  const existing = (await listFiliations(db)).filter((link) => link.id !== excludedId);
+  if (existing.some((link) => link.parentId === input.parentId && link.childId === input.childId)) {
+    throw new ValidationError(`La filiation ${input.parentId} → ${input.childId} existe déjà.`);
+  }
+  const adjacency = new Map<number, number[]>();
+  for (const link of [...existing, input]) {
+    adjacency.set(link.parentId, [...(adjacency.get(link.parentId) ?? []), link.childId]);
+  }
+  const reaches = (from: number, target: number, seen = new Set<number>()): boolean => {
+    if (from === target) return true;
+    if (seen.has(from)) return false;
+    seen.add(from);
+    return (adjacency.get(from) ?? []).some((next) => reaches(next, target, seen));
+  };
+  if (reaches(input.childId, input.parentId)) {
+    throw new ValidationError("Cette filiation créerait un cycle.");
+  }
+}
+
 function toFiliation(row: typeof filiation.$inferSelect): Filiation {
   return {
     id: row.id,
@@ -41,10 +69,12 @@ function toFiliation(row: typeof filiation.$inferSelect): Filiation {
   };
 }
 
-export async function createFiliation(db: Database, input: FiliationInput): Promise<Filiation> {
-  assertValidFiliationInput(input);
-  await assertPersonExists(db, input.parentId, "parentId");
-  await assertPersonExists(db, input.childId, "childId");
+/** Internal transaction-aware primitive used by composite operations. */
+export async function createFiliationInTransaction(
+  db: Database,
+  input: FiliationInput,
+): Promise<Filiation> {
+  await assertFiliationIntegrity(db, input);
   const [row] = await db
     .insert(filiation)
     .values({
@@ -54,6 +84,10 @@ export async function createFiliation(db: Database, input: FiliationInput): Prom
     })
     .returning();
   return toFiliation(row);
+}
+
+export async function createFiliation(db: Database, input: FiliationInput): Promise<Filiation> {
+  return runTransaction(db, (transactionalDb) => createFiliationInTransaction(transactionalDb, input));
 }
 
 /** Crée atomiquement le produit cartésien parents × enfants. */
@@ -117,23 +151,15 @@ export async function createFiliations(
     throw new ValidationError("Ce lot créerait un cycle de filiation.");
   }
 
-  const created: Filiation[] = [];
-  try {
+  return runTransaction(db, async (transactionalDb) => {
+    const created: Filiation[] = [];
     for (const link of pairs) {
-      const [row] = await db.insert(filiation).values(link).returning();
+      await assertFiliationIntegrity(transactionalDb, link);
+      const [row] = await transactionalDb.insert(filiation).values(link).returning();
       created.push(toFiliation(row));
     }
     return created;
-  } catch (error) {
-    for (const createdLink of [...created].reverse()) {
-      try {
-        await db.delete(filiation).where(eq(filiation.id, createdLink.id));
-      } catch {
-        // Best effort : l'erreur d'écriture initiale reste prioritaire.
-      }
-    }
-    throw error;
-  }
+  });
 }
 
 export async function getFiliationById(db: Database, id: number): Promise<Filiation> {
@@ -154,29 +180,21 @@ export async function updateFiliation(
   id: number,
   input: Partial<FiliationInput>,
 ): Promise<Filiation> {
-  const existing = await getFiliationById(db, id); // lève NotFoundError si absent
-  const merged: FiliationInput = {
-    parentId: input.parentId ?? existing.parentId,
-    childId: input.childId ?? existing.childId,
-    role: input.role ?? existing.role,
-  };
-  assertValidFiliationInput(merged);
-  if (input.parentId !== undefined) {
-    await assertPersonExists(db, merged.parentId, "parentId");
-  }
-  if (input.childId !== undefined) {
-    await assertPersonExists(db, merged.childId, "childId");
-  }
-  const [row] = await db
-    .update(filiation)
-    .set({
+  return runTransaction(db, async (transactionalDb) => {
+    const existing = await getFiliationById(transactionalDb, id);
+    const merged: FiliationInput = {
+      parentId: input.parentId ?? existing.parentId,
+      childId: input.childId ?? existing.childId,
+      role: input.role ?? existing.role,
+    };
+    await assertFiliationIntegrity(transactionalDb, merged, id);
+    const [row] = await transactionalDb.update(filiation).set({
       parentId: merged.parentId,
       childId: merged.childId,
       role: merged.role,
-    })
-    .where(eq(filiation.id, id))
-    .returning();
-  return toFiliation(row);
+    }).where(eq(filiation.id, id)).returning();
+    return toFiliation(row);
+  });
 }
 
 export async function deleteFiliation(db: Database, id: number): Promise<void> {
