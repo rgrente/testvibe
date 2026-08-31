@@ -4,9 +4,10 @@ const requestState = vi.hoisted(() => ({
   cookie: "opaque",
   origin: "https://family.example",
   host: "family.example",
+  validSession: true,
 }));
 
-vi.mock("@testvibe/core", () => ({ adminVerifySession: vi.fn(async () => true) }));
+vi.mock("@testvibe/core", () => ({ adminVerifySession: vi.fn(async () => requestState.validSession) }));
 vi.mock("next/headers", () => ({
   cookies: vi.fn(async () => ({ get: () => ({ value: requestState.cookie }) })),
   headers: vi.fn(async () => new Headers({
@@ -23,6 +24,12 @@ describe("Server Action mutation origin", () => {
     process.env.ADMIN_ORIGIN = "https://family.example";
     requestState.origin = "https://family.example";
     requestState.host = "family.example";
+    requestState.validSession = true;
+  });
+
+  it("rejects an absent or invalid session before evaluating the mutation origin", async () => {
+    requestState.validSession = false;
+    await expect(requireAdminMutation()).rejects.toThrow("Unauthorized");
   });
 
   it("accepts the configured canonical origin", async () => {
