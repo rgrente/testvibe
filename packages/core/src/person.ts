@@ -7,6 +7,7 @@ import { eq } from "drizzle-orm";
 import { person, event, type Database } from "@testvibe/db";
 import type { Person, PersonInput, EventType } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { runTransaction } from "./transaction.js";
 
 function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
@@ -112,23 +113,25 @@ export async function syncBiographicalEvents(
   }
 }
 
-export async function createPerson(db: Database, input: PersonInput): Promise<Person> {
+/** Internal transaction-aware primitive used by composite operations. */
+export async function createPersonInTransaction(db: Database, input: PersonInput): Promise<Person> {
   assertValidPersonInput(input);
-  const [row] = await db
-    .insert(person)
-    .values({
-      firstName: input.firstName,
-      lastName: input.lastName,
-      birthName: input.birthName?.trim() || null,
-      birthDate: input.birthDate ?? null,
-      deathDate: input.deathDate ?? null,
-      gender: input.gender ?? null,
-      livingStatus: input.livingStatus ?? null,
-      visibility: input.visibility ?? null,
-    })
-    .returning();
+  const [row] = await db.insert(person).values({
+    firstName: input.firstName,
+    lastName: input.lastName,
+    birthName: input.birthName?.trim() || null,
+    birthDate: input.birthDate ?? null,
+    deathDate: input.deathDate ?? null,
+    gender: input.gender ?? null,
+    livingStatus: input.livingStatus ?? null,
+    visibility: input.visibility ?? null,
+  }).returning();
   await syncBiographicalEvents(db, row.id, input.birthDate ?? null, input.deathDate ?? null);
   return toPerson(row);
+}
+
+export async function createPerson(db: Database, input: PersonInput): Promise<Person> {
+  return runTransaction(db, (transactionalDb) => createPersonInTransaction(transactionalDb, input));
 }
 
 export async function getPersonById(db: Database, id: number): Promise<Person> {
@@ -149,21 +152,20 @@ export async function updatePerson(
   id: number,
   input: Partial<PersonInput>,
 ): Promise<Person> {
-  const existing = await getPersonById(db, id); // lève NotFoundError si absent
-  const merged: PersonInput = {
-    firstName: input.firstName ?? existing.firstName,
-    lastName: input.lastName ?? existing.lastName,
-    birthName: input.birthName !== undefined ? input.birthName?.trim() || null : existing.birthName,
-    birthDate: input.birthDate !== undefined ? input.birthDate : existing.birthDate,
-    deathDate: input.deathDate !== undefined ? input.deathDate : existing.deathDate,
-    gender: input.gender !== undefined ? input.gender : existing.gender,
-    livingStatus: input.livingStatus !== undefined ? input.livingStatus : existing.livingStatus,
-    visibility: input.visibility !== undefined ? input.visibility : existing.visibility,
-  };
-  assertValidPersonInput(merged);
-  const [row] = await db
-    .update(person)
-    .set({
+  return runTransaction(db, async (transactionalDb) => {
+    const existing = await getPersonById(transactionalDb, id);
+    const merged: PersonInput = {
+      firstName: input.firstName ?? existing.firstName,
+      lastName: input.lastName ?? existing.lastName,
+      birthName: input.birthName !== undefined ? input.birthName?.trim() || null : existing.birthName,
+      birthDate: input.birthDate !== undefined ? input.birthDate : existing.birthDate,
+      deathDate: input.deathDate !== undefined ? input.deathDate : existing.deathDate,
+      gender: input.gender !== undefined ? input.gender : existing.gender,
+      livingStatus: input.livingStatus !== undefined ? input.livingStatus : existing.livingStatus,
+      visibility: input.visibility !== undefined ? input.visibility : existing.visibility,
+    };
+    assertValidPersonInput(merged);
+    const [row] = await transactionalDb.update(person).set({
       firstName: merged.firstName,
       lastName: merged.lastName,
       birthName: merged.birthName?.trim() || null,
@@ -172,11 +174,10 @@ export async function updatePerson(
       gender: merged.gender ?? null,
       livingStatus: merged.livingStatus ?? null,
       visibility: merged.visibility ?? null,
-    })
-    .where(eq(person.id, id))
-    .returning();
-  await syncBiographicalEvents(db, row.id, merged.birthDate ?? null, merged.deathDate ?? null);
-  return toPerson(row);
+    }).where(eq(person.id, id)).returning();
+    await syncBiographicalEvents(transactionalDb, row.id, merged.birthDate ?? null, merged.deathDate ?? null);
+    return toPerson(row);
+  });
 }
 
 export async function deletePerson(db: Database, id: number): Promise<void> {

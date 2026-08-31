@@ -7,7 +7,7 @@
  * avec un rôle biologique/adopté/beau-parent).
  */
 import { sql } from "drizzle-orm";
-import { check, index, sqliteTable, integer, text, real, primaryKey } from "drizzle-orm/sqlite-core";
+import { check, index, sqliteTable, integer, text, real, primaryKey, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const health = sqliteTable("_health", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -57,6 +57,7 @@ export const unionPartner = sqliteTable(
   },
   (table) => ({
     pk: primaryKey({ columns: [table.unionId, table.personId] }),
+    personIdx: index("union_partner_person_idx").on(table.personId),
   }),
 );
 
@@ -69,7 +70,12 @@ export const filiation = sqliteTable("filiation", {
     .notNull()
     .references(() => person.id, { onDelete: "cascade" }),
   role: text("role", { enum: ["biologique", "adopte", "beau-parent"] }).notNull(),
-});
+}, (table) => [
+  check("filiation_distinct_people", sql`${table.parentId} <> ${table.childId}`),
+  uniqueIndex("filiation_parent_child_unique").on(table.parentId, table.childId),
+  index("filiation_parent_idx").on(table.parentId),
+  index("filiation_child_idx").on(table.childId),
+]);
 
 /**
  * Événements biographiques liés à une Person (optionnel : unionId si
@@ -93,6 +99,8 @@ export const event = sqliteTable("event", {
 }, (table) => [
   check("event_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),
   index("event_visibility_idx").on(table.visibility),
+  index("event_person_idx").on(table.personId),
+  index("event_union_idx").on(table.unionId),
 ]);
 
 /**
@@ -112,6 +120,8 @@ export const media = sqliteTable("media", {
 }, (table) => [
   check("media_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),
   index("media_visibility_idx").on(table.visibility),
+  index("media_person_idx").on(table.personId),
+  index("media_event_idx").on(table.eventId),
 ]);
 
 export const adminSession = sqliteTable("admin_session", {

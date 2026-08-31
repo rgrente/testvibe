@@ -7,6 +7,7 @@ import { unions, unionPartner, person, type Database } from "@testvibe/db";
 import type { Union, UnionInput } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
+import { runTransaction } from "./transaction.js";
 
 function isValidDate(value: string): boolean {
   return !Number.isNaN(Date.parse(value));
@@ -73,24 +74,26 @@ async function loadUnion(db: Database, id: number): Promise<Union> {
   };
 }
 
-export async function createUnion(db: Database, input: UnionInput): Promise<Union> {
+/** Internal transaction-aware primitive used by composite operations. */
+export async function createUnionInTransaction(db: Database, input: UnionInput): Promise<Union> {
   assertValidUnionInput(input);
   await assertPersonsExist(db, input.personIds);
-  const [row] = await db
-    .insert(unions)
-    .values({
-      type: input.type ?? "libre",
-      startDate: input.startDate ?? null,
-      endDate: input.endDate ?? null,
-      place: normalizePlace(input.place),
-      latitude: input.latitude ?? null,
-      longitude: input.longitude ?? null,
-    })
-    .returning();
+  const [row] = await db.insert(unions).values({
+    type: input.type ?? "libre",
+    startDate: input.startDate ?? null,
+    endDate: input.endDate ?? null,
+    place: normalizePlace(input.place),
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
+  }).returning();
   await db.insert(unionPartner).values(
     input.personIds.map((personId) => ({ unionId: row.id, personId })),
   );
   return loadUnion(db, row.id);
+}
+
+export async function createUnion(db: Database, input: UnionInput): Promise<Union> {
+  return runTransaction(db, (transactionalDb) => createUnionInTransaction(transactionalDb, input));
 }
 
 export async function getUnionById(db: Database, id: number): Promise<Union> {
@@ -107,8 +110,9 @@ export async function updateUnion(
   id: number,
   input: Partial<UnionInput>,
 ): Promise<Union> {
-  const existing = await loadUnion(db, id); // lève NotFoundError si absent
-  const merged: UnionInput = {
+  return runTransaction(db, async (transactionalDb) => {
+    const existing = await loadUnion(transactionalDb, id);
+    const merged: UnionInput = {
     type: input.type !== undefined ? input.type : existing.type,
     startDate: input.startDate !== undefined ? input.startDate : existing.startDate,
     endDate: input.endDate !== undefined ? input.endDate : existing.endDate,
@@ -116,11 +120,11 @@ export async function updateUnion(
     latitude: input.latitude !== undefined ? input.latitude : existing.latitude,
     longitude: input.longitude !== undefined ? input.longitude : existing.longitude,
     personIds: input.personIds ?? existing.personIds,
-  };
-  assertValidUnionInput(merged);
-  await assertPersonsExist(db, merged.personIds);
+    };
+    assertValidUnionInput(merged);
+    await assertPersonsExist(transactionalDb, merged.personIds);
 
-  await db
+    await transactionalDb
     .update(unions)
     .set({
       type: merged.type ?? "libre",
@@ -133,13 +137,14 @@ export async function updateUnion(
     .where(eq(unions.id, id));
 
   if (input.personIds !== undefined) {
-    await db.delete(unionPartner).where(eq(unionPartner.unionId, id));
-    await db.insert(unionPartner).values(
-      merged.personIds.map((personId) => ({ unionId: id, personId })),
-    );
-  }
+      await transactionalDb.delete(unionPartner).where(eq(unionPartner.unionId, id));
+      await transactionalDb.insert(unionPartner).values(
+        merged.personIds.map((personId) => ({ unionId: id, personId })),
+      );
+    }
 
-  return loadUnion(db, id);
+    return loadUnion(transactionalDb, id);
+  });
 }
 
 export async function deleteUnion(db: Database, id: number): Promise<void> {

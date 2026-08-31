@@ -16,6 +16,7 @@ import { listFiliations } from "./filiation.js";
 import { listAllEvents, listFamilyTimeline } from "./event.js";
 import { anniversariesForDate } from "./anniversary.js";
 import { ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 // ─── Fixture GEDCOM multi-générations ────────────────────────────────────────
 //
@@ -148,6 +149,18 @@ describe("importGedcom", () => {
     expect(unions).toHaveLength(0);
     const filiations = await listFiliations(db);
     expect(filiations).toHaveLength(0);
+  });
+
+  it("annule tout l'import lorsqu'une écriture tardive échoue", async () => {
+    await db.run(sql.raw(`CREATE TRIGGER fail_gedcom_partner BEFORE INSERT ON union_partner
+      BEGIN SELECT RAISE(FAIL, 'échec GEDCOM injecté'); END`));
+
+    await expect(importGedcom(db, VALID_GEDCOM)).rejects.toThrow();
+
+    expect(await listPersons(db)).toHaveLength(0);
+    expect(await listUnions(db)).toHaveLength(0);
+    expect(await listFiliations(db)).toHaveLength(0);
+    expect(await listAllEvents(db)).toHaveLength(0);
   });
 
   it("preserve le libellé d'un EVEN porté par 2 TYPE, et retombe sur 1 EVEN sinon", async () => {

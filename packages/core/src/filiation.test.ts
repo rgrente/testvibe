@@ -92,6 +92,21 @@ describe("Filiation CRUD", () => {
       createFiliation(db, { parentId: p.id, childId: p.id, role: "biologique" }),
     ).rejects.toBeInstanceOf(ValidationError);
   });
+
+  it("rejette uniformément les doublons et cycles en création et mise à jour", async () => {
+    const [a, b, c] = await Promise.all(["A", "B", "C"].map((firstName) =>
+      createPerson(db, { firstName, lastName: "Test" }),
+    ));
+    const ab = await createFiliation(db, { parentId: a.id, childId: b.id, role: "biologique" });
+    await createFiliation(db, { parentId: b.id, childId: c.id, role: "biologique" });
+    await expect(createFiliation(db, { parentId: a.id, childId: b.id, role: "adopte" }))
+      .rejects.toBeInstanceOf(ValidationError);
+    await expect(createFiliation(db, { parentId: c.id, childId: a.id, role: "biologique" }))
+      .rejects.toBeInstanceOf(ValidationError);
+    await expect(updateFiliation(db, ab.id, { parentId: c.id, childId: b.id }))
+      .rejects.toBeInstanceOf(ValidationError);
+    expect(await getFiliationById(db, ab.id)).toMatchObject({ parentId: a.id, childId: b.id });
+  });
 });
 
 describe("création de filiations par lot", () => {

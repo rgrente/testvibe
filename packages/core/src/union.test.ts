@@ -4,12 +4,31 @@ import { createTestDb } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createUnion, getUnionById, listUnions, updateUnion, deleteUnion } from "./union.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 describe("Union CRUD", () => {
   let db: Database;
 
   beforeEach(async () => {
     db = await createTestDb();
+  });
+
+  it("annule la création de l'union si l'ajout des partenaires échoue", async () => {
+    const a = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    await db.run(sql.raw(`CREATE TRIGGER fail_partner BEFORE INSERT ON union_partner
+      BEGIN SELECT RAISE(FAIL, 'échec partenaire'); END`));
+    await expect(createUnion(db, { personIds: [a.id] })).rejects.toThrow();
+    expect(await listUnions(db)).toHaveLength(0);
+  });
+
+  it("annule la mise à jour complète si le remplacement des partenaires échoue", async () => {
+    const a = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    const b = await createPerson(db, { firstName: "William", lastName: "King" });
+    const created = await createUnion(db, { type: "libre", personIds: [a.id] });
+    await db.run(sql.raw(`CREATE TRIGGER fail_partner_update BEFORE INSERT ON union_partner
+      WHEN NEW.person_id = ${b.id} BEGIN SELECT RAISE(FAIL, 'échec partenaire'); END`));
+    await expect(updateUnion(db, created.id, { type: "mariage", personIds: [b.id] })).rejects.toThrow();
+    expect(await getUnionById(db, created.id)).toMatchObject({ type: "libre", personIds: [a.id] });
   });
 
   it("crée une Union nominale liant deux Person et la relit par id", async () => {

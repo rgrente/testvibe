@@ -11,12 +11,13 @@
  */
 import type { Database } from "@testvibe/db";
 import { ValidationError } from "./errors.js";
-import { createPerson, listPersons, deletePerson } from "./person.js";
-import { createUnion, listUnions, deleteUnion } from "./union.js";
-import { createFiliation, listFiliations, deleteFiliation } from "./filiation.js";
+import { createPersonInTransaction, listPersons, deletePerson } from "./person.js";
+import { createUnionInTransaction, listUnions, deleteUnion } from "./union.js";
+import { createFiliationInTransaction, listFiliations, deleteFiliation } from "./filiation.js";
 import { createEvent, updateEvent, deleteEvent, listAllEvents, listEventsByPerson } from "./event.js";
 import type { FiliationRole } from "./types.js";
 import { projectFamilyFacts } from "./projection.js";
+import { runTransaction } from "./transaction.js";
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -416,7 +417,7 @@ function parseGedcom(text: string): { indis: GedcomIndi[]; fams: GedcomFam[]; ev
  * @param text  Contenu textuel du fichier .ged.
  * @throws ValidationError si le fichier est malformé ou invalide.
  */
-export async function importGedcom(db: Database, text: string): Promise<void> {
+async function importGedcomInTransaction(db: Database, text: string): Promise<void> {
   // Parse d'abord (lève ValidationError si malformé, avant toute écriture)
   const { indis, fams, evens } = parseGedcom(text);
 
@@ -437,7 +438,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
   try {
     // 1. Insérer les individus
     for (const indi of indis) {
-      const person = await createPerson(db, {
+      const person = await createPersonInTransaction(db, {
         firstName: indi.firstName || "(inconnu)",
         lastName: indi.lastName || "(inconnu)",
         birthName: indi.birthName,
@@ -526,7 +527,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
         const unionType = fam.hasMarriage ? "mariage" : (fam.partnershipType ?? "libre");
         const unionDate = fam.hasMarriage ? fam.marriageDate : fam.partnershipDate;
         const unionPlace = fam.hasMarriage ? fam.marriagePlace : fam.partnershipPlace;
-        const union = await createUnion(db, {
+        const union = await createUnionInTransaction(db, {
           type: unionType,
           startDate: unionDate,
           endDate: null,
@@ -554,7 +555,7 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
           if (childId === undefined) continue;
 
           for (const parentId of personIds) {
-            const fil = await createFiliation(db, {
+            const fil = await createFiliationInTransaction(db, {
               parentId,
               childId,
               role: "biologique" as FiliationRole,
@@ -581,6 +582,10 @@ export async function importGedcom(db: Database, text: string): Promise<void> {
     }
     throw error;
   }
+}
+
+export async function importGedcom(db: Database, text: string): Promise<void> {
+  return runTransaction(db, (transactionalDb) => importGedcomInTransaction(transactionalDb, text));
 }
 
 // ─── Export GEDCOM ────────────────────────────────────────────────────────────
