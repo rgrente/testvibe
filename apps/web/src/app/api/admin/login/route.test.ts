@@ -1,25 +1,31 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const rateLimit = vi.hoisted(() => ({ failures: 0, startedAt: 0 }));
+const rateLimit = vi.hoisted(() => ({ failures: new Map<string, number>(), startedAt: new Map<string, number>() }));
 const security = vi.hoisted(() => ({
   adminCreateSession: vi.fn(),
-  adminIsLoginRateLimited: vi.fn(async () => rateLimit.failures >= 5
-    && Date.now() - rateLimit.startedAt < 15 * 60 * 1000),
-  adminRecordLoginFailure: vi.fn(async () => {
-    if (!rateLimit.startedAt || Date.now() - rateLimit.startedAt >= 15 * 60 * 1000) {
-      rateLimit.failures = 0;
-      rateLimit.startedAt = Date.now();
+  adminIsLoginRateLimited: vi.fn(async (fingerprint: string) => (rateLimit.failures.get(fingerprint) ?? 0) >= 5
+    && Date.now() - (rateLimit.startedAt.get(fingerprint) ?? 0) < 15 * 60 * 1000),
+  adminRecordLoginFailure: vi.fn(async (fingerprint: string) => {
+    const startedAt = rateLimit.startedAt.get(fingerprint);
+    if (!startedAt || Date.now() - startedAt >= 15 * 60 * 1000) {
+      rateLimit.failures.set(fingerprint, 0);
+      rateLimit.startedAt.set(fingerprint, Date.now());
     }
-    rateLimit.failures += 1;
+    rateLimit.failures.set(fingerprint, (rateLimit.failures.get(fingerprint) ?? 0) + 1);
   }),
-  adminResetLoginFailures: vi.fn(async () => { rateLimit.failures = 0; }),
+  adminResetLoginFailures: vi.fn(async (fingerprint: string) => { rateLimit.failures.delete(fingerprint); }),
 }));
 
 vi.mock("@testvibe/core", () => security);
 
 import { POST } from "./route";
 
-function loginRequest(secret: string, origin = "https://family.example", host = "family.example") {
+function loginRequest(
+  secret: string,
+  origin = "https://family.example",
+  host = "family.example",
+  forwardedFor = "203.0.113.8",
+) {
   const form = new URLSearchParams({ secret });
   return new Request("https://family.example/api/admin/login", {
     method: "POST",
@@ -28,7 +34,7 @@ function loginRequest(secret: string, origin = "https://family.example", host = 
       origin,
       host,
       "x-forwarded-host": host,
-      "x-forwarded-for": "203.0.113.8",
+      "x-forwarded-for": forwardedFor,
       "content-type": "application/x-www-form-urlencoded",
     },
   });
@@ -38,8 +44,8 @@ describe("POST /api/admin/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ADMIN_SECRET = "configured-admin-value";
-    rateLimit.failures = 0;
-    rateLimit.startedAt = 0;
+    rateLimit.failures.clear();
+    rateLimit.startedAt.clear();
     security.adminCreateSession.mockResolvedValue("opaque-session-token");
   });
 
@@ -65,6 +71,20 @@ describe("POST /api/admin/login", () => {
     expect((await POST(loginRequest("wrong"))).status).toBe(429);
     vi.advanceTimersByTime(15 * 60 * 1000);
     expect((await POST(loginRequest("wrong"))).status).toBe(303);
+    vi.useRealTimers();
+  });
+
+  it("cannot evade the global login limit by rotating client-controlled IP headers", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
+    for (let attempt = 0; attempt < 5; attempt += 1) {
+      expect((await POST(loginRequest("wrong", undefined, undefined, `203.0.113.${attempt}`))).status)
+        .toBe(303);
+    }
+    expect((await POST(loginRequest("wrong", undefined, undefined, "198.51.100.99"))).status)
+      .toBe(429);
+    expect(new Set(security.adminRecordLoginFailure.mock.calls.map(([fingerprint]) => fingerprint)).size)
+      .toBe(1);
     vi.useRealTimers();
   });
 

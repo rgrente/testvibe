@@ -20,10 +20,10 @@ export async function POST(request: Request) {
   }
 
   const adminSecret = getAdminSecret();
-  const address = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
-    ?? request.headers.get("x-real-ip")
-    ?? "unknown";
-  const fingerprint = clientFingerprint(address, adminSecret || "unconfigured");
+  // A Web Request has no authenticated peer address. Treating forwarding
+  // headers as identity lets clients rotate them, so use one deployment-wide
+  // bucket unless a trusted transport supplies identity outside this handler.
+  const fingerprint = clientFingerprint("admin-login-global", adminSecret || "unconfigured");
   if (await adminIsLoginRateLimited(fingerprint)) {
     return NextResponse.json({ error: "Too many attempts" }, {
       status: 429,
