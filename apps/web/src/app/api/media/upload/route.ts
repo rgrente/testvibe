@@ -1,21 +1,16 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminCreateMedia } from "@testvibe/core";
-import { writeFile } from "node:fs/promises";
+import { adminCreateMedia, adminGetEvent, adminGetPerson } from "@testvibe/core";
+import { unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
+import { authorizeMutationRequest } from "@/lib/session";
+import { detectMediaType, hasSingleAttachment } from "@/lib/media-upload";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
-const ALLOWED_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/gif",
-  "image/webp",
-  "image/avif",
-  "application/pdf",
-];
+
 
 /**
  * POST /api/media/upload
@@ -23,6 +18,9 @@ const ALLOWED_TYPES = [
  * Retourne le Media créé en JSON.
  */
 export async function POST(request: NextRequest) {
+  const authorization = await authorizeMutationRequest(request);
+  if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
+  let filePath: string | undefined;
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File | null;
@@ -35,19 +33,26 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_SIZE) {
       return NextResponse.json({ error: "Fichier trop volumineux (max 20 Mo)." }, { status: 400 });
     }
-    if (!ALLOWED_TYPES.includes(file.type)) {
+    const personId = personIdRaw ? Number(personIdRaw) : null;
+    const eventId = eventIdRaw ? Number(eventIdRaw) : null;
+    if (!hasSingleAttachment(personId, eventId)) {
       return NextResponse.json(
-        { error: `Type non supporté : ${file.type}` },
+        { error: "Un seul rattachement personId ou eventId est requis." },
         { status: 400 },
       );
     }
-    const personId = personIdRaw ? Number(personIdRaw) : null;
-    const eventId = eventIdRaw ? Number(eventIdRaw) : null;
-    if (!personId && !eventId) {
-      return NextResponse.json(
-        { error: "personId ou eventId requis." },
-        { status: 400 },
-      );
+
+    try {
+      if (personId) await adminGetPerson(personId);
+      if (eventId) await adminGetEvent(eventId);
+    } catch {
+      return NextResponse.json({ error: "Rattachement inconnu." }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const detected = detectMediaType(buffer);
+    if (!detected) {
+      return NextResponse.json({ error: "Contenu de fichier non supporté." }, { status: 400 });
     }
 
     // Ensure upload directory exists
@@ -56,11 +61,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Generate unique filename to avoid collisions
-    const ext = file.name.split(".").pop() ?? "bin";
-    const filename = `${randomUUID()}.${ext}`;
-    const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, filename);
+    const filename = `${randomUUID()}.${detected.extension}`;
+    filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, filename);
 
-    const buffer = Buffer.from(await file.arrayBuffer());
     await writeFile(filePath, buffer);
 
     const media = await adminCreateMedia({
@@ -68,13 +71,13 @@ export async function POST(request: NextRequest) {
       eventId,
       filename,
       originalName: file.name,
-      mimeType: file.type,
-      size: file.size,
+      mimeType: detected.mimeType,
+      size: buffer.length,
     });
 
     return NextResponse.json(media, { status: 201 });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    if (filePath) await unlink(filePath).catch(() => undefined);
+    return NextResponse.json({ error: "Échec atomique de l’upload." }, { status: 500 });
   }
 }

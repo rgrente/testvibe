@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { SESSION_COOKIE_NAME } from "../../lib/session";
+import { requireAdminMutation, SESSION_COOKIE_NAME } from "../../lib/session";
+import { adminRevokeSession } from "@testvibe/core";
 
 async function logoutAction() {
   "use server";
+  await requireAdminMutation();
   const cookieStore = await cookies();
+  await adminRevokeSession(cookieStore.get(SESSION_COOKIE_NAME)?.value);
   cookieStore.delete(SESSION_COOKIE_NAME);
   redirect("/");
 }

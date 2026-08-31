@@ -1,10 +1,11 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { adminDeleteMedia, adminGetMedia } from "@testvibe/core";
-import { unlink } from "node:fs/promises";
+import { readFile, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
+import { authorizeMutationRequest } from "@/lib/session";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
 
@@ -55,6 +56,8 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ filename: string }> },
 ) {
+  const authorization = await authorizeMutationRequest(request);
+  if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
   const { filename } = await params;
   const { searchParams } = new URL(request.url);
   const id = Number(searchParams.get("id"));
@@ -63,14 +66,23 @@ export async function DELETE(
   }
   try {
     const mediaRecord = await adminGetMedia(id);
-    await adminDeleteMedia(id);
+    if (mediaRecord.filename !== filename) {
+      return NextResponse.json({ error: "Association id/filename invalide." }, { status: 400 });
+    }
     const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, mediaRecord.filename);
-    if (existsSync(/* turbopackIgnore: true */ filePath)) {
-      await unlink(filePath);
+    if (!existsSync(/* turbopackIgnore: true */ filePath)) {
+      return NextResponse.json({ error: "Fichier et base incohérents." }, { status: 409 });
+    }
+    const contents = await readFile(filePath);
+    await unlink(filePath);
+    try {
+      await adminDeleteMedia(id);
+    } catch {
+      await writeFile(filePath, contents);
+      throw new Error("database delete failed");
     }
     return NextResponse.json({ success: true });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Erreur inconnue";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "Échec atomique de la suppression." }, { status: 500 });
   }
 }

@@ -6,6 +6,7 @@ import { notFound } from "next/navigation";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import type { Union, UnionType } from "@testvibe/core";
 import UnionPersonSearch from "@/components/UnionPersonSearch";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,7 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
 
   async function updateUnionAction(formData: FormData) {
     "use server";
+    await requireAdminMutation();
     const startDate = formData.get("startDate")?.toString().trim() || null;
     const endDate = formData.get("endDate")?.toString().trim() || null;
     const type = formData.get("type")?.toString() as UnionType;

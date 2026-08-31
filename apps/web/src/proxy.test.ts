@@ -1,39 +1,33 @@
-/**
- * Tests automatisés pour le proxy de protection des routes /admin.
- * Vérifie qu'une requête sans cookie de session valide est redirigée,
- * et qu'une requête avec un cookie valide est laissée passer.
- */
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import {
+  SESSION_COOKIE_NAME,
+  SESSION_COOKIE_OPTIONS,
+  clientFingerprint,
+  isAllowedOrigin,
+  safeSecretEquals,
+} from "./lib/session.js";
 
-// On importe uniquement les helpers purs, pas le proxy Next.js
-// (qui dépend du runtime Next.js). Le comportement est testé via la
-// logique de session.
-import { isValidSession, SESSION_COOKIE_NAME } from "./lib/session.js";
-
-describe("session helpers", () => {
-  const VALID_SECRET = "my-secret-123";
-
-  it("retourne false si la valeur est vide ou absente", () => {
-    expect(isValidSession("", VALID_SECRET)).toBe(false);
-    expect(isValidSession(undefined, VALID_SECRET)).toBe(false);
+describe("admin HTTP security helpers", () => {
+  it("compares configured secrets without accepting empty or partial values", () => {
+    expect(safeSecretEquals("correct horse", "correct horse")).toBe(true);
+    expect(safeSecretEquals("correct horse", "correct")).toBe(false);
+    expect(safeSecretEquals("", "")).toBe(false);
   });
 
-  it("retourne false si la valeur ne correspond pas au secret", () => {
-    expect(isValidSession("wrong-secret", VALID_SECRET)).toBe(false);
-    expect(isValidSession("other", VALID_SECRET)).toBe(false);
+  it("accepts same-origin mutations and rejects absent or foreign origins", () => {
+    expect(isAllowedOrigin("https://family.example/admin", "https://family.example", "family.example")).toBe(true);
+    expect(isAllowedOrigin("https://family.example/admin", null, "family.example")).toBe(false);
+    expect(isAllowedOrigin("https://family.example/admin", "https://evil.example", "family.example")).toBe(false);
   });
 
-  it("retourne true si la valeur correspond exactement au secret", () => {
-    expect(isValidSession(VALID_SECRET, VALID_SECRET)).toBe(true);
+  it("creates a stable non-reversible client fingerprint", () => {
+    const fingerprint = clientFingerprint("203.0.113.7", "server-key");
+    expect(fingerprint).toBe(clientFingerprint("203.0.113.7", "server-key"));
+    expect(fingerprint).not.toContain("203.0.113.7");
   });
 
-  it("retourne false si le secret attendu est vide (configuration manquante)", () => {
-    expect(isValidSession("any-value", "")).toBe(false);
-    expect(isValidSession("any-value", undefined)).toBe(false);
-  });
-
-  it("SESSION_COOKIE_NAME est bien défini et non vide", () => {
-    expect(SESSION_COOKIE_NAME).toBeTruthy();
-    expect(typeof SESSION_COOKIE_NAME).toBe("string");
+  it("defines a root-scoped strict opaque session cookie", () => {
+    expect(SESSION_COOKIE_NAME).toBe("admin_session");
+    expect(SESSION_COOKIE_OPTIONS).toMatchObject({ httpOnly: true, sameSite: "strict", path: "/" });
   });
 });

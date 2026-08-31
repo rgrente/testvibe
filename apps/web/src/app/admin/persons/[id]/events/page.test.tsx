@@ -16,6 +16,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@testvibe/core", () => mocks);
+vi.mock("@/lib/session", () => ({ requireAdminMutation: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({
   redirect: mocks.redirect,

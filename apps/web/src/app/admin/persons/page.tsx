@@ -2,6 +2,7 @@ import { adminListPersons, adminCreatePerson, adminDeletePerson } from "@testvib
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 
 async function createPersonAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const firstName = formData.get("firstName")?.toString().trim() ?? "";
   const lastName = formData.get("lastName")?.toString().trim() ?? "";
   const birthName = formData.get("birthName")?.toString().trim() || null;
@@ -31,6 +33,7 @@ async function createPersonAction(formData: FormData) {
 
 async function deletePersonAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const id = Number(formData.get("id"));
   if (!id || Number.isNaN(id)) return;
   try {

@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
 
   async function updatePersonAction(formData: FormData) {
     "use server";
+    await requireAdminMutation();
     const firstName = formData.get("firstName")?.toString().trim();
     const lastName = formData.get("lastName")?.toString().trim();
     const birthName = formData.get("birthName")?.toString().trim() || null;

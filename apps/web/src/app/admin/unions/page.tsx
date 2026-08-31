@@ -10,6 +10,7 @@ import Link from "next/link";
 import PlaceAutocomplete from "@/components/PlaceAutocomplete";
 import type { UnionType } from "@testvibe/core";
 import UnionPersonSearch from "@/components/UnionPersonSearch";
+import { requireAdminMutation } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export const dynamic = "force-dynamic";
 
 async function createUnionAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const startDate = formData.get("startDate")?.toString().trim() || null;
   const endDate = formData.get("endDate")?.toString().trim() || null;
   const type = formData.get("type")?.toString() as UnionType;
@@ -43,6 +45,7 @@ async function createUnionAction(formData: FormData) {
 
 async function deleteUnionAction(formData: FormData) {
   "use server";
+  await requireAdminMutation();
   const id = Number(formData.get("id"));
   if (!id || Number.isNaN(id)) return;
   try {

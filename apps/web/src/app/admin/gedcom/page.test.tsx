@@ -11,6 +11,7 @@ const { adminImportGedcom, redirect } = vi.hoisted(() => ({
 
 vi.mock("@testvibe/core", () => ({ adminImportGedcom }));
 vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("@/lib/session", () => ({ requireAdminMutation: vi.fn() }));
 
 import GedcomPage, { importGedcomAction } from "./page";
 
