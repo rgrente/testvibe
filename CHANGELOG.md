@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.14.0](https://github.com/rgrente/testvibe/compare/v1.13.0...v1.14.0) (2026-08-31)
+
+
+### Features
+
+* **web:** secure admin sessions and media routes ([#99](https://github.com/rgrente/testvibe/issues/99)) ([1b0bd9a](https://github.com/rgrente/testvibe/commit/1b0bd9a10158b36eb5720f2e8ee4f4313107899f)), closes [#94](https://github.com/rgrente/testvibe/issues/94)
+
 # [1.13.0](https://github.com/rgrente/testvibe/compare/v1.12.1...v1.13.0) (2026-08-28)
 
 
