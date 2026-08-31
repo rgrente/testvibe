@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.15.0](https://github.com/rgrente/testvibe/compare/v1.14.1...v1.15.0) (2026-08-31)
+
+
+### Features
+
+* **web:** protect living persons and private content ([#100](https://github.com/rgrente/testvibe/issues/100)) ([970a278](https://github.com/rgrente/testvibe/commit/970a2785421f45c7ea6591b46de88e96d36954dd)), closes [#41](https://github.com/rgrente/testvibe/issues/41)
+
 ## [1.14.1](https://github.com/rgrente/testvibe/compare/v1.14.0...v1.14.1) (2026-08-31)
 
 
