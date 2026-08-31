@@ -23,12 +23,13 @@ export async function createEventAction(formData: FormData) {
   const lngStr = formData.get("longitude")?.toString().trim();
   const latitude = latStr ? Number(latStr) : null;
   const longitude = lngStr ? Number(lngStr) : null;
+  const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
 
   if (!personId || !type) {
     redirect(`/admin/persons/${personId}/events?error=champs_requis`);
   }
   try {
-    await adminCreateEvent({ personId, type, label, eventDate, description, place, latitude, longitude });
+    await adminCreateEvent({ personId, type, label, eventDate, description, place, latitude, longitude, visibility });
   } catch {
     redirect(`/admin/persons/${personId}/events?error=validation`);
   }
@@ -55,6 +56,7 @@ export async function updateEventAction(formData: FormData) {
   const lngStr = formData.get("longitude")?.toString().trim();
   const latitude = latStr ? Number(latStr) : null;
   const longitude = lngStr ? Number(lngStr) : null;
+  const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
 
   if (!id || !personId || !type) {
     redirect(`/admin/persons/${personId}/events?error=champs_requis`);
@@ -69,6 +71,7 @@ export async function updateEventAction(formData: FormData) {
       place,
       latitude,
       longitude,
+      visibility,
     });
   } catch {
     redirect(`/admin/persons/${personId}/events?error=validation`);

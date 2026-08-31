@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,6 +7,7 @@ import { eq, sql } from "drizzle-orm";
 import { migrate } from "drizzle-orm/libsql/migrator";
 import { afterEach, describe, expect, it } from "vitest";
 import { createDb } from "./index.js";
+import { backupMigrationState, restoreMigrationState } from "./migration-backup.js";
 import { adminSession, filiation, loginRateLimit, person, unionPartner, unions } from "./schema.js";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -112,7 +113,7 @@ describe("SQLite/libSQL integration", () => {
 
     try {
       await migrate(instance.db, { migrationsFolder: preSecurityMigrations });
-      await instance.db.insert(person).values({ firstName: "Existing", lastName: "Record" });
+      await instance.client.execute("insert into person (first_name, last_name) values ('Existing', 'Record')");
       const before = await instance.client.execute(
         "select name from sqlite_master where type = 'table' and name in ('admin_session', 'login_rate_limit')",
       );
@@ -139,8 +140,8 @@ describe("SQLite/libSQL integration", () => {
         if (statement.trim()) await instance.db.run(sql.raw(statement));
       }
 
-      expect(await instance.db.select().from(person)).toMatchObject([
-        { firstName: "Existing", lastName: "Record" },
+      expect((await instance.client.execute("select first_name, last_name from person")).rows).toMatchObject([
+        { first_name: "Existing", last_name: "Record" },
       ]);
       const tables = await instance.client.execute(
         "select name from sqlite_master where type = 'table' and name in ('admin_session', 'login_rate_limit')",
@@ -148,6 +149,78 @@ describe("SQLite/libSQL integration", () => {
       expect(tables.rows).toHaveLength(0);
     } finally {
       instance.client.close();
+    }
+  });
+
+  it("migrates and rolls back privacy columns without losing existing records", async () => {
+    const directory = await temporaryDirectory();
+    const prePrivacyMigrations = resolve(directory, "migrations-0006");
+    await cp(migrationsFolder, prePrivacyMigrations, { recursive: true });
+    await rm(resolve(prePrivacyMigrations, "0007_nostalgic_pride.sql"));
+    await rm(resolve(prePrivacyMigrations, "meta/0007_snapshot.json"));
+    const journalPath = resolve(prePrivacyMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 6);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+    const instance = createDb(`file:${resolve(directory, "privacy.db")}`);
+
+    try {
+      await migrate(instance.db, { migrationsFolder: prePrivacyMigrations });
+      await instance.client.execute("insert into person (first_name, last_name) values ('Existing', 'Record')");
+      await instance.client.execute("insert into event (person_id, type) values (1, 'libre')");
+      await instance.client.execute("insert into media (person_id, filename, original_name, mime_type, size, created_at) values (1, 'fixture.pdf', 'fixture.pdf', 'application/pdf', 10, '2026-08-31')");
+      await migrate(instance.db, { migrationsFolder });
+      const upgraded = await instance.client.execute("select first_name, living_status, visibility from person");
+      expect(upgraded.rows).toMatchObject([{ first_name: "Existing", living_status: null, visibility: null }]);
+      expect((await instance.client.execute("select count(*) as count from event")).rows[0]?.count).toBe(1);
+      expect((await instance.client.execute("select count(*) as count from media")).rows[0]?.count).toBe(1);
+
+      const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0007_living_privacy.sql"), "utf8");
+      for (const statement of rollback.split(";")) {
+        if (statement.trim()) await instance.db.run(sql.raw(statement));
+      }
+      const restored = await instance.client.execute("select first_name, last_name from person");
+      expect(restored.rows).toMatchObject([{ first_name: "Existing", last_name: "Record" }]);
+      const columns = await instance.client.execute("pragma table_info(person)");
+      expect(columns.rows.map((row) => row.name)).not.toContain("visibility");
+    } finally {
+      instance.client.close();
+    }
+  });
+
+  it("restores database records and upload bytes from a migration backup", async () => {
+    const directory = await temporaryDirectory();
+    const databasePath = resolve(directory, "privacy.db");
+    const uploadsPath = resolve(directory, "uploads");
+    const backupPath = resolve(directory, "backup");
+    const fixtureBytes = new Uint8Array([0, 1, 2, 127, 128, 254, 255]);
+    await mkdir(uploadsPath);
+    await writeFile(resolve(uploadsPath, "fixture.bin"), fixtureBytes);
+
+    const before = createDb(`file:${databasePath}`);
+    await migrate(before.db, { migrationsFolder });
+    await before.db.insert(person).values({ firstName: "Backup", lastName: "Fixture" });
+    before.client.close();
+
+    await backupMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const changed = createDb(`file:${databasePath}`);
+    await changed.db.delete(person);
+    changed.client.close();
+    await writeFile(resolve(uploadsPath, "fixture.bin"), new Uint8Array([9, 9, 9]));
+    await writeFile(resolve(uploadsPath, "unexpected.bin"), new Uint8Array([8]));
+
+    await restoreMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const restored = createDb(`file:${databasePath}`);
+    try {
+      expect(await restored.db.select().from(person)).toMatchObject([
+        { firstName: "Backup", lastName: "Fixture" },
+      ]);
+      expect(await readFile(resolve(uploadsPath, "fixture.bin"))).toEqual(Buffer.from(fixtureBytes));
+      await expect(readFile(resolve(uploadsPath, "unexpected.bin"))).rejects.toThrow();
+    } finally {
+      restored.client.close();
     }
   });
 

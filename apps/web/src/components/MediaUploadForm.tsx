@@ -25,9 +25,9 @@ export function MediaUploadForm({ personId, onUploadSuccess }: MediaUploadFormPr
     setStatus("uploading");
     setErrorMsg("");
 
-    const formData = new FormData();
-    formData.append("file", file);
-    formData.append("personId", String(personId));
+    const formData = new FormData(e.currentTarget);
+    formData.set("file", file);
+    formData.set("personId", String(personId));
 
     try {
       const res = await fetch("/api/media/upload", { method: "POST", body: formData });
@@ -59,6 +59,12 @@ export function MediaUploadForm({ personId, onUploadSuccess }: MediaUploadFormPr
           className="block w-full text-sm text-slate-700 file:mr-3 file:rounded-sm file:border-0 file:bg-slate-100 file:px-3 file:py-1.5 file:text-sm file:font-medium hover:file:bg-slate-200"
         />
       </div>
+      <label htmlFor="media-visibility" className="text-sm font-medium text-slate-700">
+        Visibilité
+        <select id="media-visibility" name="visibility" defaultValue="family" className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+          <option value="public">Public</option><option value="family">Famille</option><option value="private">Privé</option>
+        </select>
+      </label>
       {status === "error" && (
         <p className="text-sm text-red-600">{errorMsg}</p>
       )}

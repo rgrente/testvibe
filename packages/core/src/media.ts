@@ -38,6 +38,9 @@ function assertValidMediaInput(input: MediaInput): void {
   if (input.personId == null && input.eventId == null) {
     throw new ValidationError("Un média doit être associé à une Person ou un Event.");
   }
+  if (input.visibility != null && !["public", "family", "private"].includes(input.visibility)) {
+    throw new ValidationError(`visibility invalide : ${input.visibility}`);
+  }
 }
 
 function toMedia(row: typeof media.$inferSelect): Media {
@@ -50,6 +53,7 @@ function toMedia(row: typeof media.$inferSelect): Media {
     mimeType: row.mimeType,
     size: row.size,
     createdAt: row.createdAt,
+    visibility: row.visibility,
   };
 }
 
@@ -65,6 +69,7 @@ export async function createMedia(db: Database, input: MediaInput): Promise<Medi
       mimeType: input.mimeType,
       size: input.size,
       createdAt: new Date().toISOString(),
+      visibility: input.visibility ?? null,
     })
     .returning();
   return toMedia(row);
@@ -92,6 +97,10 @@ export async function listMediaByPerson(db: Database, personId: number): Promise
 export async function listMediaByEvent(db: Database, eventId: number): Promise<Media[]> {
   const rows = await db.select().from(media).where(eq(media.eventId, eventId));
   return rows.map(toMedia);
+}
+
+export async function listAllMedia(db: Database): Promise<Media[]> {
+  return (await db.select().from(media)).map(toMedia);
 }
 
 export async function deleteMedia(db: Database, id: number): Promise<void> {

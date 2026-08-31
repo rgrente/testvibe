@@ -24,3 +24,4 @@ export * from "./comparative-timeline.js";
 export * from "./anniversary.js";
 export * from "./statistics.js";
 export * from "./projection.js";
+export * from "./privacy.js";

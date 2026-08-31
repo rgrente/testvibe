@@ -46,6 +46,7 @@ describe("PersonEventsPage", () => {
     formData.set("type", "résidence");
     formData.set("eventDate", "2020-06");
     formData.set("place", "Lyon");
+    formData.set("visibility", "family");
 
     await expect(createEventAction(formData)).rejects.toThrow("NEXT_REDIRECT");
     expect(mocks.adminCreateEvent).toHaveBeenCalledWith({
@@ -57,6 +58,7 @@ describe("PersonEventsPage", () => {
       place: "Lyon",
       latitude: null,
       longitude: null,
+      visibility: "family",
     });
   });
 
@@ -112,6 +114,7 @@ describe("PersonEventsPage", () => {
       place: "Lyon",
       latitude: "45.764",
       longitude: "4.8357",
+      visibility: "private",
     })) {
       formData.set(key, value);
     }
@@ -126,6 +129,7 @@ describe("PersonEventsPage", () => {
       place: "Lyon",
       latitude: 45.764,
       longitude: 4.8357,
+      visibility: "private",
     });
   });
 });

@@ -52,6 +52,7 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File | null;
     const personIdRaw = formData.get("personId")?.toString();
     const eventIdRaw = formData.get("eventId")?.toString();
+    const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
 
     if (!file || file.size === 0) {
       return NextResponse.json({ error: "Fichier manquant." }, { status: 400 });
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
       originalName: file.name,
       mimeType: detected.mimeType,
       size: buffer.length,
+      visibility,
     });
     metadataCommitted = true;
     await uploadFileOps.rename(filePath, finalPath);

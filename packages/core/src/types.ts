@@ -9,6 +9,8 @@ export type FiliationRole = "biologique" | "adopte" | "beau-parent";
 
 export type EventType = "naissance" | "décès" | "mariage" | "résidence" | "libre";
 export type UnionType = "mariage" | "pacs" | "libre";
+export type Visibility = "public" | "family" | "private";
+export type LivingStatus = "living" | "deceased";
 
 export type FamilyFactCategory = EventType | "pacs" | "union libre";
 export type FamilyFactOwner = `person:${number}` | `union:${number}`;
@@ -43,6 +45,8 @@ export interface Person {
   birthDate: string | null;
   deathDate: string | null;
   gender: string | null;
+  livingStatus?: LivingStatus | null;
+  visibility?: Visibility | null;
 }
 
 export interface PersonInput {
@@ -52,6 +56,8 @@ export interface PersonInput {
   birthDate?: string | null;
   deathDate?: string | null;
   gender?: string | null;
+  livingStatus?: LivingStatus | null;
+  visibility?: Visibility | null;
 }
 
 export interface Union {
@@ -106,6 +112,7 @@ export interface Event {
   place: string | null;
   latitude: number | null;
   longitude: number | null;
+  visibility?: Visibility | null;
 }
 
 export interface EventInput {
@@ -118,6 +125,7 @@ export interface EventInput {
   place?: string | null;
   latitude?: number | null;
   longitude?: number | null;
+  visibility?: Visibility | null;
 }
 
 export interface FamilyTimelineEvent {
@@ -183,6 +191,7 @@ export interface Media {
   mimeType: string;
   size: number;
   createdAt: string;
+  visibility?: Visibility | null;
 }
 
 export interface MediaInput {
@@ -192,6 +201,7 @@ export interface MediaInput {
   originalName: string;
   mimeType: string;
   size: number;
+  visibility?: Visibility | null;
 }
 
 /** Événement géolocalisé pour la carte publique (filtré par confidentialité). */

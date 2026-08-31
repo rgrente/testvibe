@@ -35,13 +35,15 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
     const birthDate = formData.get("birthDate")?.toString().trim() || null;
     const deathDate = formData.get("deathDate")?.toString().trim() || null;
     const gender = formData.get("gender")?.toString().trim() || null;
+    const livingStatus = formData.get("livingStatus")?.toString() as "living" | "deceased" | undefined;
+    const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
 
     if (!firstName || !lastName) {
       redirect(`/admin/persons/${id}/edit?error=champs_requis`);
     }
 
     try {
-      await adminUpdatePerson(id, { firstName, lastName, birthName, birthDate, deathDate, gender });
+      await adminUpdatePerson(id, { firstName, lastName, birthName, birthDate, deathDate, gender, livingStatus, visibility });
     } catch {
       redirect(`/admin/persons/${id}/edit?error=validation`);
     }
@@ -140,6 +142,18 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
             <option value="autre">Autre</option>
           </select>
         </div>
+        <label className="text-sm font-medium text-slate-700">
+          Statut de vie
+          <select name="livingStatus" defaultValue={person.livingStatus ?? (person.deathDate ? "deceased" : "living")} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+            <option value="living">Vivant</option><option value="deceased">Décédé</option>
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-700">
+          Visibilité
+          <select name="visibility" defaultValue={person.visibility ?? (person.deathDate ? "public" : "family")} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+            <option value="public">Public</option><option value="family">Famille</option><option value="private">Privé</option>
+          </select>
+        </label>
         <div className="flex items-end gap-2">
           <button
             type="submit"

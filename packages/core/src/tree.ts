@@ -61,6 +61,16 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
     listFiliations(db),
   ]);
 
+  return buildFamilyTree(root, allPersons, allUnions, allFiliations);
+}
+
+/** Construit un arbre exclusivement depuis un jeu de données déjà autorisé. */
+export function buildFamilyTree(
+  root: Person,
+  allPersons: Person[],
+  allUnions: Union[],
+  allFiliations: Filiation[],
+): FamilyTree {
   const personById = new Map(allPersons.map((p) => [p.id, p]));
 
   const parentsOf = new Map<number, Filiation[]>();
@@ -200,11 +210,13 @@ export async function getFamilyTree(db: Database, rootId: number): Promise<Famil
  */
 export async function getAncestorIds(db: Database, personId: number): Promise<Set<number>> {
   const allFiliations = await listFiliations(db);
-  const childrenOf = new Map<number, number[]>(); // parentId → [childId, ...]
+  return getAncestorIdsFromFiliations(allFiliations, personId);
+}
+
+/** Traverse uniquement les filiations fournies, notamment une vue déjà filtrée. */
+export function getAncestorIdsFromFiliations(allFiliations: Filiation[], personId: number): Set<number> {
   const parentsOf = new Map<number, number[]>();   // childId → [parentId, ...]
   for (const f of allFiliations) {
-    if (!childrenOf.has(f.parentId)) childrenOf.set(f.parentId, []);
-    childrenOf.get(f.parentId)!.push(f.childId);
     if (!parentsOf.has(f.childId)) parentsOf.set(f.childId, []);
     parentsOf.get(f.childId)!.push(f.parentId);
   }
@@ -227,6 +239,11 @@ export async function getAncestorIds(db: Database, personId: number): Promise<Se
  */
 export async function getDescendantIds(db: Database, personId: number): Promise<Set<number>> {
   const allFiliations = await listFiliations(db);
+  return getDescendantIdsFromFiliations(allFiliations, personId);
+}
+
+/** Traverse uniquement les filiations fournies, notamment une vue déjà filtrée. */
+export function getDescendantIdsFromFiliations(allFiliations: Filiation[], personId: number): Set<number> {
   const childrenOf = new Map<number, number[]>(); // parentId → [childId, ...]
   for (const f of allFiliations) {
     if (!childrenOf.has(f.parentId)) childrenOf.set(f.parentId, []);

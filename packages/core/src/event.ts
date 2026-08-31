@@ -29,6 +29,9 @@ function assertValidEventInput(input: EventInput): void {
   if (input.latitude != null && !input.place?.trim()) {
     throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
   }
+  if (input.visibility != null && !["public", "family", "private"].includes(input.visibility)) {
+    throw new ValidationError(`visibility invalide : ${input.visibility}`);
+  }
 }
 
 function toEvent(row: typeof event.$inferSelect): Event {
@@ -43,6 +46,7 @@ function toEvent(row: typeof event.$inferSelect): Event {
     place: row.place ?? null,
     latitude: row.latitude ?? null,
     longitude: row.longitude ?? null,
+    visibility: row.visibility,
   };
 }
 
@@ -60,6 +64,7 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
       place: normalizePlace(input.place),
       latitude: input.latitude ?? null,
       longitude: input.longitude ?? null,
+      visibility: input.visibility ?? null,
     })
     .returning();
   return toEvent(row);
@@ -131,6 +136,7 @@ export async function updateEvent(
     place: input.place !== undefined ? normalizePlace(input.place) : existing.place,
     latitude: input.latitude !== undefined ? input.latitude : existing.latitude,
     longitude: input.longitude !== undefined ? input.longitude : existing.longitude,
+    visibility: input.visibility !== undefined ? input.visibility : existing.visibility,
   };
   assertValidEventInput(merged);
   const [row] = await db
@@ -145,6 +151,7 @@ export async function updateEvent(
       place: merged.place ?? null,
       latitude: merged.latitude ?? null,
       longitude: merged.longitude ?? null,
+      visibility: merged.visibility ?? null,
     })
     .where(eq(event.id, id))
     .returning();

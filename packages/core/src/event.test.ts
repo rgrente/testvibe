@@ -53,6 +53,20 @@ describe("createEvent", () => {
     expect(ev.eventDate).toBeNull();
   });
 
+  it("persiste et valide la visibilité", async () => {
+    const person = await createPerson(db, { firstName: "Bob", lastName: "Dupont" });
+    expect(await createEvent(db, {
+      personId: person.id,
+      type: "libre",
+      visibility: "family",
+    })).toMatchObject({ visibility: "family" });
+    await expect(createEvent(db, {
+      personId: person.id,
+      type: "libre",
+      visibility: "shared" as never,
+    })).rejects.toThrow(ValidationError);
+  });
+
   it("lève ValidationError pour un type invalide", async () => {
     const person = await createPerson(db, { firstName: "Eve", lastName: "Blanc" });
     await expect(
