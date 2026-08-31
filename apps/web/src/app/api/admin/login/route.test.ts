@@ -44,6 +44,7 @@ describe("POST /api/admin/login", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.ADMIN_SECRET = "configured-admin-value";
+    process.env.ADMIN_TRUSTED_PROXY = "1";
     rateLimit.failures.clear();
     rateLimit.startedAt.clear();
     security.adminCreateSession.mockResolvedValue("opaque-session-token");
@@ -74,17 +75,28 @@ describe("POST /api/admin/login", () => {
     vi.useRealTimers();
   });
 
-  it("cannot evade the global login limit by rotating client-controlled IP headers", async () => {
+  it("fails closed without a trusted proxy instead of sharing a global denial-of-service bucket", async () => {
+    delete process.env.ADMIN_TRUSTED_PROXY;
+    const response = await POST(loginRequest("wrong", undefined, undefined, "203.0.113.8"));
+    expect(response.status).toBe(503);
+    expect(security.adminRecordLoginFailure).not.toHaveBeenCalled();
+  });
+
+  it("uses the trusted proxy address per client and ignores alternate client IP headers", async () => {
+    process.env.ADMIN_TRUSTED_PROXY = "1";
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00Z"));
     for (let attempt = 0; attempt < 5; attempt += 1) {
-      expect((await POST(loginRequest("wrong", undefined, undefined, `203.0.113.${attempt}`))).status)
+      const request = loginRequest("wrong", undefined, undefined, "203.0.113.8");
+      request.headers.set("x-real-ip", `198.51.100.${attempt}`);
+      expect((await POST(request)).status)
         .toBe(303);
     }
-    expect((await POST(loginRequest("wrong", undefined, undefined, "198.51.100.99"))).status)
+    expect((await POST(loginRequest("wrong", undefined, undefined, "203.0.113.8"))).status)
       .toBe(429);
-    expect(new Set(security.adminRecordLoginFailure.mock.calls.map(([fingerprint]) => fingerprint)).size)
-      .toBe(1);
+    expect((await POST(loginRequest("wrong", undefined, undefined, "198.51.100.99"))).status)
+      .toBe(303);
+    expect(new Set(security.adminRecordLoginFailure.mock.calls.map(([fingerprint]) => fingerprint)).size).toBe(2);
     vi.useRealTimers();
   });
 

@@ -1,5 +1,6 @@
 import { adminVerifySession } from "@testvibe/core";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
+import { isIP } from "node:net";
 import { cookies, headers } from "next/headers";
 
 export const SESSION_COOKIE_NAME = "admin_session";
@@ -28,6 +29,14 @@ export function safeSecretEquals(value: string, expected: string): boolean {
 
 export function clientFingerprint(clientAddress: string, key: string): string {
   return createHmac("sha256", key).update(clientAddress || "unknown").digest("hex");
+}
+
+export function trustedClientAddress(request: Request): string | null {
+  // The edge proxy must strip client-supplied forwarding headers before this
+  // explicit trust switch is enabled. Without that boundary login fails closed.
+  if (process.env.ADMIN_TRUSTED_PROXY !== "1") return null;
+  const address = request.headers.get("x-forwarded-for")?.split(",", 1)[0]?.trim() ?? "";
+  return isIP(address) ? address : null;
 }
 
 export function isAllowedOrigin(

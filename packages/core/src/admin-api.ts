@@ -52,6 +52,7 @@ import {
 import {
   createMedia,
   getMediaById,
+  getMediaByFilename,
   listMediaByPerson,
   listMediaByEvent,
   deleteMedia,
@@ -190,6 +191,10 @@ export async function adminCreateMedia(input: MediaInput): Promise<Media> {
 
 export async function adminGetMedia(id: number): Promise<Media> {
   return getMediaById(defaultDb, id);
+}
+
+export async function adminGetMediaByFilename(filename: string): Promise<Media> {
+  return getMediaByFilename(defaultDb, filename);
 }
 
 export async function adminListMediaByPerson(personId: number): Promise<Media[]> {

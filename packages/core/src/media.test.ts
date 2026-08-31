@@ -10,6 +10,7 @@ import { createEvent } from "./event.js";
 import {
   createMedia,
   getMediaById,
+  getMediaByFilename,
   listMediaByPerson,
   listMediaByEvent,
   deleteMedia,
@@ -87,6 +88,15 @@ describe("getMediaById", () => {
 
   it("lève NotFoundError si inexistant", async () => {
     await expect(getMediaById(db, 9999)).rejects.toThrow(NotFoundError);
+  });
+});
+
+describe("getMediaByFilename", () => {
+  it("retrouve les métadonnées nécessaires à la reprise d'un upload", async () => {
+    const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const created = await createMedia(db, { ...VALID_MEDIA, personId: person.id, filename: "recovery.pdf" });
+    await expect(getMediaByFilename(db, "recovery.pdf")).resolves.toEqual(created);
+    await expect(getMediaByFilename(db, "missing.pdf")).rejects.toThrow(NotFoundError);
   });
 });
 

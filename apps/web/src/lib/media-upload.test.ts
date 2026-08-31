@@ -49,6 +49,12 @@ describe("media upload validation", () => {
     await expect(detectMediaType(Buffer.from("%PDF-1.7\nnot a document\n%%EOF\n"))).resolves.toBeNull();
   });
 
+  it("rejects a PDF whose page tree contains no decodable page", async () => {
+    const malformed = Buffer.from(validPdf().toString("latin1")
+      .replace("/Kids [3 0 R] /Count 1", "/Kids [     ] /Count 0"), "latin1");
+    await expect(detectMediaType(malformed)).resolves.toBeNull();
+  });
+
   it.each([
     ["jpeg", "image/jpeg", "jpg"],
     ["png", "image/png", "png"],

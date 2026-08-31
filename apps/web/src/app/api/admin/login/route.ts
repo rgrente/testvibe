@@ -12,6 +12,7 @@ import {
   safeSecretEquals,
   SESSION_COOKIE_NAME,
   sessionCookieOptions,
+  trustedClientAddress,
 } from "@/lib/session";
 
 export async function POST(request: Request) {
@@ -20,10 +21,11 @@ export async function POST(request: Request) {
   }
 
   const adminSecret = getAdminSecret();
-  // A Web Request has no authenticated peer address. Treating forwarding
-  // headers as identity lets clients rotate them, so use one deployment-wide
-  // bucket unless a trusted transport supplies identity outside this handler.
-  const fingerprint = clientFingerprint("admin-login-global", adminSecret || "unconfigured");
+  const clientAddress = trustedClientAddress(request);
+  if (!clientAddress) {
+    return NextResponse.json({ error: "Trusted proxy identity unavailable" }, { status: 503 });
+  }
+  const fingerprint = clientFingerprint(clientAddress, adminSecret || "unconfigured");
   if (await adminIsLoginRateLimited(fingerprint)) {
     return NextResponse.json({ error: "Too many attempts" }, {
       status: 429,

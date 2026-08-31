@@ -78,6 +78,12 @@ export async function getMediaById(db: Database, id: number): Promise<Media> {
   return toMedia(row);
 }
 
+export async function getMediaByFilename(db: Database, filename: string): Promise<Media> {
+  const [row] = await db.select().from(media).where(eq(media.filename, filename));
+  if (!row) throw new NotFoundError("Media", filename);
+  return toMedia(row);
+}
+
 export async function listMediaByPerson(db: Database, personId: number): Promise<Media[]> {
   const rows = await db.select().from(media).where(eq(media.personId, personId));
   return rows.map(toMedia);

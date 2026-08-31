@@ -2,7 +2,7 @@
  * Erreurs de domaine partagées par les modules CRUD de packages/core.
  */
 export class NotFoundError extends Error {
-  constructor(entity: string, id: number) {
+  constructor(entity: string, id: number | string) {
     super(`${entity} introuvable pour l'id ${id}`);
     this.name = "NotFoundError";
   }

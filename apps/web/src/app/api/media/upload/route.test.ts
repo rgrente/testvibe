@@ -15,12 +15,19 @@ const core = vi.hoisted(() => ({
     return { id: 1, ...input };
   }),
   adminGetEvent: vi.fn(async () => ({ id: 1 })),
+  adminGetMedia: vi.fn(async () => { throw new Error("missing"); }),
+  adminGetMediaByFilename: vi.fn(async () => { throw new Error("missing"); }),
   adminGetPerson: vi.fn(async () => ({ id: 1 })),
   adminVerifySession: vi.fn(async () => state.verifySession),
 }));
 const disk = vi.hoisted(() => ({
   existsSync: vi.fn(() => true),
   mkdir: vi.fn(),
+  readdir: vi.fn(async () => [...state.files].map((path) => path.split("/").pop()!)),
+  rename: vi.fn(async (from: string, to: string) => {
+    state.files.delete(from);
+    state.files.add(to);
+  }),
   writeFile: vi.fn(async (path: string) => {
     if (state.partialWrite) state.files.add(path);
     if (state.failWrite) throw new Error("disk failure");
@@ -86,6 +93,8 @@ describe("POST /api/media/upload", () => {
     state.verifySession = true;
     vi.spyOn(uploadFileOps, "existsSync").mockImplementation(disk.existsSync);
     vi.spyOn(uploadFileOps, "mkdir").mockImplementation(disk.mkdir);
+    vi.spyOn(uploadFileOps, "readdir").mockImplementation(disk.readdir as never);
+    vi.spyOn(uploadFileOps, "rename").mockImplementation(disk.rename as never);
     vi.spyOn(uploadFileOps, "writeFile").mockImplementation(disk.writeFile as never);
     vi.spyOn(uploadFileOps, "unlink").mockImplementation(disk.unlink as never);
   });

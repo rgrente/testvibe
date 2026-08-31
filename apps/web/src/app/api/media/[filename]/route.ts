@@ -1,22 +1,27 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminDeleteMedia, adminGetMedia } from "@testvibe/core";
-import { readFile, unlink, writeFile } from "node:fs/promises";
+import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename } from "@testvibe/core";
+import { readdir, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { createReadStream } from "node:fs";
 import { Readable } from "node:stream";
 import { authorizeMutationRequest } from "@/lib/session";
+import { recoverMediaArtifacts } from "@/lib/media-recovery";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
-export const mediaFileOps = { existsSync, readFile, unlink, writeFile };
+export const mediaFileOps = {
+  existsSync, readdir, rename, unlink,
+  getMedia: adminGetMedia,
+  getMediaByFilename: adminGetMediaByFilename,
+};
 
-async function restoreDeletedFile(filePath: string, contents: Buffer): Promise<boolean> {
+async function restoreQuarantine(quarantinePath: string, filePath: string): Promise<boolean> {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
-      await mediaFileOps.writeFile(filePath, contents);
+      await mediaFileOps.rename(quarantinePath, filePath);
       return true;
     } catch {
-      // Retry short transient disk faults; a persistent fault is surfaced below.
+      // The quarantine remains durable for automatic recovery after retries.
     }
   }
   return false;
@@ -71,6 +76,11 @@ export async function DELETE(
 ) {
   const authorization = await authorizeMutationRequest(request);
   if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
+  try {
+    await recoverMediaArtifacts(UPLOAD_DIR, mediaFileOps);
+  } catch {
+    return NextResponse.json({ error: "Media recovery pending." }, { status: 503 });
+  }
   const { filename } = await params;
   const { searchParams } = new URL(request.url);
   const id = Number(searchParams.get("id"));
@@ -86,16 +96,20 @@ export async function DELETE(
     if (!mediaFileOps.existsSync(/* turbopackIgnore: true */ filePath)) {
       return NextResponse.json({ error: "Fichier et base incohérents." }, { status: 409 });
     }
-    const contents = await mediaFileOps.readFile(filePath);
-    await mediaFileOps.unlink(filePath);
+    const quarantinePath = join(UPLOAD_DIR, `.deleting-${id}-${mediaRecord.filename}`);
+    await mediaFileOps.rename(filePath, quarantinePath);
     try {
       await adminDeleteMedia(id);
     } catch {
-      const recovered = await restoreDeletedFile(filePath, contents);
-      return NextResponse.json(
-        { error: recovered ? "Échec atomique de la suppression." : "Suppression incohérente, récupération requise." },
-        { status: recovered ? 500 : 503 },
-      );
+      if (await restoreQuarantine(quarantinePath, filePath)) {
+        return NextResponse.json({ error: "Échec atomique de la suppression." }, { status: 500 });
+      }
+      return NextResponse.json({ error: "Suppression staged; automatic recovery pending." }, { status: 503 });
+    }
+    try {
+      await mediaFileOps.unlink(quarantinePath);
+    } catch {
+      return NextResponse.json({ error: "Suppression committed; automatic cleanup pending." }, { status: 503 });
     }
     return NextResponse.json({ success: true });
   } catch {

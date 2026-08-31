@@ -15,6 +15,7 @@ const core = vi.hoisted(() => ({
     state.deleted = true;
   }),
   adminGetMedia: vi.fn(async () => ({ id: 7, filename: "known.png" })),
+  adminGetMediaByFilename: vi.fn(async () => { throw new Error("missing"); }),
   adminVerifySession: vi.fn(async () => state.verifySession),
 }));
 
@@ -55,19 +56,22 @@ describe("DELETE /api/media/[filename]", () => {
       verifySession: true,
     });
     vi.spyOn(mediaFileOps, "existsSync").mockImplementation(() => state.exists);
-    vi.spyOn(mediaFileOps, "readFile").mockResolvedValue(Buffer.from("contents"));
+    vi.spyOn(mediaFileOps, "readdir").mockResolvedValue([]);
+    vi.spyOn(mediaFileOps, "rename").mockImplementation(async (_from, to) => {
+      const destination = String(to);
+      if (state.failUnlink && destination.includes(".deleting-")) throw new Error("disk failure");
+      if (!destination.includes(".deleting-") && destination.endsWith("known.png") && state.restoreFailures > 0) {
+        state.restoreFailures -= 1;
+        throw new Error("restore failure");
+      }
+      state.exists = !destination.includes(".deleting-") && destination.endsWith("known.png");
+      state.restored = state.exists;
+    });
     vi.spyOn(mediaFileOps, "unlink").mockImplementation(async () => {
       if (state.failUnlink) throw new Error("disk failure");
       state.exists = false;
     });
-    vi.spyOn(mediaFileOps, "writeFile").mockImplementation(async () => {
-      if (state.restoreFailures > 0) {
-        state.restoreFailures -= 1;
-        throw new Error("restore failure");
-      }
-      state.exists = true;
-      state.restored = true;
-    });
+
   });
 
   it("returns 401 without a session and 403 for spoofed Host/Origin", async () => {
@@ -111,7 +115,7 @@ describe("DELETE /api/media/[filename]", () => {
     expect((await remove()).status).toBe(500);
     expect(state.restored).toBe(true);
     expect(state.exists).toBe(true);
-    expect(mediaFileOps.writeFile).toHaveBeenCalledTimes(2);
+    expect(mediaFileOps.rename).toHaveBeenCalledTimes(4);
   });
 
   it("reports an unrecovered delete inconsistency instead of masking it", async () => {
