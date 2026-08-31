@@ -34,14 +34,14 @@ export function strictestVisibility(values: readonly Visibility[]): Visibility {
 
 export function effectiveVisibility(
   subject: Person | readonly Visibility[],
-  options: LivingPolicyOptions = {},
+  _options: LivingPolicyOptions = {},
 ): Visibility {
   if (Array.isArray(subject)) return strictestVisibility(subject);
   const person = subject as Person;
   if (person.visibility === "public" || person.visibility === "family" || person.visibility === "private") {
     return person.visibility;
   }
-  return inferLivingStatus(person, options) === "deceased" ? "public" : "family";
+  return "public";
 }
 
 export function isVisibleToAudience(required: Visibility, audience: Visibility): boolean {

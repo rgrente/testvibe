@@ -78,6 +78,11 @@ describe("Person CRUD", () => {
       .rejects.toBeInstanceOf(ValidationError);
   });
 
+  it("rend publique par défaut une Person sans visibilité explicite", async () => {
+    const created = await createPerson(db, { firstName: "Publique", lastName: "Défaut" });
+    expect(created.visibility).toBe("public");
+  });
+
   it("supprime une Person existante", async () => {
     const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
     await deletePerson(db, created.id);

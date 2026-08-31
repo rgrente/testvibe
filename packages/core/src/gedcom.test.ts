@@ -122,6 +122,7 @@ describe("importGedcom", () => {
     expect(henri?.gender).toBe("M");
     expect(marie?.gender).toBe("F");
     expect(marie?.birthName).toBe("DURAND");
+    expect(persons.every((person) => person.visibility === "public")).toBe(true);
 
     // Vérifie unions (2 familles)
     const unions = await listUnions(db);

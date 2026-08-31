@@ -150,7 +150,7 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
           </label>
           <label className="text-sm font-medium text-slate-700">
             Visibilité
-            <select name="visibility" defaultValue="family" className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+            <select name="visibility" defaultValue="public" className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
               <option value="public">Public</option><option value="family">Famille</option><option value="private">Privé</option>
             </select>
           </label>

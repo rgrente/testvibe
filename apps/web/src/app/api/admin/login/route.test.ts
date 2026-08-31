@@ -61,7 +61,20 @@ describe("POST /api/admin/login", () => {
       "http://testvibe-web.testvibe.svc.cluster.local/api/admin/login",
     ));
     expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://family.example/admin");
     expect(security.adminCreateSession).toHaveBeenCalledOnce();
+  });
+
+  it("redirects failed credentials to the configured origin instead of the internal request URL", async () => {
+    const response = await POST(loginRequest(
+      "wrong",
+      undefined,
+      undefined,
+      undefined,
+      "http://0.0.0.0:3000/api/admin/login",
+    ));
+    expect(response.status).toBe(303);
+    expect(response.headers.get("location")).toBe("https://family.example/admin/login?error=1");
   });
 
   it("rejects foreign origins before checking credentials", async () => {

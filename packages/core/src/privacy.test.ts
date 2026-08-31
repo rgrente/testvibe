@@ -22,11 +22,11 @@ const person = (overrides: Partial<Person> = {}): Person => ({
 });
 
 describe("living-person privacy policy", () => {
-  it("fails closed for unknown, incomplete, recent, future, and invalid dates", () => {
+  it("defaults missing visibility to public independently of inferred living status", () => {
     const now = new Date("2026-08-31T00:00:00.000Z");
     for (const birthDate of [null, "2000", "1906-09", "2030-01-01", "invalid"]) {
       expect(inferLivingStatus(person({ birthDate }), { now, thresholdYears: 120 })).toBe("living");
-      expect(effectiveVisibility(person({ birthDate }), { now, thresholdYears: 120 })).toBe("family");
+      expect(effectiveVisibility(person({ birthDate }), { now, thresholdYears: 120 })).toBe("public");
     }
   });
 
@@ -37,6 +37,7 @@ describe("living-person privacy policy", () => {
     expect(effectiveVisibility(person({ livingStatus: "deceased" }), { now })).toBe("public");
     expect(effectiveVisibility(person({ deathDate: "2026" }), { now })).toBe("public");
     expect(effectiveVisibility(person({ birthDate: "1800-01-01" }), { now })).toBe("public");
+    expect(effectiveVisibility(person({ visibility: "family" }), { now })).toBe("family");
     expect(effectiveVisibility(person({ deathDate: "2026", visibility: "private" }), { now })).toBe("private");
   });
 
@@ -59,7 +60,12 @@ describe("living-person privacy policy", () => {
 
   it("filters every entity before projection without relationship or aggregate inference", () => {
     const publicPerson = person({ id: 1, deathDate: "1900-01-01" });
-    const livingPerson = person({ id: 2, firstName: "Hidden", birthDate: "2000-01-01" });
+    const livingPerson = person({
+      id: 2,
+      firstName: "Hidden",
+      birthDate: "2000-01-01",
+      visibility: "family",
+    });
     const publicEvent = { id: 1, personId: 1, unionId: null, visibility: null } as Event;
     const hiddenEvent = { id: 2, personId: 1, unionId: null, visibility: "private" } as Event;
     const mixedUnion = { id: 1, personIds: [1, 2] } as Union;

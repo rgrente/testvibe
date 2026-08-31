@@ -124,7 +124,7 @@ export async function createPerson(db: Database, input: PersonInput): Promise<Pe
       deathDate: input.deathDate ?? null,
       gender: input.gender ?? null,
       livingStatus: input.livingStatus ?? null,
-      visibility: input.visibility ?? null,
+      visibility: input.visibility ?? "public",
     })
     .returning();
   await syncBiographicalEvents(db, row.id, input.birthDate ?? null, input.deathDate ?? null);
