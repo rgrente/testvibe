@@ -16,11 +16,16 @@
 import { db as defaultDb } from "@testvibe/db";
 import type { ComparativeTimelineRow, Person, FamilyFact, FamilyTimelineItem, FamilyAnniversary, UpcomingFamilyAnniversary, Media, MapLocation, Visibility } from "./types.js";
 import { listPersons, getPersonById } from "./person.js";
-import { getFamilyTree, getAncestorIds, getDescendantIds, type FamilyTree } from "./tree.js";
+import {
+  buildFamilyTree,
+  getAncestorIdsFromFiliations,
+  getDescendantIdsFromFiliations,
+  type FamilyTree,
+} from "./tree.js";
 import { listAllEvents } from "./event.js";
 import { listAllMedia } from "./media.js";
 import { searchPersons } from "./search.js";
-import { listComparativeTimeline } from "./comparative-timeline.js";
+import { projectComparativeTimeline } from "./comparative-timeline.js";
 
 import { anniversariesForDate, upcomingFamilyAnniversaries } from "./anniversary.js";
 import { calculateFamilyStatistics, type FamilyStatistics } from "./statistics.js";
@@ -52,16 +57,9 @@ export async function getFamilyStatisticsForWeb(): Promise<FamilyStatistics> {
 /** Construit l'arbre généalogique complet visible depuis une Person racine. */
 export async function getFamilyTreeForWeb(rootId: number): Promise<FamilyTree> {
   const view = await privacyView();
-  const visibleIds = new Set(view.persons.map(({ id }) => id));
-  if (!visibleIds.has(rootId)) throw new NotFoundError("Person", rootId);
-  const tree = await getFamilyTree(defaultDb, rootId);
-  return {
-    ...tree,
-    nodes: tree.nodes.filter(({ person }) => visibleIds.has(person.id)),
-    edges: tree.edges.filter((edge) => edge.type === "filiation"
-      ? visibleIds.has(edge.parentId) && visibleIds.has(edge.childId)
-      : edge.personIds.every((id) => visibleIds.has(id))),
-  };
+  const root = view.persons.find(({ id }) => id === rootId);
+  if (!root) throw new NotFoundError("Person", rootId);
+  return buildFamilyTree(root, view.persons, view.unions, view.filiations);
 }
 
 /**
@@ -132,11 +130,10 @@ export async function getUpcomingFamilyAnniversariesForWeb(targetDate: string, d
 /** Retourne une ligne par personne pour la timeline horizontale comparative. */
 export async function getComparativeTimelineForWeb(): Promise<ComparativeTimelineRow[]> {
   const view = await privacyView();
-  const visibleIds = new Set(view.persons.map(({ id }) => id));
-  const visibleEventIds = new Set(view.events.map(({ id }) => id));
-  return (await listComparativeTimeline(defaultDb))
-    .filter(({ person }) => visibleIds.has(person.id))
-    .map((row) => ({ ...row, events: row.events.filter(({ id }) => id < 0 || visibleEventIds.has(id)) }));
+  return projectComparativeTimeline(
+    view.persons,
+    projectFamilyFacts(view.persons, view.unions, view.events),
+  );
 }
 
 /**
@@ -173,10 +170,9 @@ export async function getMapLocationsForWeb(): Promise<MapLocation[]> {
  * Phase 6 (tâche lieux/carte).
  */
 export async function getAncestorIdsForWeb(personId: number): Promise<number[]> {
-  const visibleIds = new Set((await privacyView()).persons.map(({ id }) => id));
-  if (!visibleIds.has(personId)) throw new NotFoundError("Person", personId);
-  const ids = await getAncestorIds(defaultDb, personId);
-  return [...ids].filter((id) => visibleIds.has(id));
+  const view = await privacyView();
+  if (!view.persons.some(({ id }) => id === personId)) throw new NotFoundError("Person", personId);
+  return [...getAncestorIdsFromFiliations(view.filiations, personId)];
 }
 
 /**
@@ -184,10 +180,9 @@ export async function getAncestorIdsForWeb(personId: number): Promise<number[]> 
  * Phase 6 (tâche lieux/carte).
  */
 export async function getDescendantIdsForWeb(personId: number): Promise<number[]> {
-  const visibleIds = new Set((await privacyView()).persons.map(({ id }) => id));
-  if (!visibleIds.has(personId)) throw new NotFoundError("Person", personId);
-  const ids = await getDescendantIds(defaultDb, personId);
-  return [...ids].filter((id) => visibleIds.has(id));
+  const view = await privacyView();
+  if (!view.persons.some(({ id }) => id === personId)) throw new NotFoundError("Person", personId);
+  return [...getDescendantIdsFromFiliations(view.filiations, personId)];
 }
 
 export async function getMediaForWebByFilename(filename: string): Promise<Media> {
