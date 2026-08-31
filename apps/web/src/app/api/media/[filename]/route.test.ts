@@ -16,12 +16,13 @@ const core = vi.hoisted(() => ({
   }),
   adminGetMedia: vi.fn(async () => ({ id: 7, filename: "known.png" })),
   adminGetMediaByFilename: vi.fn(async () => { throw new Error("missing"); }),
+  getMediaForWebByFilename: vi.fn(async () => ({ id: 7, filename: "known.png", mimeType: "image/png" })),
   adminVerifySession: vi.fn(async () => state.verifySession),
 }));
 
 vi.mock("@testvibe/core", () => core);
 
-import { DELETE, mediaFileOps } from "./route";
+import { DELETE, GET, mediaFileOps } from "./route";
 
 function deleteRequest(filename = "known.png", id = "7", origin = "https://family.example") {
   return [
@@ -124,5 +125,37 @@ describe("DELETE /api/media/[filename]", () => {
     expect((await remove()).status).toBe(503);
     expect(state.deleted).toBe(false);
     expect(state.exists).toBe(false);
+  });
+});
+
+describe("GET /api/media/[filename]", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    state.exists = true;
+    vi.spyOn(mediaFileOps, "existsSync").mockImplementation(() => state.exists);
+  });
+
+  it("returns the same 404 for hidden, unknown, orphaned, and absent files", async () => {
+    for (const filename of ["hidden.png", "unknown.png", "orphan.png"]) {
+      core.getMediaForWebByFilename.mockRejectedValueOnce(new Error("not visible"));
+      const response = await GET(new Request(`https://family.example/api/media/${filename}`) as never, {
+        params: Promise.resolve({ filename }),
+      });
+      expect(response.status).toBe(404);
+    }
+    state.exists = false;
+    const absent = await GET(new Request("https://family.example/api/media/known.png") as never, {
+      params: Promise.resolve({ filename: "known.png" }),
+    });
+    expect(absent.status).toBe(404);
+  });
+
+  it("serves an authorised file without shared caching", async () => {
+    const response = await GET(new Request("https://family.example/api/media/known.png") as never, {
+      params: Promise.resolve({ filename: "known.png" }),
+    });
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(response.headers.get("content-type")).toBe("image/png");
   });
 });

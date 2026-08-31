@@ -99,6 +99,10 @@ export async function listMediaByEvent(db: Database, eventId: number): Promise<M
   return rows.map(toMedia);
 }
 
+export async function listAllMedia(db: Database): Promise<Media[]> {
+  return (await db.select().from(media)).map(toMedia);
+}
+
 export async function deleteMedia(db: Database, id: number): Promise<void> {
   await getMediaById(db, id);
   await db.delete(media).where(eq(media.id, id));

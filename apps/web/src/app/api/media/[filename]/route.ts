@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename } from "@testvibe/core";
+import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename, getMediaForWebByFilename } from "@testvibe/core";
 import { readdir, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -13,6 +13,7 @@ export const mediaFileOps = {
   existsSync, readdir, rename, unlink,
   getMedia: adminGetMedia,
   getMediaByFilename: adminGetMediaByFilename,
+  getPublicMedia: getMediaForWebByFilename,
 };
 
 async function restoreQuarantine(quarantinePath: string, filePath: string): Promise<boolean> {
@@ -39,29 +40,24 @@ export async function GET(
   // Sanitize: no path traversal
   const safe = filename.replace(/[^a-zA-Z0-9.\-_]/g, "");
   if (safe !== filename) {
-    return NextResponse.json({ error: "Nom de fichier invalide." }, { status: 400 });
+    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
+  }
+  let metadata;
+  try {
+    metadata = await mediaFileOps.getPublicMedia(safe);
+  } catch {
+    return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
   }
   const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, safe);
-  if (!existsSync(/* turbopackIgnore: true */ filePath)) {
+  if (!mediaFileOps.existsSync(/* turbopackIgnore: true */ filePath)) {
     return NextResponse.json({ error: "Fichier introuvable." }, { status: 404 });
   }
   const stream = createReadStream(/* turbopackIgnore: true */ filePath);
   const webStream = Readable.toWeb(stream) as ReadableStream;
-  const ext = safe.split(".").pop()?.toLowerCase() ?? "";
-  const mimeMap: Record<string, string> = {
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    gif: "image/gif",
-    webp: "image/webp",
-    avif: "image/avif",
-    pdf: "application/pdf",
-  };
-  const contentType = mimeMap[ext] ?? "application/octet-stream";
   return new NextResponse(webStream, {
     headers: {
-      "Content-Type": contentType,
-      "Cache-Control": "public, max-age=31536000, immutable",
+      "Content-Type": metadata.mimeType,
+      "Cache-Control": "private, no-store",
     },
   });
 }

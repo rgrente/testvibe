@@ -58,7 +58,7 @@ export default async function AdminPage() {
 
       <p className="mt-8 text-sm text-slate-500">
         <Link href="/" className="underline hover:text-slate-800">
-          ← Retour à la consultation
+          Aperçu public exact →
         </Link>
       </p>
     </main>

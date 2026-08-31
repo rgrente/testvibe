@@ -120,6 +120,12 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
+          <label className="text-sm font-medium text-slate-700">
+            Visibilité
+            <select name="visibility" defaultValue="family" className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+              <option value="public">Public</option><option value="family">Famille</option><option value="private">Privé</option>
+            </select>
+          </label>
           <div className="sm:col-span-2">
             <label htmlFor="description" className="mb-1 block text-sm font-medium text-slate-700">
               Description
@@ -177,6 +183,12 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Libellé
                     <input name="label" type="text" defaultValue={ev.label ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
+                  </label>
+                  <label className="text-xs font-medium text-slate-700">
+                    Visibilité
+                    <select name="visibility" defaultValue={ev.visibility ?? "public"} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm">
+                      <option value="public">Public</option><option value="family">Famille</option><option value="private">Privé</option>
+                    </select>
                   </label>
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Description

@@ -45,8 +45,8 @@ export interface Person {
   birthDate: string | null;
   deathDate: string | null;
   gender: string | null;
-  livingStatus: LivingStatus | null;
-  visibility: Visibility | null;
+  livingStatus?: LivingStatus | null;
+  visibility?: Visibility | null;
 }
 
 export interface PersonInput {
@@ -112,7 +112,7 @@ export interface Event {
   place: string | null;
   latitude: number | null;
   longitude: number | null;
-  visibility: Visibility | null;
+  visibility?: Visibility | null;
 }
 
 export interface EventInput {
@@ -191,7 +191,7 @@ export interface Media {
   mimeType: string;
   size: number;
   createdAt: string;
-  visibility: Visibility | null;
+  visibility?: Visibility | null;
 }
 
 export interface MediaInput {
