@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { cp, mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { cp, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -98,11 +98,27 @@ describe("SQLite/libSQL integration", () => {
 
   it("migrates and rolls back admin security tables without changing genealogy data", async () => {
     const directory = await temporaryDirectory();
+    const preSecurityMigrations = resolve(directory, "migrations-0005");
+    await cp(migrationsFolder, preSecurityMigrations, { recursive: true });
+    await rm(resolve(preSecurityMigrations, "0006_violet_mikhail_rasputin.sql"));
+    await rm(resolve(preSecurityMigrations, "meta/0006_snapshot.json"));
+    const journalPath = resolve(preSecurityMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as {
+      entries: Array<{ idx: number }>;
+    };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 5);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
     const instance = createDb(`file:${resolve(directory, "security.db")}`);
 
     try {
-      await migrate(instance.db, { migrationsFolder });
+      await migrate(instance.db, { migrationsFolder: preSecurityMigrations });
       await instance.db.insert(person).values({ firstName: "Existing", lastName: "Record" });
+      const before = await instance.client.execute(
+        "select name from sqlite_master where type = 'table' and name in ('admin_session', 'login_rate_limit')",
+      );
+      expect(before.rows).toHaveLength(0);
+
+      await migrate(instance.db, { migrationsFolder });
       await instance.db.insert(adminSession).values({
         tokenHash: "opaque-token-hash",
         expiresAt: new Date(Date.now() + 60_000).toISOString(),
@@ -113,6 +129,10 @@ describe("SQLite/libSQL integration", () => {
         failures: 1,
         windowStartedAt: new Date().toISOString(),
       });
+      const upgraded = await instance.client.execute(
+        "select name from sqlite_master where type = 'table' and name in ('admin_session', 'login_rate_limit')",
+      );
+      expect(upgraded.rows).toHaveLength(2);
 
       const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0006_admin_security.sql"), "utf8");
       for (const statement of rollback.split(";")) {
