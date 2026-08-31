@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.15.1](https://github.com/rgrente/testvibe/compare/v1.15.0...v1.15.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* restore canonical admin redirects and public visibility ([#105](https://github.com/rgrente/testvibe/issues/105)) ([dc88681](https://github.com/rgrente/testvibe/commit/dc88681dbd6815e2e2f699c50486bf425979246f)), closes [#104](https://github.com/rgrente/testvibe/issues/104)
+
 # [1.15.0](https://github.com/rgrente/testvibe/compare/v1.14.1...v1.15.0) (2026-08-31)
 
 
