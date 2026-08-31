@@ -15,7 +15,9 @@ const core = vi.hoisted(() => ({
     state.deleted = true;
   }),
   adminGetMedia: vi.fn(async () => ({ id: 7, filename: "known.png" })),
-  adminGetMediaByFilename: vi.fn(async () => { throw new Error("missing"); }),
+  adminGetMediaByFilename: vi.fn(async (): Promise<{ id: number; filename: string; mimeType: string; visibility?: string }> => {
+    throw new Error("missing");
+  }),
   getMediaForWebByFilename: vi.fn(async () => ({ id: 7, filename: "known.png", mimeType: "image/png" })),
   adminVerifySession: vi.fn(async () => state.verifySession),
 }));
@@ -132,6 +134,7 @@ describe("GET /api/media/[filename]", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     state.exists = true;
+    state.verifySession = true;
     vi.spyOn(mediaFileOps, "existsSync").mockImplementation(() => state.exists);
   });
 
@@ -157,5 +160,34 @@ describe("GET /api/media/[filename]", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(response.headers.get("content-type")).toBe("image/png");
+  });
+
+  it("serves protected media to an authenticated admin", async () => {
+    core.getMediaForWebByFilename.mockRejectedValueOnce(new Error("not public"));
+    core.adminGetMediaByFilename.mockResolvedValueOnce({
+      id: 7,
+      filename: "known.png",
+      mimeType: "image/png",
+      visibility: "private",
+    });
+    const response = await GET(new Request("https://family.example/api/media/known.png", {
+      headers: { cookie: "admin_session=opaque" },
+    }) as never, { params: Promise.resolve({ filename: "known.png" }) });
+
+    expect(response.status).toBe(200);
+    expect(core.adminGetMediaByFilename).toHaveBeenCalledWith("known.png");
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+  });
+
+  it("returns a uniform non-cacheable 404 for protected media without an admin session", async () => {
+    state.verifySession = false;
+    core.getMediaForWebByFilename.mockRejectedValueOnce(new Error("not public"));
+    const response = await GET(new Request("https://family.example/api/media/known.png") as never, {
+      params: Promise.resolve({ filename: "known.png" }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    expect(core.adminGetMediaByFilename).not.toHaveBeenCalled();
   });
 });
