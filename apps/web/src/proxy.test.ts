@@ -15,9 +15,13 @@ describe("admin HTTP security helpers", () => {
   });
 
   it("accepts same-origin mutations and rejects absent or foreign origins", () => {
-    expect(isAllowedOrigin("https://family.example/admin", "https://family.example", "family.example")).toBe(true);
-    expect(isAllowedOrigin("https://family.example/admin", null, "family.example")).toBe(false);
-    expect(isAllowedOrigin("https://family.example/admin", "https://evil.example", "family.example")).toBe(false);
+    expect(isAllowedOrigin("https://family.example/admin", "https://family.example")).toBe(true);
+    expect(isAllowedOrigin("https://family.example/admin", null)).toBe(false);
+    expect(isAllowedOrigin("https://family.example/admin", "https://evil.example")).toBe(false);
+  });
+
+  it("uses the canonical request URL rather than a spoofable host header", () => {
+    expect(isAllowedOrigin("https://family.example/admin", "https://evil.example")).toBe(false);
   });
 
   it("creates a stable non-reversible client fingerprint", () => {

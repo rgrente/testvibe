@@ -61,6 +61,7 @@ committer :
 | --- | --- |
 | `DATABASE_URL` | URL libSQL ou chemin du fichier SQLite persistant. |
 | `ADMIN_SECRET` | Secret requis pour ouvrir la session d'administration. |
+| `ADMIN_ORIGIN` | Origine canonique complète (par exemple `https://famille.example`) autorisée pour les mutations admin. |
 | `UPLOAD_DIR` | Répertoire persistant des photos et documents. |
 | `FAMILY_TIME_ZONE` | Fuseau IANA utilisé pour les dates familiales. |
 

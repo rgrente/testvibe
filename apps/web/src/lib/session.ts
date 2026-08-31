@@ -11,6 +11,10 @@ export const SESSION_COOKIE_OPTIONS = {
   maxAge: 8 * 60 * 60,
 };
 
+export function sessionCookieOptions() {
+  return { ...SESSION_COOKIE_OPTIONS, secure: process.env.NODE_ENV === "production" };
+}
+
 export function getAdminSecret(): string {
   return process.env.ADMIN_SECRET ?? "";
 }
@@ -29,13 +33,12 @@ export function clientFingerprint(clientAddress: string, key: string): string {
 export function isAllowedOrigin(
   requestUrl: string,
   origin: string | null,
-  host: string | null,
 ): boolean {
-  if (!origin || !host) return false;
+  if (!origin) return false;
   try {
     const request = new URL(requestUrl);
     const submitted = new URL(origin);
-    return submitted.protocol === request.protocol && submitted.host === host;
+    return submitted.origin === request.origin;
   } catch {
     return false;
   }
@@ -48,8 +51,7 @@ export async function authorizeMutationRequest(request: Request): Promise<401 | 
     .find((part) => part.startsWith(`${SESSION_COOKIE_NAME}=`))
     ?.slice(SESSION_COOKIE_NAME.length + 1);
   if (!(await adminVerifySession(token))) return 401;
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  return isAllowedOrigin(request.url, request.headers.get("origin"), host) ? null : 403;
+  return isAllowedOrigin(request.url, request.headers.get("origin")) ? null : 403;
 }
 
 export async function requireAdminMutation(): Promise<void> {
@@ -58,9 +60,8 @@ export async function requireAdminMutation(): Promise<void> {
     throw new Error("Unauthorized");
   }
   const requestHeaders = await headers();
-  const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  const protocol = requestHeaders.get("x-forwarded-proto") ?? (process.env.NODE_ENV === "production" ? "https" : "http");
-  if (!isAllowedOrigin(`${protocol}://${host ?? "invalid"}/`, requestHeaders.get("origin"), host)) {
+  const canonicalOrigin = process.env.ADMIN_ORIGIN;
+  if (!canonicalOrigin || !isAllowedOrigin(canonicalOrigin, requestHeaders.get("origin"))) {
     throw new Error("Forbidden");
   }
 }

@@ -11,12 +11,11 @@ import {
   isAllowedOrigin,
   safeSecretEquals,
   SESSION_COOKIE_NAME,
-  SESSION_COOKIE_OPTIONS,
+  sessionCookieOptions,
 } from "@/lib/session";
 
 export async function POST(request: Request) {
-  const host = request.headers.get("x-forwarded-host") ?? request.headers.get("host");
-  if (!isAllowedOrigin(request.url, request.headers.get("origin"), host)) {
+  if (!isAllowedOrigin(request.url, request.headers.get("origin"))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -42,6 +41,6 @@ export async function POST(request: Request) {
   await adminResetLoginFailures(fingerprint);
   const token = await adminCreateSession();
   const response = NextResponse.redirect(new URL("/admin", request.url), 303);
-  response.cookies.set(SESSION_COOKIE_NAME, token, SESSION_COOKIE_OPTIONS);
+  response.cookies.set(SESSION_COOKIE_NAME, token, sessionCookieOptions());
   return response;
 }
