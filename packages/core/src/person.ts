@@ -34,6 +34,12 @@ function assertValidPersonInput(input: PersonInput): void {
   ) {
     throw new ValidationError("deathDate ne peut pas être antérieure à birthDate.");
   }
+  if (input.livingStatus != null && !["living", "deceased"].includes(input.livingStatus)) {
+    throw new ValidationError(`livingStatus invalide : ${input.livingStatus}`);
+  }
+  if (input.visibility != null && !["public", "family", "private"].includes(input.visibility)) {
+    throw new ValidationError(`visibility invalide : ${input.visibility}`);
+  }
 }
 
 function toPerson(row: typeof person.$inferSelect): Person {
@@ -45,6 +51,8 @@ function toPerson(row: typeof person.$inferSelect): Person {
     birthDate: row.birthDate,
     deathDate: row.deathDate,
     gender: row.gender,
+    livingStatus: row.livingStatus,
+    visibility: row.visibility,
   };
 }
 
@@ -115,6 +123,8 @@ export async function createPerson(db: Database, input: PersonInput): Promise<Pe
       birthDate: input.birthDate ?? null,
       deathDate: input.deathDate ?? null,
       gender: input.gender ?? null,
+      livingStatus: input.livingStatus ?? null,
+      visibility: input.visibility ?? null,
     })
     .returning();
   await syncBiographicalEvents(db, row.id, input.birthDate ?? null, input.deathDate ?? null);
@@ -147,6 +157,8 @@ export async function updatePerson(
     birthDate: input.birthDate !== undefined ? input.birthDate : existing.birthDate,
     deathDate: input.deathDate !== undefined ? input.deathDate : existing.deathDate,
     gender: input.gender !== undefined ? input.gender : existing.gender,
+    livingStatus: input.livingStatus !== undefined ? input.livingStatus : existing.livingStatus,
+    visibility: input.visibility !== undefined ? input.visibility : existing.visibility,
   };
   assertValidPersonInput(merged);
   const [row] = await db
@@ -158,6 +170,8 @@ export async function updatePerson(
       birthDate: merged.birthDate ?? null,
       deathDate: merged.deathDate ?? null,
       gender: merged.gender ?? null,
+      livingStatus: merged.livingStatus ?? null,
+      visibility: merged.visibility ?? null,
     })
     .where(eq(person.id, id))
     .returning();

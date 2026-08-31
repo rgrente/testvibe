@@ -61,6 +61,23 @@ describe("Person CRUD", () => {
     expect(created.birthName).toBeNull();
   });
 
+  it("persiste et valide le statut de vie et la visibilité", async () => {
+    const created = await createPerson(db, {
+      firstName: "Marie",
+      lastName: "Curie",
+      livingStatus: "deceased",
+      visibility: "private",
+    });
+    expect(created).toMatchObject({ livingStatus: "deceased", visibility: "private" });
+    await expect(createPerson(db, {
+      firstName: "Valeur",
+      lastName: "Invalide",
+      livingStatus: "unknown" as never,
+    })).rejects.toBeInstanceOf(ValidationError);
+    await expect(updatePerson(db, created.id, { visibility: "shared" as never }))
+      .rejects.toBeInstanceOf(ValidationError);
+  });
+
   it("supprime une Person existante", async () => {
     const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
     await deletePerson(db, created.id);

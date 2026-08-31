@@ -35,12 +35,22 @@ const VALID_MEDIA: Parameters<typeof createMedia>[1] = {
 describe("createMedia", () => {
   it("crée un média associé à une personne", async () => {
     const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
-    const m = await createMedia(db, { ...VALID_MEDIA, personId: person.id });
+    const m = await createMedia(db, { ...VALID_MEDIA, personId: person.id, visibility: "private" });
     expect(m.id).toBeGreaterThan(0);
     expect(m.personId).toBe(person.id);
     expect(m.filename).toBe("photo-abc.jpg");
     expect(m.mimeType).toBe("image/jpeg");
     expect(m.createdAt).toBeTruthy();
+    expect(m.visibility).toBe("private");
+  });
+
+  it("rejette une visibilité inconnue", async () => {
+    const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    await expect(createMedia(db, {
+      ...VALID_MEDIA,
+      personId: person.id,
+      visibility: "shared" as never,
+    })).rejects.toThrow(ValidationError);
   });
 
   it("crée un média associé à un événement", async () => {

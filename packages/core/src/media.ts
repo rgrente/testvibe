@@ -38,6 +38,9 @@ function assertValidMediaInput(input: MediaInput): void {
   if (input.personId == null && input.eventId == null) {
     throw new ValidationError("Un média doit être associé à une Person ou un Event.");
   }
+  if (input.visibility != null && !["public", "family", "private"].includes(input.visibility)) {
+    throw new ValidationError(`visibility invalide : ${input.visibility}`);
+  }
 }
 
 function toMedia(row: typeof media.$inferSelect): Media {
@@ -50,6 +53,7 @@ function toMedia(row: typeof media.$inferSelect): Media {
     mimeType: row.mimeType,
     size: row.size,
     createdAt: row.createdAt,
+    visibility: row.visibility,
   };
 }
 
@@ -65,6 +69,7 @@ export async function createMedia(db: Database, input: MediaInput): Promise<Medi
       mimeType: input.mimeType,
       size: input.size,
       createdAt: new Date().toISOString(),
+      visibility: input.visibility ?? null,
     })
     .returning();
   return toMedia(row);

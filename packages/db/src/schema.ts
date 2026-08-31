@@ -6,7 +6,8 @@
  * jonction personnes <-> union), et `filiation` (lien parent/enfant
  * avec un rôle biologique/adopté/beau-parent).
  */
-import { sqliteTable, integer, text, real, primaryKey } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { check, index, sqliteTable, integer, text, real, primaryKey } from "drizzle-orm/sqlite-core";
 
 export const health = sqliteTable("_health", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -22,7 +23,13 @@ export const person = sqliteTable("person", {
   birthDate: text("birth_date"),
   deathDate: text("death_date"),
   gender: text("gender"),
-});
+  livingStatus: text("living_status", { enum: ["living", "deceased"] }),
+  visibility: text("visibility", { enum: ["public", "family", "private"] }),
+}, (table) => [
+  check("person_living_status_valid", sql`${table.livingStatus} is null or ${table.livingStatus} in ('living', 'deceased')`),
+  check("person_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),
+  index("person_privacy_idx").on(table.visibility, table.livingStatus),
+]);
 
 // Nommée "unions" (et non "union", mot réservé SQL) pour éviter toute
 // ambiguïté de parsing selon les dialectes/outils.
@@ -82,7 +89,11 @@ export const event = sqliteTable("event", {
   place: text("place"),
   latitude: real("latitude"),
   longitude: real("longitude"),
-});
+  visibility: text("visibility", { enum: ["public", "family", "private"] }),
+}, (table) => [
+  check("event_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),
+  index("event_visibility_idx").on(table.visibility),
+]);
 
 /**
  * Médias (photos, documents) associés à une Person ou un Event.
@@ -97,7 +108,11 @@ export const media = sqliteTable("media", {
   mimeType: text("mime_type").notNull(),
   size: integer("size").notNull(),
   createdAt: text("created_at").notNull(),
-});
+  visibility: text("visibility", { enum: ["public", "family", "private"] }),
+}, (table) => [
+  check("media_visibility_valid", sql`${table.visibility} is null or ${table.visibility} in ('public', 'family', 'private')`),
+  index("media_visibility_idx").on(table.visibility),
+]);
 
 export const adminSession = sqliteTable("admin_session", {
   tokenHash: text("token_hash").primaryKey(),
