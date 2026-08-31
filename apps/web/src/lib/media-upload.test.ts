@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import sharp from "sharp";
 import { detectMediaType, hasSingleAttachment } from "./media-upload.js";
 
+function validPdf(): Buffer {
+  const header = "%PDF-1.4\n";
+  const objects = [
+    "1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj\n",
+    "2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj\n",
+    "3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 1 1] >>\nendobj\n",
+  ];
+  const offsets: number[] = [];
+  let body = header;
+  for (const object of objects) {
+    offsets.push(Buffer.byteLength(body));
+    body += object;
+  }
+  const xrefOffset = Buffer.byteLength(body);
+  const xref = ["xref", `0 ${objects.length + 1}`, "0000000000 65535 f ",
+    ...offsets.map((offset) => `${offset.toString().padStart(10, "0")} 00000 n `)].join("\n");
+  return Buffer.from(`${body}${xref}\ntrailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`);
+}
+
 describe("media upload validation", () => {
   it.each([
     [Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"), "image/png", "png"],
@@ -18,6 +37,16 @@ describe("media upload validation", () => {
     Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
   ])("rejects spoofed, truncated, or unsupported content", async (buffer) => {
     await expect(detectMediaType(buffer)).resolves.toBeNull();
+  });
+
+  it("accepts a structurally complete PDF and rejects truncated or spoofed PDFs", async () => {
+    const complete = validPdf();
+    await expect(detectMediaType(complete)).resolves.toEqual({
+      mimeType: "application/pdf",
+      extension: "pdf",
+    });
+    await expect(detectMediaType(complete.subarray(0, complete.length - 6))).resolves.toBeNull();
+    await expect(detectMediaType(Buffer.from("%PDF-1.7\nnot a document\n%%EOF\n"))).resolves.toBeNull();
   });
 
   it.each([
