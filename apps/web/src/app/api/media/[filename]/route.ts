@@ -8,6 +8,7 @@ import { Readable } from "node:stream";
 import { authorizeMutationRequest } from "@/lib/session";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
+export const mediaFileOps = { existsSync, readFile, unlink, writeFile };
 
 /**
  * GET /api/media/[filename]
@@ -70,15 +71,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Association id/filename invalide." }, { status: 400 });
     }
     const filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, mediaRecord.filename);
-    if (!existsSync(/* turbopackIgnore: true */ filePath)) {
+    if (!mediaFileOps.existsSync(/* turbopackIgnore: true */ filePath)) {
       return NextResponse.json({ error: "Fichier et base incohérents." }, { status: 409 });
     }
-    const contents = await readFile(filePath);
-    await unlink(filePath);
+    const contents = await mediaFileOps.readFile(filePath);
+    await mediaFileOps.unlink(filePath);
     try {
       await adminDeleteMedia(id);
     } catch {
-      await writeFile(filePath, contents);
+      await mediaFileOps.writeFile(filePath, contents);
       throw new Error("database delete failed");
     }
     return NextResponse.json({ success: true });

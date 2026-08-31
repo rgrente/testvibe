@@ -1,19 +1,38 @@
 import { describe, expect, it } from "vitest";
+import sharp from "sharp";
 import { detectMediaType, hasSingleAttachment } from "./media-upload.js";
 
 describe("media upload validation", () => {
   it.each([
-    [Buffer.from([0xff, 0xd8, 0xff, 0xe0]), "image/jpeg", "jpg"],
-    [Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), "image/png", "png"],
-    [Buffer.from("GIF89a"), "image/gif", "gif"],
-    [Buffer.from("%PDF-1.7"), "application/pdf", "pdf"],
-  ])("derives %s from the real signature", (buffer, mimeType, extension) => {
-    expect(detectMediaType(buffer)).toEqual({ mimeType, extension });
+    [Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"), "image/png", "png"],
+    [Buffer.from("R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==", "base64"), "image/gif", "gif"],
+  ])("derives the type only from a fully decodable file", async (buffer, mimeType, extension) => {
+    await expect(detectMediaType(buffer)).resolves.toEqual({ mimeType, extension });
   });
 
-  it("rejects spoofed or truncated content", () => {
-    expect(detectMediaType(Buffer.from("not an image"))).toBeNull();
-    expect(detectMediaType(Buffer.from([0x89, 0x50]))).toBeNull();
+  it.each([
+    Buffer.from("not an image"),
+    Buffer.from([0xff, 0xd8, 0xff, 0xe0]),
+    Buffer.from("GIF89a"),
+    Buffer.from("%PDF-1.7"),
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  ])("rejects spoofed, truncated, or unsupported content", async (buffer) => {
+    await expect(detectMediaType(buffer)).resolves.toBeNull();
+  });
+
+  it.each([
+    ["jpeg", "image/jpeg", "jpg"],
+    ["png", "image/png", "png"],
+    ["gif", "image/gif", "gif"],
+    ["webp", "image/webp", "webp"],
+    ["avif", "image/avif", "avif"],
+  ] as const)("decodes complete %s fixtures and rejects their truncation", async (format, mimeType, extension) => {
+    const fixture = await sharp({
+      create: { width: 2, height: 2, channels: 3, background: "#336699" },
+    }).toFormat(format).toBuffer();
+    await expect(detectMediaType(fixture)).resolves.toEqual({ mimeType, extension });
+    await expect(detectMediaType(fixture.subarray(0, Math.floor(fixture.length / 2))))
+      .resolves.toBeNull();
   });
 
   it("requires exactly one positive person or event attachment", () => {

@@ -10,6 +10,7 @@ import { detectMediaType, hasSingleAttachment } from "@/lib/media-upload";
 
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
 const MAX_SIZE = 20 * 1024 * 1024; // 20 MB
+export const uploadFileOps = { existsSync, mkdir, writeFile, unlink };
 
 
 /**
@@ -50,21 +51,21 @@ export async function POST(request: NextRequest) {
     }
 
     const buffer = Buffer.from(await file.arrayBuffer());
-    const detected = detectMediaType(buffer);
+    const detected = await detectMediaType(buffer);
     if (!detected) {
       return NextResponse.json({ error: "Contenu de fichier non supporté." }, { status: 400 });
     }
 
     // Ensure upload directory exists
-    if (!existsSync(/* turbopackIgnore: true */ UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
+    if (!uploadFileOps.existsSync(/* turbopackIgnore: true */ UPLOAD_DIR)) {
+      await uploadFileOps.mkdir(UPLOAD_DIR, { recursive: true });
     }
 
     // Generate unique filename to avoid collisions
     const filename = `${randomUUID()}.${detected.extension}`;
     filePath = join(/* turbopackIgnore: true */ UPLOAD_DIR, filename);
 
-    await writeFile(filePath, buffer);
+    await uploadFileOps.writeFile(filePath, buffer);
 
     const media = await adminCreateMedia({
       personId,
@@ -77,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(media, { status: 201 });
   } catch {
-    if (filePath) await unlink(filePath).catch(() => undefined);
+    if (filePath) await uploadFileOps.unlink(filePath).catch(() => undefined);
     return NextResponse.json({ error: "Échec atomique de l’upload." }, { status: 500 });
   }
 }
