@@ -11,6 +11,7 @@ import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { listCanonicalFamilyFacts } from "./projection.js";
 import { compareGenealogicalDates, parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
 import { deleteGenealogicalDates, loadGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
+import { runTransaction } from "./transaction.js";
 
 function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
@@ -50,7 +51,7 @@ function toEvent(row: typeof event.$inferSelect, date?: GenealogicalDate): Event
   };
 }
 
-export async function createEvent(db: Database, input: EventInput): Promise<Event> {
+export async function createEventInTransaction(db: Database, input: EventInput): Promise<Event> {
   assertValidEventInput(input);
   const [row] = await db
     .insert(event)
@@ -69,6 +70,10 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
     .returning();
   await persistGenealogicalDate(db, "event", row.id, "event_date", input.eventDate ?? null);
   return getEventById(db, row.id);
+}
+
+export async function createEvent(db: Database, input: EventInput): Promise<Event> {
+  return runTransaction(db, (transactionalDb) => createEventInTransaction(transactionalDb, input));
 }
 
 export async function getEventById(db: Database, id: number): Promise<Event> {
@@ -144,7 +149,7 @@ export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineIt
   }));
 }
 
-export async function updateEvent(
+async function updateEventInTransaction(
   db: Database,
   id: number,
   input: Partial<EventInput>,
@@ -185,10 +190,18 @@ export async function updateEvent(
   return getEventById(db, row.id);
 }
 
-export async function deleteEvent(db: Database, id: number): Promise<void> {
+export async function updateEvent(db: Database, id: number, input: Partial<EventInput>): Promise<Event> {
+  return runTransaction(db, (transactionalDb) => updateEventInTransaction(transactionalDb, id, input));
+}
+
+async function deleteEventInTransaction(db: Database, id: number): Promise<void> {
   await getEventById(db, id);
   await deleteGenealogicalDates(db, "event", id);
   await db.delete(event).where(eq(event.id, id));
+}
+
+export async function deleteEvent(db: Database, id: number): Promise<void> {
+  return runTransaction(db, (transactionalDb) => deleteEventInTransaction(transactionalDb, id));
 }
 
 /**

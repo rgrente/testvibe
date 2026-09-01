@@ -126,6 +126,17 @@ describe("Union CRUD", () => {
     await expect(getUnionById(db, created.id)).rejects.toBeInstanceOf(NotFoundError);
   });
 
+  it("restaure partenaires et métadonnées si la suppression Union échoue", async () => {
+    const a = await createPerson(db, { firstName: "Atomic", lastName: "Union" });
+    const created = await createUnion(db, { personIds: [a.id], startDate: "vers 1950" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_union_delete BEFORE DELETE ON unions
+      WHEN OLD.id = ${created.id} BEGIN SELECT RAISE(FAIL, 'échec union'); END`));
+
+    await expect(deleteUnion(db, created.id)).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
   it("rejette la lecture d'une Union inexistante (NotFoundError)", async () => {
     await expect(getUnionById(db, 9999)).rejects.toBeInstanceOf(NotFoundError);
   });

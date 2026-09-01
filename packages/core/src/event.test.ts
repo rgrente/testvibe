@@ -3,7 +3,7 @@
  * Phase 5, tâche #24.
  */
 import { describe, it, expect, beforeEach } from "vitest";
-import { createTestDb } from "./test-utils.js";
+import { createTestDb, genealogyState } from "./test-utils.js";
 import { genealogicalDate, type Database } from "@testvibe/db";
 import { createPerson } from "./person.js";
 import {
@@ -16,6 +16,7 @@ import {
   updateEvent,
 } from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 let db: Database;
 
@@ -24,6 +25,16 @@ beforeEach(async () => {
 });
 
 describe("createEvent", () => {
+  it("annule l'événement si la persistance de sa date échoue", async () => {
+    const person = await createPerson(db, { firstName: "Atomic", lastName: "Create" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_event_date_create BEFORE INSERT ON genealogical_date
+      WHEN NEW.owner_kind = 'event' BEGIN SELECT RAISE(FAIL, 'échec date'); END`));
+
+    await expect(createEvent(db, { personId: person.id, type: "libre", eventDate: "vers 1950" })).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
   it("persiste les bornes qualifiées et les trie de façon déterministe", async () => {
     const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
     await createEvent(db, { personId: person.id, type: "libre", eventDate: "après 1950" });
@@ -295,6 +306,17 @@ describe("listFamilyTimeline", () => {
 });
 
 describe("updateEvent", () => {
+  it("annule la mutation métier si la mise à jour de sa date échoue", async () => {
+    const person = await createPerson(db, { firstName: "Atomic", lastName: "Update" });
+    const created = await createEvent(db, { personId: person.id, type: "libre", eventDate: "1950" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_event_date_update BEFORE UPDATE ON genealogical_date
+      WHEN NEW.owner_kind = 'event' BEGIN SELECT RAISE(FAIL, 'échec date'); END`));
+
+    await expect(updateEvent(db, created.id, { label: "muté", eventDate: "vers 1951" })).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
   it("met à jour la description d'un événement", async () => {
     const person = await createPerson(db, { firstName: "Eva", lastName: "Z" });
     const ev = await createEvent(db, { personId: person.id, type: "libre", label: "Voyage" });
@@ -324,6 +346,17 @@ describe("updateEvent", () => {
 });
 
 describe("deleteEvent", () => {
+  it("restaure les métadonnées si la suppression métier échoue", async () => {
+    const person = await createPerson(db, { firstName: "Atomic", lastName: "Delete" });
+    const created = await createEvent(db, { personId: person.id, type: "libre", eventDate: "1950" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_event_delete BEFORE DELETE ON event
+      WHEN OLD.id = ${created.id} BEGIN SELECT RAISE(FAIL, 'échec event'); END`));
+
+    await expect(deleteEvent(db, created.id)).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
   it("supprime un événement", async () => {
     const person = await createPerson(db, { firstName: "Fred", lastName: "Y" });
     const ev = await createEvent(db, { personId: person.id, type: "naissance" });

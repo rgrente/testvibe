@@ -158,9 +158,13 @@ export async function updateUnion(
   });
 }
 
-export async function deleteUnion(db: Database, id: number): Promise<void> {
+async function deleteUnionInTransaction(db: Database, id: number): Promise<void> {
   await loadUnion(db, id); // lève NotFoundError si absent
   await deleteGenealogicalDates(db, "union", id);
   await db.delete(unionPartner).where(eq(unionPartner.unionId, id));
   await db.delete(unions).where(eq(unions.id, id));
+}
+
+export async function deleteUnion(db: Database, id: number): Promise<void> {
+  return runTransaction(db, (transactionalDb) => deleteUnionInTransaction(transactionalDb, id));
 }

@@ -8,6 +8,7 @@ import {
   createDb,
   event,
   filiation,
+  genealogicalDate,
   person,
   unionPartner,
   unions,
@@ -44,12 +45,13 @@ export async function createTestDb(): Promise<Database> {
 
 /** Stable, complete snapshot of every table touched by genealogy writes. */
 export async function genealogyState(db: Database) {
-  const [persons, events, unionRows, partners, filiations] = await Promise.all([
+  const [persons, events, unionRows, partners, filiations, dates] = await Promise.all([
     db.select().from(person),
     db.select().from(event),
     db.select().from(unions),
     db.select().from(unionPartner),
     db.select().from(filiation),
+    db.select().from(genealogicalDate),
   ]);
   return {
     persons: persons.sort((a, b) => a.id - b.id),
@@ -57,5 +59,6 @@ export async function genealogyState(db: Database) {
     unions: unionRows.sort((a, b) => a.id - b.id),
     partners: partners.sort((a, b) => a.unionId - b.unionId || a.personId - b.personId),
     filiations: filiations.sort((a, b) => a.id - b.id),
+    dates: dates.sort((a, b) => a.id - b.id),
   };
 }
