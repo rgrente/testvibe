@@ -5,6 +5,7 @@ import {
   db as defaultDb,
   event,
   filiation,
+  genealogicalDate,
   media,
   person,
   unionPartner,
@@ -20,7 +21,7 @@ const FORMAT = "testvibe-backup";
 const CURRENT_MAJOR = 1;
 const CURRENT_MINOR = 1;
 const CURRENT_VERSION = `${CURRENT_MAJOR}.${CURRENT_MINOR}`;
-const TABLE_NAMES = ["person", "unions", "union_partner", "filiation", "event", "media"] as const;
+const TABLE_NAMES = ["person", "unions", "union_partner", "filiation", "event", "media", "genealogical_date"] as const;
 type TableName = (typeof TABLE_NAMES)[number];
 
 type BackupTables = {
@@ -30,6 +31,7 @@ type BackupTables = {
   filiation: Array<typeof filiation.$inferSelect>;
   event: Array<typeof event.$inferSelect>;
   media: Array<typeof media.$inferSelect>;
+  genealogical_date: Array<typeof genealogicalDate.$inferSelect>;
 };
 
 type ArchiveEntry = { path: string; size: number; sha256: string };
@@ -68,15 +70,24 @@ function safeArchivePath(path: string): boolean {
 }
 
 async function readTables(db: Database): Promise<BackupTables> {
-  const [persons, unionRows, partners, filiations, events, mediaRows] = await Promise.all([
+  const [persons, unionRows, partners, filiations, events, mediaRows, dateRows] = await Promise.all([
     db.select().from(person),
     db.select().from(unions),
     db.select().from(unionPartner),
     db.select().from(filiation),
     db.select().from(event),
     db.select().from(media),
+    db.select().from(genealogicalDate),
   ]);
-  return { person: persons, unions: unionRows, union_partner: partners, filiation: filiations, event: events, media: mediaRows };
+  return {
+    person: persons,
+    unions: unionRows,
+    union_partner: partners,
+    filiation: filiations,
+    event: events,
+    media: mediaRows,
+    genealogical_date: dateRows,
+  };
 }
 
 function validateLogicalDatabase(tables: BackupTables): void {
@@ -253,6 +264,7 @@ type RestoreOptions = {
 
 async function replaceTables(db: Database, tables: BackupTables): Promise<void> {
   await db.delete(media);
+  await db.delete(genealogicalDate);
   await db.delete(event);
   await db.delete(filiation);
   await db.delete(unionPartner);
@@ -264,6 +276,7 @@ async function replaceTables(db: Database, tables: BackupTables): Promise<void> 
   if (tables.filiation.length) await db.insert(filiation).values(tables.filiation);
   if (tables.event.length) await db.insert(event).values(tables.event);
   if (tables.media.length) await db.insert(media).values(tables.media);
+  if (tables.genealogical_date.length) await db.insert(genealogicalDate).values(tables.genealogical_date);
 }
 
 export async function restoreBackup(

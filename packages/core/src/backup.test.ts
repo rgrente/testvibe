@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { adminSession, event, filiation, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
+import { adminSession, event, filiation, genealogicalDate, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
 import { adminRestoreBackup, backupFileOps, createBackup, restoreBackup, validateBackup } from "./backup.js";
 import { createOperationCoordinator } from "./operation-coordinator.js";
@@ -111,6 +111,29 @@ describe("complete backup and restore", () => {
     expect(await target.select().from(media)).toEqual(await source.select().from(media));
     expect(await readFile(join(targetUploads, "portrait.png"))).toEqual(Buffer.from([1, 2, 3, 4]));
     expect((await readdir(safetyDir)).length).toBe(1);
+  });
+
+  it("round-trips genealogical date metadata and replaces stale target metadata", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    await source.insert(person).values({ id: 1, firstName: "Source", lastName: "Date", birthDate: "vers 1815" });
+    await source.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 1, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    });
+    await target.insert(person).values({ id: 1, firstName: "Target", lastName: "Date", birthDate: "après 1900" });
+    await target.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 1, field: "birth_date", original: "après 1900",
+      qualification: "after", precision: "year", lowerBound: "1901-01-01", upperBound: null,
+    });
+
+    const archive = await createBackup(source, sourceUploads);
+    await restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE" });
+
+    expect(await target.select().from(genealogicalDate)).toEqual(await source.select().from(genealogicalDate));
   });
 
   it("rejects corruption, dangerous paths, missing media, insufficient space, and future versions before mutation", async () => {
