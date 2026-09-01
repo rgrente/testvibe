@@ -108,6 +108,7 @@ export async function getFamilyAnniversariesForWeb(targetDate: string): Promise<
           type: fact.category,
           label: fact.label,
           eventDate: fact.date,
+          dateQualification: fact.dateQualification,
           description: fact.description,
         },
         person,

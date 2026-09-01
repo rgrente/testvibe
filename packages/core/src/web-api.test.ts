@@ -79,6 +79,19 @@ function hiddenBridgeFamily() {
 }
 
 describe("web-api anniversary privacy boundary", () => {
+  it("does not expose a migrated unresolved date to anniversary pages", async () => {
+    fixtures.persons = [{
+      ...publicPerson(1, "Alice"),
+      birthDate: "1950-09-02",
+      birthDateQualification: "legacy_unresolved",
+      birthDatePrecision: "day",
+      birthDateLowerBound: "1950-09-02",
+      birthDateUpperBound: "1950-09-02",
+    }];
+
+    await expect(getFamilyAnniversariesForWeb("2026-09-02")).resolves.toEqual([]);
+  });
+
   it("does not disclose a private event attached to a public person", async () => {
     fixtures.persons = [publicPerson(1, "Alice")];
     fixtures.events = [{
