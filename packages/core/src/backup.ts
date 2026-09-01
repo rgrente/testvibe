@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import {
+  db as defaultDb,
   event,
   filiation,
   media,
@@ -226,4 +227,32 @@ export async function restoreBackup(
     await rm(stagingDir, { recursive: true, force: true });
     throw error;
   }
+}
+
+type AdminRestoreOptions = {
+  mode: "validate" | "replace";
+  confirm?: string;
+};
+
+function configuredBackupPaths() {
+  const uploadDir = process.env.UPLOAD_DIR ?? join(process.cwd(), "uploads");
+  const safetyDir = process.env.BACKUP_DIR ?? join(process.cwd(), "backups");
+  return { uploadDir, safetyDir };
+}
+
+export async function adminCreateBackup(): Promise<Buffer> {
+  const { uploadDir } = configuredBackupPaths();
+  return createBackup(defaultDb, uploadDir);
+}
+
+export async function adminRestoreBackup(
+  archive: Buffer,
+  options: AdminRestoreOptions,
+): Promise<BackupValidationReport | Awaited<ReturnType<typeof restoreBackup>>> {
+  if (options.mode === "validate") return validateBackup(archive);
+  const { uploadDir, safetyDir } = configuredBackupPaths();
+  return restoreBackup(defaultDb, uploadDir, archive, {
+    safetyDir,
+    confirm: options.confirm ?? "",
+  });
 }
