@@ -9,7 +9,7 @@ Drizzle ORM et SQLite/libSQL.
 - arbre interactif et liste des personnes, recherche et fiches individuelles ;
 - carte des lieux, timeline familiale, anniversaires et statistiques ;
 - administration des personnes, unions, filiations, événements et médias ;
-- import et export GEDCOM 5.5.1 ;
+- import et export GEDCOM 5.5.1, et sauvegarde exhaustive de l'instance ;
 - géocodage des lieux via Nominatim ou Photon.
 
 Les écrans et actions d'administration sont protégés par une session serveur
@@ -64,11 +64,31 @@ committer :
 | `ADMIN_ORIGIN` | Origine canonique complète (par exemple `https://famille.example`) autorisée pour les mutations admin. |
 | `ADMIN_TRUSTED_PROXY` | Mettre à `1` uniquement si le proxy frontal supprime les en-têtes d'adresse fournis par le client puis renseigne `X-Forwarded-For`; sans cette frontière explicite, le login admin échoue fermé. |
 | `UPLOAD_DIR` | Répertoire persistant des photos et documents. |
+| `BACKUP_DIR` | Répertoire persistant des sauvegardes de sécurité créées avant restauration (par défaut `backups`). |
 | `FAMILY_TIME_ZONE` | Fuseau IANA utilisé pour les dates familiales. |
 
 Sans configuration explicite, le développement local utilise une base
 `file:./local.db`, un répertoire `uploads` et le fuseau `Europe/Paris`. Aucun
 secret d'administration n'est fourni par défaut.
+
+## Sauvegarde complète et GEDCOM
+
+Le GEDCOM 5.5.1 reste un format d'échange généalogique : il ne contient pas
+toutes les propriétés propres à TestVibe ni les fichiers médias. L'export
+authentifié `GET /admin/backup/export` produit au contraire une archive JSON
+portable contenant les six tables généalogiques, les octets médias et un
+manifeste avec compteurs, tailles et sommes SHA-256. Cette archive contient des
+données familiales potentiellement confidentielles ; stockez-la et transmettez-la
+comme un document sensible.
+
+La route authentifiée `POST /admin/backup/restore` reçoit l'archive en
+`multipart/form-data`. Le mode `validate` vérifie sans écrire. Le mode `replace`
+exige le champ `confirm=REPLACE`, crée d'abord une sauvegarde de sécurité dans
+`BACKUP_DIR`, prépare les médias à part puis remplace données et fichiers avec
+rollback en cas d'échec. Le format courant est `1.1` : les versions mineures
+antérieures de la majeure 1 sont acceptées, les versions futures ou d'une autre
+majeure sont refusées. Conservez la sauvegarde de sécurité jusqu'à vérification
+manuelle de l'instance restaurée.
 
 ## Qualité
 
