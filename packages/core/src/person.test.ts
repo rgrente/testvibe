@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Database } from "@testvibe/db";
-import { createTestDb } from "./test-utils.js";
+import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson, getPersonById, listPersons, updatePerson, deletePerson } from "./person.js";
 import { createEvent, listEventsByPerson } from "./event.js";
 import { NotFoundError, ValidationError } from "./errors.js";
@@ -119,24 +119,41 @@ describe("Auto-sync naissance/décès (syncBiographicalEvents)", () => {
     db = await createTestDb();
   });
 
-  it("annule la création de la personne si la synchronisation d'événement échoue", async () => {
-    await db.run(sql.raw(`CREATE TRIGGER fail_birth BEFORE INSERT ON event
-      WHEN NEW.type = 'naissance' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
+  it.each(["naissance", "décès"] as const)(
+    "annule exactement la création si l'écriture de l'événement %s échoue",
+    async (eventType) => {
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_person_event BEFORE INSERT ON event
+      WHEN NEW.type = '${eventType}' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
     await expect(createPerson(db, {
-      firstName: "Atomic", lastName: "Create", birthDate: "2000-01-01",
+      firstName: "Atomic",
+      lastName: "Create",
+      birthDate: "2000-01-01",
+      deathDate: "2020-01-01",
     })).rejects.toThrow();
-    expect(await listPersons(db)).toHaveLength(0);
-  });
+    expect(await genealogyState(db)).toEqual(before);
+    },
+  );
 
-  it("annule la mise à jour de la personne si la synchronisation d'événement échoue", async () => {
+  it.each(["naissance", "décès"] as const)(
+    "annule exactement la mise à jour si l'écriture de l'événement %s échoue",
+    async (eventType) => {
     const created = await createPerson(db, {
-      firstName: "Atomic", lastName: "Update", birthDate: "2000-01-01",
+      firstName: "Atomic",
+      lastName: "Update",
+      birthDate: "2000-01-01",
+      deathDate: "2020-01-01",
     });
-    await db.run(sql.raw(`CREATE TRIGGER fail_birth_update BEFORE UPDATE ON event
-      WHEN NEW.type = 'naissance' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
-    await expect(updatePerson(db, created.id, { birthDate: "2001-01-01" })).rejects.toThrow();
-    expect((await getPersonById(db, created.id)).birthDate).toBe("2000-01-01");
-  });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_person_event_update BEFORE UPDATE ON event
+      WHEN NEW.type = '${eventType}' BEGIN SELECT RAISE(FAIL, 'échec événement'); END`));
+    await expect(updatePerson(db, created.id, {
+      birthDate: "2001-01-01",
+      deathDate: "2021-01-01",
+    })).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+    },
+  );
 
   it("crée automatiquement un événement naissance et décès pour une Person datée", async () => {
     const person = await createPerson(db, {

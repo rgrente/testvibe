@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Database } from "@testvibe/db";
-import { createTestDb } from "./test-utils.js";
+import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import {
   createFiliations,
@@ -107,6 +107,43 @@ describe("Filiation CRUD", () => {
       .rejects.toBeInstanceOf(ValidationError);
     expect(await getFiliationById(db, ab.id)).toMatchObject({ parentId: a.id, childId: b.id });
   });
+
+  it.each([
+    ["auto-filiation", (a: number) => ({ parentId: a, childId: a, role: "biologique" as const })],
+    ["doublon malgré un autre rôle", (a: number, b: number) => ({ parentId: a, childId: b, role: "adopte" as const })],
+    ["cycle direct", (_a: number, b: number) => ({ parentId: b, childId: _a, role: "biologique" as const })],
+    ["cycle indirect", (a: number, _b: number, c: number) => ({ parentId: c, childId: a, role: "biologique" as const })],
+    ["parent absent", (_a: number, b: number) => ({ parentId: 9999, childId: b, role: "biologique" as const })],
+    ["enfant absent", (a: number) => ({ parentId: a, childId: 9999, role: "biologique" as const })],
+  ])("rejette en création %s sans mutation", async (_name, candidate) => {
+    const [a, b, c] = await Promise.all(["A", "B", "C"].map((firstName) =>
+      createPerson(db, { firstName, lastName: "Test" }),
+    ));
+    await createFiliation(db, { parentId: a.id, childId: b.id, role: "biologique" });
+    await createFiliation(db, { parentId: b.id, childId: c.id, role: "biologique" });
+    const before = await genealogyState(db);
+    await expect(createFiliation(db, candidate(a.id, b.id, c.id))).rejects.toBeInstanceOf(ValidationError);
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
+  it.each([
+    ["auto-filiation", (_a: number, _b: number, c: number) => ({ parentId: c, childId: c })],
+    ["doublon malgré un autre rôle", (a: number, b: number) => ({ parentId: a, childId: b, role: "adopte" as const })],
+    ["cycle direct", (a: number, b: number) => ({ parentId: b, childId: a })],
+    ["cycle indirect", (a: number, _b: number, c: number) => ({ parentId: c, childId: a })],
+    ["parent absent", () => ({ parentId: 9999 })],
+    ["enfant absent", () => ({ childId: 9999 })],
+  ])("rejette en mise à jour %s sans mutation", async (_name, candidate) => {
+    const [a, b, c, d] = await Promise.all(["A", "B", "C", "D"].map((firstName) =>
+      createPerson(db, { firstName, lastName: "Test" }),
+    ));
+    await createFiliation(db, { parentId: a.id, childId: b.id, role: "biologique" });
+    await createFiliation(db, { parentId: b.id, childId: c.id, role: "biologique" });
+    const target = await createFiliation(db, { parentId: d.id, childId: a.id, role: "biologique" });
+    const before = await genealogyState(db);
+    await expect(updateFiliation(db, target.id, candidate(a.id, b.id, c.id))).rejects.toBeInstanceOf(ValidationError);
+    expect(await genealogyState(db)).toEqual(before);
+  });
 });
 
 describe("création de filiations par lot", () => {
@@ -187,11 +224,29 @@ describe("création de filiations par lot", () => {
     expect(await listFiliations(db)).toHaveLength(2);
   });
 
-  it("annule les liens précédents si une écriture tardive échoue", async () => {
+  it.each([
+    ["auto-filiation", (a: number) => ({ parentIds: [a], childIds: [a], role: "biologique" as const })],
+    ["doublon malgré un autre rôle", (a: number, b: number) => ({ parentIds: [a], childIds: [b], role: "adopte" as const })],
+    ["cycle direct", (a: number, b: number) => ({ parentIds: [b], childIds: [a], role: "biologique" as const })],
+    ["cycle indirect", (a: number, _b: number, c: number) => ({ parentIds: [c], childIds: [a], role: "biologique" as const })],
+    ["parent absent", (a: number) => ({ parentIds: [9999], childIds: [a], role: "biologique" as const })],
+    ["enfant absent", (a: number) => ({ parentIds: [a], childIds: [9999], role: "biologique" as const })],
+  ])("rejette dans un lot %s sans mutation", async (_name, candidate) => {
+    const [a, b, c] = await persons(3);
+    await createFiliation(db, { parentId: a.id, childId: b.id, role: "biologique" });
+    await createFiliation(db, { parentId: b.id, childId: c.id, role: "biologique" });
+    const before = await genealogyState(db);
+    await expect(createFiliations(db, candidate(a.id, b.id, c.id))).rejects.toBeInstanceOf(ValidationError);
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
+  it.each([0, 1])("annule exactement le lot si l'écriture %s échoue", async (failedChildIndex) => {
     const [parent, child1, child2] = await persons(3);
+    const children = [child1, child2];
+    const before = await genealogyState(db);
     await db.run(sql.raw(
-      `CREATE TRIGGER fail_second_filiation BEFORE INSERT ON filiation
-       WHEN NEW.child_id = ${child2.id} BEGIN SELECT RAISE(FAIL, 'échec simulé'); END`,
+      `CREATE TRIGGER fail_batch_filiation BEFORE INSERT ON filiation
+       WHEN NEW.child_id = ${children[failedChildIndex].id} BEGIN SELECT RAISE(FAIL, 'échec simulé'); END`,
     ));
     const failure = await createFiliations(db, {
       parentIds: [parent.id],
@@ -207,6 +262,6 @@ describe("création de filiations par lot", () => {
       current = current.cause;
     }
     expect(messages.join("\n")).toContain("échec simulé");
-    expect(await listFiliations(db)).toHaveLength(0);
+    expect(await genealogyState(db)).toEqual(before);
   });
 });

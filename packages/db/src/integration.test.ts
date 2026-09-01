@@ -97,23 +97,41 @@ describe("SQLite/libSQL integration", () => {
     }
   });
 
-  it("enforces filiation integrity and uses foreign-key indexes for direct SQL", async () => {
+  it("enforces filiation integrity on INSERT and UPDATE and uses every foreign-key index", async () => {
     const directory = await temporaryDirectory();
     const instance = createDb(`file:${resolve(directory, "integrity.db")}`);
     try {
       await migrate(instance.db, { migrationsFolder });
       await instance.db.run(sql`pragma foreign_keys = on`);
-      await instance.client.execute("insert into person (first_name, last_name) values ('A', 'Test'), ('B', 'Test'), ('C', 'Test')");
+      await instance.client.execute("insert into person (first_name, last_name) values ('A', 'Test'), ('B', 'Test'), ('C', 'Test'), ('D', 'Test'), ('E', 'Test')");
       await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 1, 'biologique')")).rejects.toThrow();
       await instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 2, 'biologique')");
       await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (1, 2, 'adopte')")).rejects.toThrow();
       await instance.client.execute("insert into filiation (parent_id, child_id, role) values (2, 3, 'biologique')");
       await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (3, 1, 'biologique')")).rejects.toThrow();
       await expect(instance.client.execute("insert into filiation (parent_id, child_id, role) values (999, 1, 'biologique')")).rejects.toThrow();
-      const indexes = await instance.client.execute("select name from sqlite_master where type = 'index' and name in ('filiation_parent_idx', 'filiation_child_idx') order by name");
-      expect(indexes.rows.map((row) => row.name)).toEqual(["filiation_child_idx", "filiation_parent_idx"]);
-      const plan = await instance.client.execute("explain query plan select * from filiation where parent_id = 1");
-      expect(plan.rows.map((row) => String(row.detail)).join(" ")).toContain("filiation_parent_idx");
+      await instance.client.execute("insert into filiation (parent_id, child_id, role) values (4, 5, 'biologique')");
+      await expect(instance.client.execute("update filiation set child_id = parent_id where id = 3")).rejects.toThrow();
+      await expect(instance.client.execute("update filiation set parent_id = 1, child_id = 2 where id = 3")).rejects.toThrow();
+      await expect(instance.client.execute("update filiation set parent_id = 3, child_id = 1 where id = 3")).rejects.toThrow();
+      await expect(instance.client.execute("update filiation set parent_id = 999 where id = 3")).rejects.toThrow();
+      await expect(instance.client.execute("update filiation set child_id = 999 where id = 3")).rejects.toThrow();
+      expect((await instance.client.execute("select parent_id, child_id from filiation where id = 3")).rows)
+        .toMatchObject([{ parent_id: 4, child_id: 5 }]);
+
+      const expectedPlans = [
+        ["select * from filiation where parent_id = 1", "filiation_parent_idx"],
+        ["select * from filiation where child_id = 2", "filiation_child_idx"],
+        ["select * from event where person_id = 1", "event_person_idx"],
+        ["select * from event where union_id = 1", "event_union_idx"],
+        ["select * from media where person_id = 1", "media_person_idx"],
+        ["select * from media where event_id = 1", "media_event_idx"],
+        ["select * from union_partner where person_id = 1", "union_partner_person_idx"],
+      ] as const;
+      for (const [query, indexName] of expectedPlans) {
+        const plan = await instance.client.execute(`explain query plan ${query}`);
+        expect(plan.rows.map((row) => String(row.detail)).join(" ")).toContain(indexName);
+      }
     } finally {
       instance.client.close();
     }
@@ -134,16 +152,17 @@ describe("SQLite/libSQL integration", () => {
       await migrate(instance.db, { migrationsFolder: legacyMigrations });
       await instance.client.execute("pragma foreign_keys = off");
       await instance.client.execute("insert into person (id, first_name, last_name) values (1, 'A', 'Test'), (2, 'B', 'Test')");
-      await instance.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 1, 'biologique'), (11, 1, 2, 'biologique'), (12, 1, 2, 'adopte'), (13, 2, 1, 'biologique'), (14, 999, 2, 'biologique')");
+      await instance.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 1, 'biologique'), (11, 1, 2, 'biologique'), (12, 1, 2, 'adopte'), (13, 2, 1, 'biologique'), (14, 999, 2, 'biologique'), (15, 1, 999, 'biologique')");
       expect(await auditGenealogyIntegrity(instance.client)).toEqual(expect.arrayContaining([
         { kind: "missing-parent", ids: [14] },
+        { kind: "missing-child", ids: [15] },
         { kind: "self-link", ids: [10] },
         { kind: "duplicate-pair", ids: [11, 12] },
         { kind: "cycle", ids: expect.arrayContaining([10, 11, 12, 13]) },
       ]));
       await expect(migrate(instance.db, { migrationsFolder })).rejects.toThrow();
       expect((await instance.client.execute("select id from filiation order by id")).rows.map((row) => Number(row.id)))
-        .toEqual([10, 11, 12, 13, 14]);
+        .toEqual([10, 11, 12, 13, 14, 15]);
       expect((await instance.client.execute("select name from sqlite_master where type = 'index' and name = 'filiation_parent_child_unique'")).rows)
         .toHaveLength(0);
     } finally {
@@ -151,9 +170,13 @@ describe("SQLite/libSQL integration", () => {
     }
   });
 
-  it("preserves compatible rows through genealogy migration and rollback", async () => {
+  it("restores the exact pre-genealogy backup, reapplies migration, and rolls back safely", async () => {
     const directory = await temporaryDirectory();
     const legacyMigrations = resolve(directory, "migrations-0008-compatible");
+    const databasePath = resolve(directory, "legacy-compatible.db");
+    const uploadsPath = resolve(directory, "uploads");
+    const backupPath = resolve(directory, "pre-genealogy-backup");
+    const fixtureBytes = new Uint8Array([0, 17, 128, 255]);
     await cp(migrationsFolder, legacyMigrations, { recursive: true });
     await rm(resolve(legacyMigrations, "0009_fine_gressill.sql"));
     await rm(resolve(legacyMigrations, "meta/0009_snapshot.json"));
@@ -161,21 +184,46 @@ describe("SQLite/libSQL integration", () => {
     const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
     journal.entries = journal.entries.filter(({ idx }) => idx <= 8);
     await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
-    const instance = createDb(`file:${resolve(directory, "legacy-compatible.db")}`);
+    await mkdir(uploadsPath);
+    await writeFile(resolve(uploadsPath, "fixture.bin"), fixtureBytes);
+
+    const legacy = createDb(`file:${databasePath}`);
+    await migrate(legacy.db, { migrationsFolder: legacyMigrations });
+    await legacy.client.execute("insert into person (id, first_name, last_name) values (1, 'A', 'Test'), (2, 'B', 'Test')");
+    await legacy.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 2, 'biologique')");
+    legacy.client.close();
+    const databaseBytesBefore = await readFile(databasePath);
+    await backupMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const upgraded = createDb(`file:${databasePath}`);
+    await migrate(upgraded.db, { migrationsFolder });
+    expect((await upgraded.client.execute("pragma index_list(filiation)")).rows.length).toBeGreaterThan(0);
+    upgraded.client.close();
+    await writeFile(resolve(uploadsPath, "fixture.bin"), new Uint8Array([9]));
+
+    await restoreMigrationState({ databasePath, uploadsPath, backupPath });
+    expect(await readFile(databasePath)).toEqual(databaseBytesBefore);
+    expect(await readFile(resolve(uploadsPath, "fixture.bin"))).toEqual(Buffer.from(fixtureBytes));
+
+    const restored = createDb(`file:${databasePath}`);
+    expect((await restored.client.execute("select id, parent_id, child_id from filiation")).rows)
+      .toMatchObject([{ id: 10, parent_id: 1, child_id: 2 }]);
+    expect((await restored.client.execute("pragma index_list(filiation)")).rows).toHaveLength(0);
+    restored.client.close();
+
+    const reapplied = createDb(`file:${databasePath}`);
     try {
-      await migrate(instance.db, { migrationsFolder: legacyMigrations });
-      await instance.client.execute("insert into person (id, first_name, last_name) values (1, 'A', 'Test'), (2, 'B', 'Test')");
-      await instance.client.execute("insert into filiation (id, parent_id, child_id, role) values (10, 1, 2, 'biologique')");
-      await migrate(instance.db, { migrationsFolder });
-      expect((await instance.client.execute("select id, parent_id, child_id from filiation")).rows)
+      await migrate(reapplied.db, { migrationsFolder });
+      expect((await reapplied.client.execute("select id, parent_id, child_id from filiation")).rows)
         .toMatchObject([{ id: 10, parent_id: 1, child_id: 2 }]);
+      expect((await reapplied.client.execute("pragma index_list(filiation)")).rows.length).toBeGreaterThan(0);
       const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0009_genealogy_integrity.sql"), "utf8");
-      for (const statement of rollback.split(";")) if (statement.trim()) await instance.db.run(sql.raw(statement));
-      expect((await instance.client.execute("select id, parent_id, child_id from filiation")).rows)
+      for (const statement of rollback.split(";")) if (statement.trim()) await reapplied.db.run(sql.raw(statement));
+      expect((await reapplied.client.execute("select id, parent_id, child_id from filiation")).rows)
         .toMatchObject([{ id: 10, parent_id: 1, child_id: 2 }]);
-      expect((await instance.client.execute("pragma index_list(filiation)")).rows).toHaveLength(0);
+      expect((await reapplied.client.execute("pragma index_list(filiation)")).rows).toHaveLength(0);
     } finally {
-      instance.client.close();
+      reapplied.client.close();
     }
   });
 

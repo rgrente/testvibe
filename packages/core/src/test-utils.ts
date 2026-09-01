@@ -4,7 +4,15 @@
  * `Database` prêt à l'emploi pour les tests CRUD de packages/core.
  */
 import { migrate } from "drizzle-orm/libsql/migrator";
-import { createDb, type Database } from "@testvibe/db";
+import {
+  createDb,
+  event,
+  filiation,
+  person,
+  unionPartner,
+  unions,
+  type Database,
+} from "@testvibe/db";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -32,4 +40,22 @@ export async function createTestDb(): Promise<Database> {
   temporaryDatabases.push({ path, close: () => client.close() });
   await migrate(db, { migrationsFolder });
   return db;
+}
+
+/** Stable, complete snapshot of every table touched by genealogy writes. */
+export async function genealogyState(db: Database) {
+  const [persons, events, unionRows, partners, filiations] = await Promise.all([
+    db.select().from(person),
+    db.select().from(event),
+    db.select().from(unions),
+    db.select().from(unionPartner),
+    db.select().from(filiation),
+  ]);
+  return {
+    persons: persons.sort((a, b) => a.id - b.id),
+    events: events.sort((a, b) => a.id - b.id),
+    unions: unionRows.sort((a, b) => a.id - b.id),
+    partners: partners.sort((a, b) => a.unionId - b.unionId || a.personId - b.personId),
+    filiations: filiations.sort((a, b) => a.id - b.id),
+  };
 }
