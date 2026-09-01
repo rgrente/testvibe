@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, statfs, writeFile } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import {
   db as defaultDb,
@@ -309,6 +309,13 @@ function configuredBackupPaths() {
   return { uploadDir, safetyDir };
 }
 
+export const backupFileOps = {
+  async availableBytes(path: string): Promise<number> {
+    const stats = await statfs(path);
+    return Number(stats.bavail) * Number(stats.bsize);
+  },
+};
+
 export async function adminCreateBackup(): Promise<Buffer> {
   const { uploadDir } = configuredBackupPaths();
   return createBackup(defaultDb, uploadDir);
@@ -318,10 +325,12 @@ export async function adminRestoreBackup(
   archive: Buffer,
   options: AdminRestoreOptions,
 ): Promise<BackupValidationReport | Awaited<ReturnType<typeof restoreBackup>>> {
-  if (options.mode === "validate") return validateBackup(archive);
   const { uploadDir, safetyDir } = configuredBackupPaths();
+  const availableBytes = await backupFileOps.availableBytes(dirname(uploadDir));
+  if (options.mode === "validate") return validateBackup(archive, { availableBytes });
   return restoreBackup(defaultDb, uploadDir, archive, {
     safetyDir,
     confirm: options.confirm ?? "",
+    availableBytes,
   });
 }

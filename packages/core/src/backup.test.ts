@@ -5,7 +5,7 @@ import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { adminSession, event, filiation, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
-import { createBackup, restoreBackup, validateBackup } from "./backup.js";
+import { adminRestoreBackup, backupFileOps, createBackup, restoreBackup, validateBackup } from "./backup.js";
 
 const dirs: string[] = [];
 async function tempDir() {
@@ -120,6 +120,20 @@ describe("complete backup and restore", () => {
     await restoreBackup(target, targetUploads, previous, { safetyDir, confirm: "REPLACE" });
     expect(await target.select().from(person)).toEqual(await source.select().from(person));
     await expect(validateBackup(future)).rejects.toThrow(/future/i);
+  });
+
+  it("checks available disk space during an admin dry run", async () => {
+    const db = await createTestDb();
+    const uploads = await tempDir();
+    await seedComplete(db, uploads);
+    const archive = await createBackup(db, uploads);
+    const availableBytes = backupFileOps.availableBytes;
+    backupFileOps.availableBytes = async () => 1;
+    try {
+      await expect(adminRestoreBackup(archive, { mode: "validate" })).rejects.toThrow(/space/i);
+    } finally {
+      backupFileOps.availableBytes = availableBytes;
+    }
   });
 
   it("validation is write-free and a failed media switch rolls database and media back while retaining safety backup", async () => {
