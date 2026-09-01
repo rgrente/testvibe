@@ -9,10 +9,8 @@ import { NotFoundError, ValidationError } from "./errors.js";
 import { listPersons } from "./person.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { listCanonicalFamilyFacts } from "./projection.js";
-
-function isValidDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
-}
+import { compareGenealogicalDates, parseGenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
@@ -22,9 +20,7 @@ function assertValidEventInput(input: EventInput): void {
   if (!validTypes.includes(input.type as (typeof validTypes)[number])) {
     throw new ValidationError(`type invalide : ${input.type}`);
   }
-  if (input.eventDate != null && !isValidDate(input.eventDate)) {
-    throw new ValidationError(`eventDate invalide : ${input.eventDate}`);
-  }
+  if (input.eventDate != null) parseGenealogicalDate(input.eventDate);
   assertValidCoordinates(input.latitude, input.longitude);
   if (input.latitude != null && !input.place?.trim()) {
     throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
@@ -67,6 +63,7 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
       visibility: input.visibility ?? null,
     })
     .returning();
+  await persistGenealogicalDate(db, "event", row.id, "event_date", input.eventDate ?? null);
   return toEvent(row);
 }
 
@@ -81,11 +78,11 @@ export async function getEventById(db: Database, id: number): Promise<Event> {
 export async function listEventsByPerson(db: Database, personId: number): Promise<Event[]> {
   const rows = await db.select().from(event).where(eq(event.personId, personId));
   // Sort chronologically (nulls last)
-  rows.sort((a, b) => {
-    const da = a.eventDate ? new Date(a.eventDate).getTime() : Infinity;
-    const db2 = b.eventDate ? new Date(b.eventDate).getTime() : Infinity;
-    return da - db2;
-  });
+  rows.sort((a, b) => compareGenealogicalDates(
+    a.eventDate ? parseGenealogicalDate(a.eventDate) : null,
+    b.eventDate ? parseGenealogicalDate(b.eventDate) : null,
+    String(a.id), String(b.id),
+  ));
   return rows.map(toEvent);
 }
 
@@ -113,6 +110,7 @@ export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineIt
         type: fact.category,
         label: fact.label,
         eventDate: fact.date,
+        dateQualification: fact.dateQualification,
         description: fact.description,
       },
       person,
@@ -155,11 +153,13 @@ export async function updateEvent(
     })
     .where(eq(event.id, id))
     .returning();
+  await persistGenealogicalDate(db, "event", row.id, "event_date", merged.eventDate ?? null);
   return toEvent(row);
 }
 
 export async function deleteEvent(db: Database, id: number): Promise<void> {
   await getEventById(db, id);
+  await deleteGenealogicalDates(db, "event", id);
   await db.delete(event).where(eq(event.id, id));
 }
 

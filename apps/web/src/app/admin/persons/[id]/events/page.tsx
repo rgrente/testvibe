@@ -104,7 +104,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
               id="eventDate"
               name="eventDate"
               type="text"
-              placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -178,7 +178,7 @@ export default async function PersonEventsPage({ params, searchParams }: PersonE
                   </label>
                   <label className="text-xs font-medium text-slate-700">
                     Date
-                    <input name="eventDate" type="text" placeholder="AAAA, AAAA-MM ou AAAA-MM-JJ" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
+                    <input name="eventDate" type="text" placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952" defaultValue={ev.eventDate ?? ""} className="mt-1 block w-full rounded-sm border border-slate-300 px-3 py-2 text-sm" />
                   </label>
                   <label className="text-xs font-medium text-slate-700 sm:col-span-2">
                     Libellé

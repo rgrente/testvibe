@@ -8,10 +8,8 @@ import type { Union, UnionInput } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { runTransaction } from "./transaction.js";
-
-function isValidDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
-}
+import { parseGenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 async function assertPersonsExist(db: Database, personIds: number[]): Promise<void> {
   for (const id of personIds) {
@@ -29,12 +27,8 @@ function assertValidUnionInput(input: UnionInput): void {
   if (new Set(input.personIds).size !== input.personIds.length) {
     throw new ValidationError("personIds contient des doublons.");
   }
-  if (input.startDate != null && !isValidDate(input.startDate)) {
-    throw new ValidationError(`startDate invalide : ${input.startDate}`);
-  }
-  if (input.endDate != null && !isValidDate(input.endDate)) {
-    throw new ValidationError(`endDate invalide : ${input.endDate}`);
-  }
+  const start = input.startDate == null ? null : parseGenealogicalDate(input.startDate);
+  const end = input.endDate == null ? null : parseGenealogicalDate(input.endDate);
   if (input.type != null && !["mariage", "pacs", "libre"].includes(input.type)) {
     throw new ValidationError(`type d'union invalide : ${input.type}`);
   }
@@ -45,9 +39,7 @@ function assertValidUnionInput(input: UnionInput): void {
   if (
     input.startDate != null &&
     input.endDate != null &&
-    isValidDate(input.startDate) &&
-    isValidDate(input.endDate) &&
-    new Date(input.endDate).getTime() < new Date(input.startDate).getTime()
+    start?.lower != null && end?.upper != null && end.upper < start.lower
   ) {
     throw new ValidationError("endDate ne peut pas être antérieure à startDate.");
   }
@@ -89,6 +81,8 @@ export async function createUnionInTransaction(db: Database, input: UnionInput):
   await db.insert(unionPartner).values(
     input.personIds.map((personId) => ({ unionId: row.id, personId })),
   );
+  await persistGenealogicalDate(db, "union", row.id, "start_date", input.startDate ?? null);
+  await persistGenealogicalDate(db, "union", row.id, "end_date", input.endDate ?? null);
   return loadUnion(db, row.id);
 }
 
@@ -135,6 +129,8 @@ export async function updateUnion(
       longitude: merged.longitude ?? null,
     })
     .where(eq(unions.id, id));
+    await persistGenealogicalDate(transactionalDb, "union", id, "start_date", merged.startDate ?? null);
+    await persistGenealogicalDate(transactionalDb, "union", id, "end_date", merged.endDate ?? null);
 
   if (input.personIds !== undefined) {
       await transactionalDb.delete(unionPartner).where(eq(unionPartner.unionId, id));
@@ -149,6 +145,7 @@ export async function updateUnion(
 
 export async function deleteUnion(db: Database, id: number): Promise<void> {
   await loadUnion(db, id); // lève NotFoundError si absent
+  await deleteGenealogicalDates(db, "union", id);
   await db.delete(unionPartner).where(eq(unionPartner.unionId, id));
   await db.delete(unions).where(eq(unions.id, id));
 }

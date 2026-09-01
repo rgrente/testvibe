@@ -4,14 +4,12 @@
  * `@testvibe/db` (type `Database`).
  */
 import { eq } from "drizzle-orm";
-import { person, event, type Database } from "@testvibe/db";
+import { person, event, genealogicalDate, type Database } from "@testvibe/db";
 import type { Person, PersonInput, EventType } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 import { runTransaction } from "./transaction.js";
-
-function isValidDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
-}
+import { parseGenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 function assertValidPersonInput(input: PersonInput): void {
   if (!input.firstName || input.firstName.trim().length === 0) {
@@ -20,18 +18,12 @@ function assertValidPersonInput(input: PersonInput): void {
   if (!input.lastName || input.lastName.trim().length === 0) {
     throw new ValidationError("Le nom (lastName) est requis.");
   }
-  if (input.birthDate != null && !isValidDate(input.birthDate)) {
-    throw new ValidationError(`birthDate invalide : ${input.birthDate}`);
-  }
-  if (input.deathDate != null && !isValidDate(input.deathDate)) {
-    throw new ValidationError(`deathDate invalide : ${input.deathDate}`);
-  }
+  const birth = input.birthDate == null ? null : parseGenealogicalDate(input.birthDate);
+  const death = input.deathDate == null ? null : parseGenealogicalDate(input.deathDate);
   if (
     input.birthDate != null &&
     input.deathDate != null &&
-    isValidDate(input.birthDate) &&
-    isValidDate(input.deathDate) &&
-    new Date(input.deathDate).getTime() < new Date(input.birthDate).getTime()
+    birth?.lower != null && death?.upper != null && death.upper < birth.lower
   ) {
     throw new ValidationError("deathDate ne peut pas être antérieure à birthDate.");
   }
@@ -43,7 +35,7 @@ function assertValidPersonInput(input: PersonInput): void {
   }
 }
 
-function toPerson(row: typeof person.$inferSelect): Person {
+function toPerson(row: typeof person.$inferSelect, qualifications: Map<string, Person["birthDateQualification"]> = new Map()): Person {
   return {
     id: row.id,
     firstName: row.firstName,
@@ -51,6 +43,8 @@ function toPerson(row: typeof person.$inferSelect): Person {
     birthName: row.birthName,
     birthDate: row.birthDate,
     deathDate: row.deathDate,
+    birthDateQualification: qualifications.get("birth_date"),
+    deathDateQualification: qualifications.get("death_date"),
     gender: row.gender,
     livingStatus: row.livingStatus,
     visibility: row.visibility,
@@ -96,7 +90,7 @@ export async function syncBiographicalEvents(
     if (!date) continue;
     const matches = byType.get(type) ?? [];
     if (matches.length === 0) {
-      await db.insert(event).values({
+      const [created] = await db.insert(event).values({
         personId,
         type,
         label: null,
@@ -106,9 +100,11 @@ export async function syncBiographicalEvents(
         place: null,
         latitude: null,
         longitude: null,
-      });
+      }).returning();
+      await persistGenealogicalDate(db, "event", created.id, "event_date", date);
     } else if (matches[0].eventDate !== date) {
       await db.update(event).set({ eventDate: date }).where(eq(event.id, matches[0].id));
+      await persistGenealogicalDate(db, "event", matches[0].id, "event_date", date);
     }
   }
 }
@@ -130,7 +126,9 @@ export async function createPersonInTransaction(db: Database, input: PersonInput
     })
     .returning();
   await syncBiographicalEvents(db, row.id, input.birthDate ?? null, input.deathDate ?? null);
-  return toPerson(row);
+  await persistGenealogicalDate(db, "person", row.id, "birth_date", input.birthDate ?? null);
+  await persistGenealogicalDate(db, "person", row.id, "death_date", input.deathDate ?? null);
+  return getPersonById(db, row.id);
 }
 
 export async function createPerson(db: Database, input: PersonInput): Promise<Person> {
@@ -142,12 +140,16 @@ export async function getPersonById(db: Database, id: number): Promise<Person> {
   if (!row) {
     throw new NotFoundError("Person", id);
   }
-  return toPerson(row);
+  const metadata = await db.select().from(genealogicalDate).where(eq(genealogicalDate.ownerId, id));
+  return toPerson(row, new Map(metadata.filter((item) => item.ownerKind === "person")
+    .map((item) => [item.field, item.qualification])));
 }
 
 export async function listPersons(db: Database): Promise<Person[]> {
-  const rows = await db.select().from(person);
-  return rows.map(toPerson);
+  const [rows, metadata] = await Promise.all([db.select().from(person), db.select().from(genealogicalDate)]);
+  return rows.map((row) => toPerson(row, new Map(metadata
+    .filter((item) => item.ownerKind === "person" && item.ownerId === row.id)
+    .map((item) => [item.field, item.qualification]))));
 }
 
 export async function updatePerson(
@@ -179,11 +181,14 @@ export async function updatePerson(
       visibility: merged.visibility ?? null,
     }).where(eq(person.id, id)).returning();
     await syncBiographicalEvents(transactionalDb, row.id, merged.birthDate ?? null, merged.deathDate ?? null);
-    return toPerson(row);
+    await persistGenealogicalDate(transactionalDb, "person", row.id, "birth_date", merged.birthDate ?? null);
+    await persistGenealogicalDate(transactionalDb, "person", row.id, "death_date", merged.deathDate ?? null);
+    return getPersonById(transactionalDb, row.id);
   });
 }
 
 export async function deletePerson(db: Database, id: number): Promise<void> {
   await getPersonById(db, id); // lève NotFoundError si absent
+  await deleteGenealogicalDates(db, "person", id);
   await db.delete(person).where(eq(person.id, id));
 }

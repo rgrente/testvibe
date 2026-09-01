@@ -109,7 +109,8 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
           <input
             id="birthDate"
             name="birthDate"
-            type="date"
+            type="text"
+            placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
             defaultValue={person.birthDate ?? ""}
             className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />
@@ -121,7 +122,8 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
           <input
             id="deathDate"
             name="deathDate"
-            type="date"
+            type="text"
+            placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
             defaultValue={person.deathDate ?? ""}
             className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
           />

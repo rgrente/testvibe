@@ -1,3 +1,5 @@
+import type { GenealogicalDateQualification } from "./genealogical-date.js";
+
 /**
  * Types de domaine partagés par les entités Person, Union et Filiation.
  * Volontairement indépendants du schéma Drizzle (packages/db) pour
@@ -26,6 +28,7 @@ export interface FamilyFact {
   personIds: number[];
   date: string | null;
   eventDate: string | null;
+  dateQualification?: GenealogicalDateQualification | null;
   label: string | null;
   description: string | null;
   place: string | null;
@@ -44,6 +47,8 @@ export interface Person {
   birthName: string | null;
   birthDate: string | null;
   deathDate: string | null;
+  birthDateQualification?: GenealogicalDateQualification | null;
+  deathDateQualification?: GenealogicalDateQualification | null;
   gender: string | null;
   livingStatus?: LivingStatus | null;
   visibility?: Visibility | null;
@@ -132,6 +137,7 @@ export interface FamilyTimelineEvent {
   type: FamilyFactCategory;
   label: string | null;
   eventDate: string | null;
+  dateQualification?: GenealogicalDateQualification | null;
   description: string | null;
 }
 

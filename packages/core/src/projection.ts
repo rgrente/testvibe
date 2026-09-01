@@ -10,6 +10,7 @@ import type {
   Person,
   Union,
 } from "./types.js";
+import { compareGenealogicalDates, formatGenealogicalDate, parseGenealogicalDate } from "./genealogical-date.js";
 
 const FAMILY_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
 
@@ -39,13 +40,12 @@ export function familyDateInterval(value: string | null): FamilyDateInterval | n
 }
 
 export function formatFamilyDate(value: string | null, locale = "fr-FR"): string {
-  const interval = familyDateInterval(value);
-  if (!interval || !value) return "Date inconnue";
-  if (interval.precision === 1) return value;
-  const date = new Date(interval.start);
-  return new Intl.DateTimeFormat(locale, interval.precision === 2
-    ? { month: "long", year: "numeric", timeZone: "UTC" }
-    : { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+  if (!value) return "Date inconnue";
+  try {
+    return formatGenealogicalDate(parseGenealogicalDate(value), locale);
+  } catch {
+    return "Date inconnue";
+  }
 }
 
 function normalize(value: string | null): string {
@@ -75,15 +75,11 @@ function logicalKey(fact: FamilyFact): string {
 }
 
 function compareFacts(left: FamilyFact, right: FamilyFact): number {
-  const leftInterval = familyDateInterval(left.date);
-  const rightInterval = familyDateInterval(right.date);
-  if (leftInterval && !rightInterval) return -1;
-  if (!leftInterval && rightInterval) return 1;
-  if (leftInterval && rightInterval) {
-    if (leftInterval.start !== rightInterval.start) return leftInterval.start - rightInterval.start;
-    if (leftInterval.precision !== rightInterval.precision) return rightInterval.precision - leftInterval.precision;
-  }
-  return left.category.localeCompare(right.category, "fr") || left.identity.localeCompare(right.identity, "fr");
+  const parse = (value: string | null) => {
+    try { return value ? parseGenealogicalDate(value) : null; } catch { return null; }
+  };
+  return compareGenealogicalDates(parse(left.date), parse(right.date), left.identity, right.identity)
+    || left.category.localeCompare(right.category, "fr");
 }
 
 function singletonFact(person: Person, type: "naissance" | "décès", events: Event[]): FamilyFact | null {
@@ -91,6 +87,7 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     .filter((item) => item.personId === person.id && item.type === type)
     .sort((left, right) => left.id - right.id);
   const date = type === "naissance" ? person.birthDate : person.deathDate;
+  const dateQualification = type === "naissance" ? person.birthDateQualification : person.deathDateQualification;
   const enrichment = matches[0];
   if (!date && !enrichment) return null;
   return {
@@ -102,6 +99,7 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     personIds: [person.id],
     date: date ?? enrichment.eventDate,
     eventDate: date ?? enrichment.eventDate,
+    dateQualification,
     label: enrichment?.label ?? null,
     description: enrichment?.description ?? null,
     place: enrichment?.place ?? null,

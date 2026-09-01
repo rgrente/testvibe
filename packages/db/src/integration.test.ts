@@ -392,6 +392,52 @@ describe("SQLite/libSQL integration", () => {
     }
   });
 
+  it("migrates partial dates, marks ambiguous 01-01, supports retry and restores exact backup", async () => {
+    const directory = await temporaryDirectory();
+    const legacyMigrations = resolve(directory, "migrations-0009-dates");
+    const databasePath = resolve(directory, "qualified-dates.db");
+    const backupPath = resolve(directory, "qualified-dates-backup");
+    const uploadsPath = resolve(directory, "uploads");
+    await mkdir(uploadsPath);
+    await cp(migrationsFolder, legacyMigrations, { recursive: true });
+    await rm(resolve(legacyMigrations, "0010_fresh_maria_hill.sql"));
+    await rm(resolve(legacyMigrations, "meta/0010_snapshot.json"));
+    const journalPath = resolve(legacyMigrations, "meta/_journal.json");
+    const journal = JSON.parse(await readFile(journalPath, "utf8")) as { entries: Array<{ idx: number }> };
+    journal.entries = journal.entries.filter(({ idx }) => idx <= 9);
+    await writeFile(journalPath, `${JSON.stringify(journal, null, 2)}\n`);
+
+    const legacy = createDb(`file:${databasePath}`);
+    await migrate(legacy.db, { migrationsFolder: legacyMigrations });
+    await legacy.client.execute("insert into person (id, first_name, last_name, birth_date, death_date) values (1, 'Legacy', 'Date', '1950-01-01', '2000-03'), (2, 'Partial', 'Year', '1940', null)");
+    legacy.client.close();
+    const databaseBytesBefore = await readFile(databasePath);
+    await backupMigrationState({ databasePath, uploadsPath, backupPath });
+
+    const upgraded = createDb(`file:${databasePath}`);
+    try {
+      await migrate(upgraded.db, { migrationsFolder });
+      await migrate(upgraded.db, { migrationsFolder });
+      expect((await upgraded.client.execute("select birth_date, death_date from person order by id")).rows)
+        .toMatchObject([{ birth_date: "1950-01-01", death_date: "2000-03" }, { birth_date: "1940", death_date: null }]);
+      expect((await upgraded.client.execute("select original, qualification, precision, lower_bound, upper_bound from genealogical_date order by owner_id, field")).rows)
+        .toMatchObject([
+          { original: "1950-01-01", qualification: "legacy_unresolved", precision: "day", lower_bound: "1950-01-01", upper_bound: "1950-01-01" },
+          { original: "2000-03", qualification: "exact", precision: "month", lower_bound: "2000-03-01", upper_bound: "2000-03-31" },
+          { original: "1940", qualification: "exact", precision: "year", lower_bound: "1940-01-01", upper_bound: "1940-12-31" },
+        ]);
+      const rollback = await readFile(resolve(packageRoot, "drizzle/rollback/0010_genealogical_dates.sql"), "utf8");
+      for (const statement of rollback.split(";")) if (statement.trim()) await upgraded.db.run(sql.raw(statement));
+      expect((await upgraded.client.execute("select birth_date from person order by id")).rows)
+        .toMatchObject([{ birth_date: "1950-01-01" }, { birth_date: "1940" }]);
+    } finally {
+      upgraded.client.close();
+    }
+
+    await restoreMigrationState({ databasePath, uploadsPath, backupPath });
+    expect(await readFile(databasePath)).toEqual(databaseBytesBefore);
+  });
+
   it("generates no migration for the unchanged schema", async () => {
     const before = await migrationContents();
     const executable = resolve(packageRoot, "node_modules/.bin/drizzle-kit");

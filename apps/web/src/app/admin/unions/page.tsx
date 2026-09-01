@@ -97,7 +97,8 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
             <input
               id="startDate"
               name="startDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -112,7 +113,8 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
             <input
               id="endDate"
               name="endDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>

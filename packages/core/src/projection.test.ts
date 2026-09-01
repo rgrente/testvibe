@@ -80,8 +80,8 @@ describe("projectFamilyFacts", () => {
       { identity: "person:1:naissance", category: "naissance", owner: "person:1", personIds: [1] },
       { identity: "union:10", category: "mariage", owner: "union:10", personIds: [1, 2] },
       { identity: "union:11", category: "pacs", owner: "union:11", personIds: [1, 2] },
-      { identity: "event:21", category: "libre", owner: "person:1", personIds: [1] },
       { identity: "event:20", category: "résidence", owner: "person:1", personIds: [1] },
+      { identity: "event:21", category: "libre", owner: "person:1", personIds: [1] },
       { identity: "union:12", category: "union libre", owner: "union:12", personIds: [1, 2] },
     ]);
   });

@@ -112,7 +112,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             <input
               id="birthDate"
               name="birthDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -123,7 +124,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             <input
               id="deathDate"
               name="deathDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>

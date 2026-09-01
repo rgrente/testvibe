@@ -13,6 +13,14 @@ describe("Union CRUD", () => {
     db = await createTestDb();
   });
 
+  it("persiste un intervalle qualifié et rejette un intervalle inversé", async () => {
+    const person = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    const created = await createUnion(db, { personIds: [person.id], startDate: "entre 1950 et 1952" });
+    expect((await getUnionById(db, created.id)).startDate).toBe("entre 1950 et 1952");
+    await expect(updateUnion(db, created.id, { startDate: "entre 1952 et 1950" })).rejects.toBeInstanceOf(ValidationError);
+    expect((await getUnionById(db, created.id)).startDate).toBe("entre 1950 et 1952");
+  });
+
   it.each([
     ["union", "AFTER INSERT ON unions"],
     ["partenaires", "BEFORE INSERT ON union_partner"],

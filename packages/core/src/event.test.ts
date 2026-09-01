@@ -24,6 +24,15 @@ beforeEach(async () => {
 });
 
 describe("createEvent", () => {
+  it("persiste les bornes qualifiées et les trie de façon déterministe", async () => {
+    const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    await createEvent(db, { personId: person.id, type: "libre", eventDate: "après 1950" });
+    await createEvent(db, { personId: person.id, type: "libre", eventDate: "avant 1950" });
+    await createEvent(db, { personId: person.id, type: "libre", eventDate: "1950" });
+    expect((await listEventsByPerson(db, person.id)).map((event) => event.eventDate))
+      .toEqual(["avant 1950", "1950", "après 1950"]);
+  });
+
   it("crée un événement lié à une personne", async () => {
     const person = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
     const ev = await createEvent(db, {

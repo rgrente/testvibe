@@ -52,6 +52,7 @@ export function anniversariesForDate(
   return entries
     .flatMap((entry): FamilyAnniversary[] => {
       if (entry.event.type !== "naissance" && entry.event.type !== "mariage") return [];
+      if (entry.event.dateQualification && entry.event.dateQualification !== "exact") return [];
       if (represented.has(entry.key)) return [];
       const source = entry.event.eventDate ? parseCompleteDate(entry.event.eventDate) : null;
       if (!source || source.year > target.year) return [];

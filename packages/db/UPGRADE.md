@@ -68,3 +68,15 @@ en recopiant les filiations compatibles. Il ne rembobine pas le journal
 Drizzle ; après son emploi, restaurer la sauvegarde pré-0009 avant toute
 réapplication. Ne jamais exécuter ces opérations sur une base ouverte ni sans
 la sauvegarde et l'autorisation humaine requises.
+
+## Migration 0010 — dates généalogiques qualifiées
+
+Créer et vérifier une sauvegarde complète avec `backupMigrationState` avant
+application. La migration conserve les colonnes historiques, ajoute leurs
+métadonnées de précision et de tri, et classe tout `YYYY-01-01` existant en
+`legacy_unresolved` : aucun jour n'est déduit. Les années et mois restent
+respectivement `year` et `month`. La reprise est idempotente via le journal
+Drizzle. Le rollback contrôlé supprime uniquement la table de métadonnées avec
+`drizzle/rollback/0010_genealogical_dates.sql`; la restauration recommandée
+reste celle de la sauvegarde complète, avec arrêt préalable des écritures et
+validation humaine obligatoire.

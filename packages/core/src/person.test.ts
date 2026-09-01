@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { Database } from "@testvibe/db";
+import { genealogicalDate, type Database } from "@testvibe/db";
 import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson, getPersonById, listPersons, updatePerson, deletePerson } from "./person.js";
 import { createEvent, listEventsByPerson } from "./event.js";
@@ -11,6 +11,18 @@ describe("Person CRUD", () => {
 
   beforeEach(async () => {
     db = await createTestDb();
+  });
+
+  it("persiste une date qualifiée et rejette une date grégorienne impossible sans écriture", async () => {
+    const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace", birthDate: "vers 1815" });
+    expect((await getPersonById(db, created.id)).birthDate).toBe("vers 1815");
+    expect(await db.select().from(genealogicalDate)).toEqual(expect.arrayContaining([expect.objectContaining({
+      ownerKind: "person", ownerId: created.id, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    })]));
+    const before = await listPersons(db);
+    await expect(createPerson(db, { firstName: "X", lastName: "Y", birthDate: "1950-02-30" })).rejects.toBeInstanceOf(ValidationError);
+    expect(await listPersons(db)).toEqual(before);
   });
 
   it("crée une Person nominale et la relit par id", async () => {
