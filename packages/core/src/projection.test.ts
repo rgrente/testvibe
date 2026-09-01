@@ -177,6 +177,34 @@ describe("formatFamilyDate", () => {
 });
 
 describe("projection cohérente des consommateurs", () => {
+  it("conserve les métadonnées migrées d'un Event singleton utilisé en fallback", async () => {
+    const db = await createTestDb();
+    const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const birth = await createEvent(db, {
+      personId: alice.id,
+      type: "naissance",
+      eventDate: "1950-09-02",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" }).where(and(
+      eq(genealogicalDate.ownerKind, "event"),
+      eq(genealogicalDate.ownerId, birth.id),
+    ));
+
+    const facts = await listCanonicalFamilyFacts(db);
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toMatchObject({
+      identity: `person:${alice.id}:naissance`,
+      date: "1950-09-02",
+      dateQualification: "legacy_unresolved",
+      datePrecision: "day",
+      dateLowerBound: "1950-09-02",
+      dateUpperBound: "1950-09-02",
+      sourceEventId: birth.id,
+    });
+    expect(upcomingFamilyAnniversaries(facts, [alice], "2026-09-01", 2)).toEqual([]);
+  });
+
   it("trie avec les métadonnées migrées et exclut un mariage legacy des calculs", async () => {
     const db = await createTestDb();
     const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });

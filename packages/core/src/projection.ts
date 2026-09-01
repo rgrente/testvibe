@@ -98,12 +98,20 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     .filter((item) => item.personId === person.id && item.type === type)
     .sort((left, right) => left.id - right.id);
   const date = type === "naissance" ? person.birthDate : person.deathDate;
-  const dateQualification = type === "naissance" ? person.birthDateQualification : person.deathDateQualification;
-  const datePrecision = type === "naissance" ? person.birthDatePrecision : person.deathDatePrecision;
-  const dateLowerBound = type === "naissance" ? person.birthDateLowerBound : person.deathDateLowerBound;
-  const dateUpperBound = type === "naissance" ? person.birthDateUpperBound : person.deathDateUpperBound;
   const enrichment = matches[0];
   if (!date && !enrichment) return null;
+  const dateQualification = date
+    ? (type === "naissance" ? person.birthDateQualification : person.deathDateQualification)
+    : enrichment.dateQualification;
+  const datePrecision = date
+    ? (type === "naissance" ? person.birthDatePrecision : person.deathDatePrecision)
+    : enrichment.datePrecision;
+  const dateLowerBound = date
+    ? (type === "naissance" ? person.birthDateLowerBound : person.deathDateLowerBound)
+    : enrichment.dateLowerBound;
+  const dateUpperBound = date
+    ? (type === "naissance" ? person.birthDateUpperBound : person.deathDateUpperBound)
+    : enrichment.dateUpperBound;
   return {
     id: enrichment?.id ?? -person.id * 10 - (type === "naissance" ? 1 : 2),
     identity: `person:${person.id}:${type}`,
