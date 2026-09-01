@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename, adminVerifySession, getMediaForWebByFilename } from "@testvibe/core";
+import { adminDeleteMedia, adminGetMedia, adminGetMediaByFilename, adminVerifySession, getMediaForWebByFilename, runExclusiveGenealogyOperation } from "@testvibe/core";
 import { readdir, rename, unlink } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -85,6 +85,7 @@ export async function DELETE(
 ) {
   const authorization = await authorizeMutationRequest(request);
   if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
+  return runExclusiveGenealogyOperation(async () => {
   try {
     await recoverMediaArtifacts(UPLOAD_DIR, mediaFileOps);
   } catch {
@@ -124,4 +125,5 @@ export async function DELETE(
   } catch {
     return NextResponse.json({ error: "Échec atomique de la suppression." }, { status: 500 });
   }
+  });
 }

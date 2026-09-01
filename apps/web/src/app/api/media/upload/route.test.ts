@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   verifySession: true,
 }));
 const core = vi.hoisted(() => ({
+  runExclusiveGenealogyOperation: vi.fn(async <T>(work: () => Promise<T>) => work()),
   adminCreateMedia: vi.fn(async (input: { filename: string }) => {
     if (state.failCreate) throw new Error("db failure");
     return { id: 1, ...input };
@@ -113,6 +114,7 @@ describe("POST /api/media/upload", () => {
   it("persists one valid, singly attached, decodable upload", async () => {
     const response = await POST(uploadRequest() as never);
     expect(response.status).toBe(201);
+    expect(core.runExclusiveGenealogyOperation).toHaveBeenCalledOnce();
     expect(core.adminCreateMedia).toHaveBeenCalledOnce();
     expect(state.files.size).toBe(1);
   });

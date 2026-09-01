@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   verifySession: true,
 }));
 const core = vi.hoisted(() => ({
+  runExclusiveGenealogyOperation: vi.fn(async <T>(work: () => Promise<T>) => work()),
   adminDeleteMedia: vi.fn(async () => {
     if (state.failDelete) throw new Error("db failure");
     state.deleted = true;
@@ -102,6 +103,7 @@ describe("DELETE /api/media/[filename]", () => {
 
   it("removes both file and database record on success", async () => {
     expect((await remove()).status).toBe(200);
+    expect(core.runExclusiveGenealogyOperation).toHaveBeenCalledOnce();
     expect(state.exists).toBe(false);
     expect(state.deleted).toBe(true);
   });

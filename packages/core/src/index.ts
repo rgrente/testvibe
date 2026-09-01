@@ -25,3 +25,5 @@ export * from "./anniversary.js";
 export * from "./statistics.js";
 export * from "./projection.js";
 export * from "./privacy.js";
+export * from "./backup.js";
+export * from "./operation-coordinator.js";

@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { adminCreateMedia, adminGetEvent, adminGetMedia, adminGetMediaByFilename, adminGetPerson } from "@testvibe/core";
+import { adminCreateMedia, adminGetEvent, adminGetMedia, adminGetMediaByFilename, adminGetPerson, runExclusiveGenealogyOperation } from "@testvibe/core";
 import { readdir, rename, unlink, writeFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
@@ -37,6 +37,7 @@ async function cleanUpPartialUpload(filePath: string): Promise<boolean> {
 export async function POST(request: NextRequest) {
   const authorization = await authorizeMutationRequest(request);
   if (authorization) return NextResponse.json({ error: authorization === 401 ? "Unauthorized" : "Forbidden" }, { status: authorization });
+  return runExclusiveGenealogyOperation(async () => {
   try {
     if (!uploadFileOps.existsSync(/* turbopackIgnore: true */ UPLOAD_DIR)) {
       await uploadFileOps.mkdir(UPLOAD_DIR, { recursive: true });
@@ -112,4 +113,5 @@ export async function POST(request: NextRequest) {
       { status: recovered ? 500 : 503 },
     );
   }
+  });
 }
