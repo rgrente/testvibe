@@ -46,7 +46,7 @@ describe("getEventDateRange", () => {
     });
   });
 
-  it.each(["vers avant 1900", "entre 1900 et 1902-03", "avant 0001", "1900-02-30"])(
+  it.each(["vers avant 1900", "entre 1900 et 1902-03", "avant 0001", "après 9999", "1900-02-30"])(
     "rejette la forme qualifiée invalide %s",
     (value) => expect(getEventDateRange(value)).toBeNull(),
   );
