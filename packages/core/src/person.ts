@@ -112,8 +112,10 @@ export async function syncBiographicalEvents(
         longitude: null,
       }).returning();
       await persistGenealogicalDate(db, "event", created.id, "event_date", date);
-    } else if (matches[0].eventDate !== date) {
-      await db.update(event).set({ eventDate: date }).where(eq(event.id, matches[0].id));
+    } else {
+      if (matches[0].eventDate !== date) {
+        await db.update(event).set({ eventDate: date }).where(eq(event.id, matches[0].id));
+      }
       await persistGenealogicalDate(db, "event", matches[0].id, "event_date", date);
     }
   }

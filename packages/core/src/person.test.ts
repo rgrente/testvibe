@@ -67,6 +67,26 @@ describe("Person CRUD", () => {
     expect(updated.birthDateQualification).toBe("legacy_unresolved");
   });
 
+  it.each([
+    { field: "birthDate" as const, eventType: "naissance" as const },
+    { field: "deathDate" as const, eventType: "décès" as const },
+  ])("reclasse la date $field de la Person et de son événement après validation explicite", async ({ field, eventType }) => {
+    const date = "1950-01-01";
+    const created = await createPerson(db, {
+      firstName: "Legacy",
+      lastName: "Validated",
+      [field]: date,
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updatePerson(db, created.id, { [field]: date });
+    const biographicalEvent = (await listEventsByPerson(db, created.id)).find(({ type }) => type === eventType);
+
+    expect(field === "birthDate" ? updated.birthDateQualification : updated.deathDateQualification).toBe("exact");
+    expect(biographicalEvent?.dateQualification).toBe("exact");
+    expect(biographicalEvent?.datePrecision).toBe("day");
+  });
+
   it("persiste puis efface un nom de naissance optionnel", async () => {
     const created = await createPerson(db, {
       firstName: "Simone",
