@@ -1,6 +1,7 @@
 import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
 import { adminSession, event, filiation, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
@@ -30,6 +31,20 @@ async function seedComplete(db: Awaited<ReturnType<typeof createTestDb>>, upload
   await writeFile(join(uploads, "portrait.png"), Buffer.from([1, 2, 3, 4]));
 }
 
+function rewriteTables(archive: Buffer, mutate: (tables: Record<string, Array<Record<string, unknown>>>) => void) {
+  const envelope = JSON.parse(archive.toString("utf8"));
+  const tables = JSON.parse(Buffer.from(envelope.files["data/tables.json"], "base64").toString("utf8"));
+  mutate(tables);
+  const content = Buffer.from(JSON.stringify(tables));
+  envelope.files["data/tables.json"] = content.toString("base64");
+  const entry = envelope.entries.find((candidate: { path: string }) => candidate.path === "data/tables.json");
+  entry.size = content.length;
+  entry.sha256 = createHash("sha256").update(content).digest("hex");
+  for (const name of Object.keys(envelope.manifest.tableCounts)) envelope.manifest.tableCounts[name] = tables[name].length;
+  envelope.manifest.totalBytes = envelope.entries.reduce((sum: number, candidate: { size: number }) => sum + candidate.size, 0);
+  return Buffer.from(JSON.stringify(envelope));
+}
+
 describe("complete backup and restore", () => {
   it("round-trips every genealogy table and media byte while excluding operational secrets", async () => {
     const source = await createTestDb();
@@ -45,7 +60,7 @@ describe("complete backup and restore", () => {
     expect(text).not.toContain("secret-session");
     expect(text).not.toContain("secret-rate");
     const report = await validateBackup(archive);
-    expect(report).toMatchObject({ formatVersion: "1.0", mediaFiles: 1, valid: true });
+    expect(report).toMatchObject({ formatVersion: "1.1", mediaFiles: 1, valid: true });
 
     const result = await restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE" });
     expect(result.safetyBackupPath).toContain(safetyDir);
@@ -78,6 +93,35 @@ describe("complete backup and restore", () => {
     expect(await db.select().from(person)).toEqual(original);
   });
 
+  it("rejects duplicate identifiers and dangling genealogy references with valid checksums", async () => {
+    const db = await createTestDb();
+    const uploads = await tempDir();
+    await seedComplete(db, uploads);
+    const archive = await createBackup(db, uploads);
+    const duplicatePerson = rewriteTables(archive, (tables) => tables.person.push({ ...tables.person[0] }));
+    const danglingEvent = rewriteTables(archive, (tables) => { tables.event[0].personId = 999; });
+
+    await expect(validateBackup(duplicatePerson)).rejects.toThrow(/logical database/i);
+    await expect(validateBackup(danglingEvent)).rejects.toThrow(/logical database/i);
+  });
+
+  it("restores the previous compatible minor version and rejects a future minor version", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    await seedComplete(source, sourceUploads);
+    const current = JSON.parse((await createBackup(source, sourceUploads)).toString("utf8"));
+    expect(current.manifest.version).toBe("1.1");
+
+    const previous = Buffer.from(JSON.stringify({ ...current, manifest: { ...current.manifest, version: "1.0" } }));
+    const future = Buffer.from(JSON.stringify({ ...current, manifest: { ...current.manifest, version: "1.2" } }));
+    await restoreBackup(target, targetUploads, previous, { safetyDir, confirm: "REPLACE" });
+    expect(await target.select().from(person)).toEqual(await source.select().from(person));
+    await expect(validateBackup(future)).rejects.toThrow(/future/i);
+  });
+
   it("validation is write-free and a failed media switch rolls database and media back while retaining safety backup", async () => {
     const source = await createTestDb();
     const target = await createTestDb();
@@ -91,6 +135,28 @@ describe("complete backup and restore", () => {
 
     await validateBackup(archive);
     await expect(restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE", failpoint: "after-media-switch" })).rejects.toThrow(/failpoint/);
+    expect((await target.select().from(person)).map((row) => row.id)).toEqual([99]);
+    expect(await readFile(join(targetUploads, "old.txt"), "utf8")).toBe("old");
+    expect((await readdir(safetyDir)).length).toBe(1);
+  });
+
+  it("restores the original media directory when installation fails after moving it aside", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    await seedComplete(source, sourceUploads);
+    await target.insert(person).values({ id: 99, firstName: "Old", lastName: "State" });
+    await writeFile(join(targetUploads, "old.txt"), "old");
+
+    const archive = await createBackup(source, sourceUploads);
+    await expect(restoreBackup(target, targetUploads, archive, {
+      safetyDir,
+      confirm: "REPLACE",
+      failpoint: "after-current-media-moved",
+    })).rejects.toThrow(/failpoint/);
+
     expect((await target.select().from(person)).map((row) => row.id)).toEqual([99]);
     expect(await readFile(join(targetUploads, "old.txt"), "utf8")).toBe("old");
     expect((await readdir(safetyDir)).length).toBe(1);
