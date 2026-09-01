@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { ValidationError } from "./errors.js";
 import {
   compareGenealogicalDates,
   formatGenealogicalDate,
@@ -30,6 +31,28 @@ describe("GenealogicalDate", () => {
     ["vers 2024-02", "2023-02-01", "2025-02-28"],
   ])("conserve des bornes grégoriennes valides et inclusives pour %s", (original, lower, upper) => {
     expect(parseGenealogicalDate(original)).toMatchObject({ lower, upper });
+  });
+
+  it.each([
+    ["vers 0001", "0001-01-01", "0002-12-31"],
+    ["vers 0001-01", "0001-01-01", "0002-01-31"],
+    ["vers 0001-01-01", "0001-01-01", "0002-01-01"],
+    ["vers 9999", "9998-01-01", "9999-12-31"],
+    ["vers 9999-12", "9998-12-01", "9999-12-31"],
+    ["vers 9999-12-31", "9998-12-31", "9999-12-31"],
+  ])("rabats les bornes de %s dans le domaine grégorien supporté", (original, lower, upper) => {
+    expect(parseGenealogicalDate(original)).toMatchObject({ lower, upper });
+  });
+
+  it.each([
+    "avant 0001",
+    "avant 0001-01",
+    "avant 0001-01-01",
+    "après 9999",
+    "après 9999-12",
+    "après 9999-12-31",
+  ])("rejette la plage vide hors du domaine pour %s", (original) => {
+    expect(() => parseGenealogicalDate(original)).toThrow(ValidationError);
   });
 
   it("affiche fidèlement les formes françaises", () => {

@@ -12,6 +12,8 @@ export interface GenealogicalDate {
 }
 
 const SIMPLE_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
+const MIN_DATE = "0001-01-01";
+const MAX_DATE = "9999-12-31";
 const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 const GEDCOM_MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
@@ -38,12 +40,14 @@ function shiftBoundToYear(value: string, year: number): string {
 }
 
 function previousDay(value: string): string {
+  if (value === MIN_DATE) throw new ValidationError("La date antérieure est hors du domaine grégorien supporté.");
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() - 1);
   return date.toISOString().slice(0, 10);
 }
 
 function nextDay(value: string): string {
+  if (value === MAX_DATE) throw new ValidationError("La date postérieure est hors du domaine grégorien supporté.");
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() + 1);
   return date.toISOString().slice(0, 10);
@@ -85,7 +89,7 @@ export function parseGenealogicalDate(original: string): GenealogicalDate {
   if (qualified[1] === "avant") return { original, qualification: "before", precision: simple.precision, lower: null, upper: previousDay(simple.lower) };
   if (qualified[1] === "après") return { original, qualification: "after", precision: simple.precision, lower: nextDay(simple.upper), upper: null };
   const lowerYear = Math.max(1, Number(simple.lower.slice(0, 4)) - 1);
-  const upperYear = Number(simple.upper.slice(0, 4)) + 1;
+  const upperYear = Math.min(9999, Number(simple.upper.slice(0, 4)) + 1);
   return {
     original,
     qualification: "about",
