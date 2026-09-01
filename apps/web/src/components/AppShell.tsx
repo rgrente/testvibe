@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
 const publicRoutes = [
   { href: "/", label: "Arbre", mobileLabel: "Arbre" },
@@ -20,7 +21,7 @@ function navigationLinkClass(active: boolean, mobile = false) {
   const common =
     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]";
   if (mobile) {
-    return `${common} flex min-h-11 flex-1 items-center justify-center border-t-2 px-1 text-center text-base ${
+    return `${common} flex min-h-11 min-w-0 items-center justify-center border-t-2 px-0.5 text-center text-[11px] sm:text-xs ${
       active
         ? "border-[var(--color-ink)] font-semibold text-[var(--color-ink)]"
         : "border-transparent font-medium text-[var(--color-muted)]"
@@ -35,6 +36,22 @@ function navigationLinkClass(active: boolean, mobile = false) {
 
 export function AppShell() {
   const pathname = usePathname() ?? "";
+  const [moreOpen, setMoreOpen] = useState(false);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const editLinkRef = useRef<HTMLAnchorElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    editLinkRef.current?.focus();
+
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      setMoreOpen(false);
+      moreButtonRef.current?.focus();
+    };
+    window.addEventListener("keydown", closeOnEscape);
+    return () => window.removeEventListener("keydown", closeOnEscape);
+  }, [moreOpen]);
 
   return (
     <>
@@ -78,7 +95,7 @@ export function AppShell() {
 
       <nav
         aria-label="Navigation mobile"
-        className="fixed inset-x-0 bottom-0 z-50 flex h-[60px] overflow-x-hidden border-t border-[var(--color-border)] bg-[var(--color-surface)] px-1 md:hidden"
+        className="fixed inset-x-0 bottom-0 z-50 grid h-[60px] grid-cols-6 overflow-x-hidden border-t border-[var(--color-border)] bg-[var(--color-surface)] px-1 md:hidden"
       >
         {publicRoutes.map(({ href, label, mobileLabel }) => {
           const active = isCurrentRoute(pathname, href);
@@ -94,6 +111,33 @@ export function AppShell() {
             </Link>
           );
         })}
+        <div className="relative min-w-0">
+          <button
+            ref={moreButtonRef}
+            type="button"
+            aria-expanded={moreOpen}
+            aria-controls="mobile-more-menu"
+            className={`${navigationLinkClass(pathname.startsWith("/admin"), true)} w-full`}
+            onClick={() => setMoreOpen((open) => !open)}
+          >
+            Plus
+          </button>
+          {moreOpen ? (
+            <div
+              id="mobile-more-menu"
+              className="absolute bottom-[calc(100%+0.5rem)] right-0 w-max rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] p-1 shadow-lg"
+            >
+              <Link
+                ref={editLinkRef}
+                href="/admin"
+                className="flex min-h-11 items-center rounded-md px-3 text-sm font-medium text-[var(--color-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-accent)]"
+                onClick={() => setMoreOpen(false)}
+              >
+                Mode édition
+              </Link>
+            </div>
+          ) : null}
+        </div>
       </nav>
     </>
   );
