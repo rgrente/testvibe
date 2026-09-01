@@ -18,7 +18,7 @@ const location: MapLocation = {
   personName: "Martine Renault",
   type: "naissance",
   label: null,
-  eventDate: "1958-09-03",
+  eventDate: "vers 1958-09",
   place: "Rennes (35)",
   latitude: 48.1173,
   longitude: -1.6778,
@@ -45,6 +45,7 @@ describe("MapClient UI", () => {
     expect(screen.getByRole("heading", { name: "Liste des événements (1)" })).toBeInTheDocument();
     fireEvent.click(await screen.findByRole("button", { name: "Marqueur Rennes" }));
     await waitFor(() => expect(screen.getByRole("dialog", { name: "Détail du lieu Rennes (35)" })).toBeInTheDocument());
+    expect(screen.getAllByText(/vers septembre 1958/)).toHaveLength(2);
     expect(screen.getByRole("button", { name: "Fermer le détail" })).toHaveClass("min-h-11", "min-w-11");
   });
 });

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { MapLocation } from "@testvibe/core";
-import { formatFamilyDate } from "../lib/family-date";
+import { formatFamilyDate, parseFamilyDate } from "../lib/family-date";
 
 interface MapClientProps {
   locations: MapLocation[];
@@ -33,33 +33,14 @@ export function getMapLocationTypeLabel(location: MapLocation): string {
   return location.label || "Événement";
 }
 
-/** Interprète les dates partielles du domaine comme un intervalle inclusif. */
+/** Interprète les dates exactes ou qualifiées du domaine comme un intervalle inclusif. */
 export function getEventDateRange(date: string | null): EventDateRange | null {
-  if (!date) return null;
-
-  const yearMatch = /^(\d{4})$/.exec(date);
-  if (yearMatch) {
-    const year = Number(yearMatch[1]);
-    return {
-      start: Date.UTC(year, 0, 1),
-      end: Date.UTC(year, 11, 31, 23, 59, 59, 999),
-    };
-  }
-
-  const monthMatch = /^(\d{4})-(\d{2})$/.exec(date);
-  if (monthMatch) {
-    const year = Number(monthMatch[1]);
-    const month = Number(monthMatch[2]);
-    if (month < 1 || month > 12) return null;
-    return {
-      start: Date.UTC(year, month - 1, 1),
-      end: Date.UTC(year, month, 1) - 1,
-    };
-  }
-
-  const timestamp = Date.parse(date);
-  if (Number.isNaN(timestamp)) return null;
-  return { start: timestamp, end: timestamp };
+  const parsed = parseFamilyDate(date);
+  if (!parsed) return null;
+  return {
+    start: Date.parse(`${parsed.lower ?? "0001-01-01"}T00:00:00.000Z`),
+    end: Date.parse(`${parsed.upper ?? "9999-12-31"}T23:59:59.999Z`),
+  };
 }
 
 export function filterMapLocations(

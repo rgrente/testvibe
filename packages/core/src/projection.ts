@@ -10,6 +10,7 @@ import type {
   Person,
   Union,
 } from "./types.js";
+import { compareGenealogicalDates, formatGenealogicalDate, parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
 
 const FAMILY_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
 
@@ -39,13 +40,12 @@ export function familyDateInterval(value: string | null): FamilyDateInterval | n
 }
 
 export function formatFamilyDate(value: string | null, locale = "fr-FR"): string {
-  const interval = familyDateInterval(value);
-  if (!interval || !value) return "Date inconnue";
-  if (interval.precision === 1) return value;
-  const date = new Date(interval.start);
-  return new Intl.DateTimeFormat(locale, interval.precision === 2
-    ? { month: "long", year: "numeric", timeZone: "UTC" }
-    : { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+  if (!value) return "Date inconnue";
+  try {
+    return formatGenealogicalDate(parseGenealogicalDate(value), locale);
+  } catch {
+    return "Date inconnue";
+  }
 }
 
 function normalize(value: string | null): string {
@@ -75,15 +75,22 @@ function logicalKey(fact: FamilyFact): string {
 }
 
 function compareFacts(left: FamilyFact, right: FamilyFact): number {
-  const leftInterval = familyDateInterval(left.date);
-  const rightInterval = familyDateInterval(right.date);
-  if (leftInterval && !rightInterval) return -1;
-  if (!leftInterval && rightInterval) return 1;
-  if (leftInterval && rightInterval) {
-    if (leftInterval.start !== rightInterval.start) return leftInterval.start - rightInterval.start;
-    if (leftInterval.precision !== rightInterval.precision) return rightInterval.precision - leftInterval.precision;
+  return compareGenealogicalDates(factDate(left), factDate(right), left.identity, right.identity)
+    || left.category.localeCompare(right.category, "fr");
+}
+
+function factDate(fact: FamilyFact): GenealogicalDate | null {
+  if (!fact.date) return null;
+  if (fact.dateQualification && fact.datePrecision) {
+    return {
+      original: fact.date,
+      qualification: fact.dateQualification,
+      precision: fact.datePrecision,
+      lower: fact.dateLowerBound ?? null,
+      upper: fact.dateUpperBound ?? null,
+    };
   }
-  return left.category.localeCompare(right.category, "fr") || left.identity.localeCompare(right.identity, "fr");
+  try { return parseGenealogicalDate(fact.date); } catch { return null; }
 }
 
 function singletonFact(person: Person, type: "naissance" | "décès", events: Event[]): FamilyFact | null {
@@ -93,6 +100,18 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
   const date = type === "naissance" ? person.birthDate : person.deathDate;
   const enrichment = matches[0];
   if (!date && !enrichment) return null;
+  const dateQualification = date
+    ? (type === "naissance" ? person.birthDateQualification : person.deathDateQualification)
+    : enrichment.dateQualification;
+  const datePrecision = date
+    ? (type === "naissance" ? person.birthDatePrecision : person.deathDatePrecision)
+    : enrichment.datePrecision;
+  const dateLowerBound = date
+    ? (type === "naissance" ? person.birthDateLowerBound : person.deathDateLowerBound)
+    : enrichment.dateLowerBound;
+  const dateUpperBound = date
+    ? (type === "naissance" ? person.birthDateUpperBound : person.deathDateUpperBound)
+    : enrichment.dateUpperBound;
   return {
     id: enrichment?.id ?? -person.id * 10 - (type === "naissance" ? 1 : 2),
     identity: `person:${person.id}:${type}`,
@@ -102,6 +121,10 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     personIds: [person.id],
     date: date ?? enrichment.eventDate,
     eventDate: date ?? enrichment.eventDate,
+    dateQualification,
+    datePrecision,
+    dateLowerBound,
+    dateUpperBound,
     label: enrichment?.label ?? null,
     description: enrichment?.description ?? null,
     place: enrichment?.place ?? null,
@@ -124,6 +147,10 @@ function unionFact(item: Union): FamilyFact {
     personIds: [...item.personIds].sort((left, right) => left - right),
     date: item.startDate,
     eventDate: item.startDate,
+    dateQualification: item.startDateQualification,
+    datePrecision: item.startDatePrecision,
+    dateLowerBound: item.startDateLowerBound,
+    dateUpperBound: item.startDateUpperBound,
     label: null,
     description: null,
     place: item.place,
@@ -146,6 +173,10 @@ function eventFact(item: Event): FamilyFact {
     personIds: [item.personId],
     date: item.eventDate,
     eventDate: item.eventDate,
+    dateQualification: item.dateQualification,
+    datePrecision: item.datePrecision,
+    dateLowerBound: item.dateLowerBound,
+    dateUpperBound: item.dateUpperBound,
     label: category === "résidence" ? null : item.label,
     description: item.description,
     place: item.place,

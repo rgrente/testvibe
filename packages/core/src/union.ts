@@ -8,10 +8,8 @@ import type { Union, UnionInput } from "./types.js";
 import { NotFoundError, ValidationError } from "./errors.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { runTransaction } from "./transaction.js";
-
-function isValidDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
-}
+import { parseGenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, loadGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 async function assertPersonsExist(db: Database, personIds: number[]): Promise<void> {
   for (const id of personIds) {
@@ -29,12 +27,8 @@ function assertValidUnionInput(input: UnionInput): void {
   if (new Set(input.personIds).size !== input.personIds.length) {
     throw new ValidationError("personIds contient des doublons.");
   }
-  if (input.startDate != null && !isValidDate(input.startDate)) {
-    throw new ValidationError(`startDate invalide : ${input.startDate}`);
-  }
-  if (input.endDate != null && !isValidDate(input.endDate)) {
-    throw new ValidationError(`endDate invalide : ${input.endDate}`);
-  }
+  const start = input.startDate == null ? null : parseGenealogicalDate(input.startDate);
+  const end = input.endDate == null ? null : parseGenealogicalDate(input.endDate);
   if (input.type != null && !["mariage", "pacs", "libre"].includes(input.type)) {
     throw new ValidationError(`type d'union invalide : ${input.type}`);
   }
@@ -45,9 +39,7 @@ function assertValidUnionInput(input: UnionInput): void {
   if (
     input.startDate != null &&
     input.endDate != null &&
-    isValidDate(input.startDate) &&
-    isValidDate(input.endDate) &&
-    new Date(input.endDate).getTime() < new Date(input.startDate).getTime()
+    start?.lower != null && end?.upper != null && end.upper < start.lower
   ) {
     throw new ValidationError("endDate ne peut pas être antérieure à startDate.");
   }
@@ -62,11 +54,22 @@ async function loadUnion(db: Database, id: number): Promise<Union> {
     .select()
     .from(unionPartner)
     .where(eq(unionPartner.unionId, id));
+  const dates = await loadGenealogicalDates(db, "union", id);
+  const start = dates.get("start_date");
+  const end = dates.get("end_date");
   return {
     id: row.id,
     type: row.type,
     startDate: row.startDate,
     endDate: row.endDate,
+    startDateQualification: start?.qualification,
+    startDatePrecision: start?.precision,
+    startDateLowerBound: start?.lower,
+    startDateUpperBound: start?.upper,
+    endDateQualification: end?.qualification,
+    endDatePrecision: end?.precision,
+    endDateLowerBound: end?.lower,
+    endDateUpperBound: end?.upper,
     place: row.place,
     latitude: row.latitude,
     longitude: row.longitude,
@@ -89,6 +92,8 @@ export async function createUnionInTransaction(db: Database, input: UnionInput):
   await db.insert(unionPartner).values(
     input.personIds.map((personId) => ({ unionId: row.id, personId })),
   );
+  await persistGenealogicalDate(db, "union", row.id, "start_date", input.startDate ?? null);
+  await persistGenealogicalDate(db, "union", row.id, "end_date", input.endDate ?? null);
   return loadUnion(db, row.id);
 }
 
@@ -135,6 +140,12 @@ export async function updateUnion(
       longitude: merged.longitude ?? null,
     })
     .where(eq(unions.id, id));
+    if (input.startDate !== undefined) {
+      await persistGenealogicalDate(transactionalDb, "union", id, "start_date", merged.startDate ?? null);
+    }
+    if (input.endDate !== undefined) {
+      await persistGenealogicalDate(transactionalDb, "union", id, "end_date", merged.endDate ?? null);
+    }
 
   if (input.personIds !== undefined) {
       await transactionalDb.delete(unionPartner).where(eq(unionPartner.unionId, id));
@@ -147,8 +158,13 @@ export async function updateUnion(
   });
 }
 
-export async function deleteUnion(db: Database, id: number): Promise<void> {
+async function deleteUnionInTransaction(db: Database, id: number): Promise<void> {
   await loadUnion(db, id); // lève NotFoundError si absent
+  await deleteGenealogicalDates(db, "union", id);
   await db.delete(unionPartner).where(eq(unionPartner.unionId, id));
   await db.delete(unions).where(eq(unions.id, id));
+}
+
+export async function deleteUnion(db: Database, id: number): Promise<void> {
+  return runTransaction(db, (transactionalDb) => deleteUnionInTransaction(transactionalDb, id));
 }

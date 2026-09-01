@@ -33,6 +33,23 @@ describe("getEventDateRange", () => {
       end: Date.UTC(1900, 2, 1) - 1,
     });
   });
+
+  it.each([
+    ["vers 1900", "1899-01-01", "1901-12-31"],
+    ["avant 1900-03", "0001-01-01", "1900-02-28"],
+    ["après 1900-03", "1900-04-01", "9999-12-31"],
+    ["entre 1900-03 et 1902-04", "1900-03-01", "1902-04-30"],
+  ])("interprète les bornes inclusives de %s", (value, start, end) => {
+    expect(getEventDateRange(value)).toEqual({
+      start: Date.parse(`${start}T00:00:00.000Z`),
+      end: Date.parse(`${end}T23:59:59.999Z`),
+    });
+  });
+
+  it.each(["vers avant 1900", "entre 1900 et 1902-03", "avant 0001", "après 9999", "1900-02-30"])(
+    "rejette la forme qualifiée invalide %s",
+    (value) => expect(getEventDateRange(value)).toBeNull(),
+  );
 });
 
 describe("formatFamilyDate côté navigateur", () => {
@@ -41,6 +58,15 @@ describe("formatFamilyDate côté navigateur", () => {
     expect(formatFamilyDate("1900-02")).toBe("février 1900");
     expect(formatFamilyDate("1900-02-03")).toBe("3 février 1900");
     expect(formatFamilyDate("1900-02-30")).toBe("Date inconnue");
+  });
+
+  it.each([
+    ["vers 1900-02", "vers février 1900"],
+    ["avant 1900-02-03", "avant 3 février 1900"],
+    ["après 1900", "après 1900"],
+    ["entre 1900-02 et 1902-03", "entre février 1900 et mars 1902"],
+  ])("affiche la forme qualifiée %s", (value, expected) => {
+    expect(formatFamilyDate(value)).toBe(expected);
   });
 });
 
@@ -60,6 +86,18 @@ describe("filterMapLocations", () => {
   it("inclut la personne racine avec sa branche et exclut les dates absentes", () => {
     expect(filterMapLocations(locations, [2, 3], 1, "descendants", "1900-01-01", "1900-12-31"))
       .toEqual([locations[1], locations[2]]);
+  });
+
+  it("filtre les événements qualifiés d'après leurs bornes", () => {
+    const qualified = [
+      location(5, 5, "vers 1900"),
+      location(6, 6, "avant 1900"),
+      location(7, 7, "après 1900"),
+      location(8, 8, "entre 1900 et 1902"),
+    ];
+
+    expect(filterMapLocations(qualified, [], null, "none", "1901-01-01", "1901-12-31"))
+      .toEqual([qualified[0], qualified[2], qualified[3]]);
   });
 });
 

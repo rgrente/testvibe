@@ -163,4 +163,36 @@ describe("prepareComparativeTimeline", () => {
       ],
     });
   });
+
+  it("place toutes les formes qualifiées par leurs bornes et conserve leur valeur d'affichage", () => {
+    const dated = person({ id: 6, firstName: "Dates", lastName: "Qualifiées" });
+    const qualifiedDates = ["avant 1950", "vers 1950", "entre 1950 et 1952", "après 1950"];
+    const timeline = prepareComparativeTimeline([{
+      person: dated,
+      events: qualifiedDates.map((eventDate, index) => event({
+        id: index + 20,
+        personId: dated.id,
+        type: "libre",
+        eventDate,
+      })),
+    }]);
+
+    expect(timeline.rows[0].datedEvents.map(({ displayDate }) => displayDate)).toEqual([
+      "vers 1950",
+      "avant 1950",
+      "entre 1950 et 1952",
+      "après 1950",
+    ]);
+    expect(timeline.rows[0].undatedEvents).toEqual([]);
+  });
+
+  it("ne place pas une forme qualifiée invalide", () => {
+    const invalid = person({ id: 7, firstName: "Date", lastName: "Invalide" });
+    const timeline = prepareComparativeTimeline([{
+      person: invalid,
+      events: [event({ id: 24, personId: invalid.id, type: "libre", eventDate: "vers 1950-02-30" })],
+    }]);
+
+    expect(timeline.rows[0]).toMatchObject({ datedEvents: [], undatedEvents: [{ id: 24 }] });
+  });
 });

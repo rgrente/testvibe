@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { genealogicalDate } from "@testvibe/db";
+import { and, eq } from "drizzle-orm";
 import { createTestDb } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createEvent, listFamilyTimeline } from "./event.js";
@@ -80,8 +82,8 @@ describe("projectFamilyFacts", () => {
       { identity: "person:1:naissance", category: "naissance", owner: "person:1", personIds: [1] },
       { identity: "union:10", category: "mariage", owner: "union:10", personIds: [1, 2] },
       { identity: "union:11", category: "pacs", owner: "union:11", personIds: [1, 2] },
-      { identity: "event:21", category: "libre", owner: "person:1", personIds: [1] },
       { identity: "event:20", category: "résidence", owner: "person:1", personIds: [1] },
+      { identity: "event:21", category: "libre", owner: "person:1", personIds: [1] },
       { identity: "union:12", category: "union libre", owner: "union:12", personIds: [1, 2] },
     ]);
   });
@@ -175,6 +177,59 @@ describe("formatFamilyDate", () => {
 });
 
 describe("projection cohérente des consommateurs", () => {
+  it("conserve les métadonnées migrées d'un Event singleton utilisé en fallback", async () => {
+    const db = await createTestDb();
+    const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const birth = await createEvent(db, {
+      personId: alice.id,
+      type: "naissance",
+      eventDate: "1950-09-02",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" }).where(and(
+      eq(genealogicalDate.ownerKind, "event"),
+      eq(genealogicalDate.ownerId, birth.id),
+    ));
+
+    const facts = await listCanonicalFamilyFacts(db);
+
+    expect(facts).toHaveLength(1);
+    expect(facts[0]).toMatchObject({
+      identity: `person:${alice.id}:naissance`,
+      date: "1950-09-02",
+      dateQualification: "legacy_unresolved",
+      datePrecision: "day",
+      dateLowerBound: "1950-09-02",
+      dateUpperBound: "1950-09-02",
+      sourceEventId: birth.id,
+    });
+    expect(upcomingFamilyAnniversaries(facts, [alice], "2026-09-01", 2)).toEqual([]);
+  });
+
+  it("trie avec les métadonnées migrées et exclut un mariage legacy des calculs", async () => {
+    const db = await createTestDb();
+    const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const legacy = await createUnion(db, {
+      type: "mariage",
+      personIds: [alice.id],
+      startDate: "1950-09-02",
+    });
+    const exact = await createUnion(db, {
+      type: "mariage",
+      personIds: [alice.id],
+      startDate: "1950-09-02",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" }).where(and(
+      eq(genealogicalDate.ownerKind, "union"),
+      eq(genealogicalDate.ownerId, legacy.id),
+    ));
+
+    const facts = await listCanonicalFamilyFacts(db);
+
+    expect(facts.map((fact) => fact.identity)).toEqual([`union:${exact.id}`, `union:${legacy.id}`]);
+    expect(upcomingFamilyAnniversaries(facts, [alice], "2026-09-01", 2).map((item) => item.key))
+      .toEqual([`union:${exact.id}`]);
+  });
+
   it("expose les mêmes identités sans double comptage dans fiche, timelines et statistiques", async () => {
     const db = await createTestDb();
     const alice = await createPerson(db, {

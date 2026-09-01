@@ -24,7 +24,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("PersonEventsPage", () => {
-  it("propose et soumet une résidence canonique", async () => {
+  it.each(["vers 2020-06", "entre 2019-06 et 2020-06"])("propose et soumet une résidence datée %s", async (eventDate) => {
     mocks.adminGetPerson.mockResolvedValue({
       id: 7,
       firstName: "Marie",
@@ -44,7 +44,7 @@ describe("PersonEventsPage", () => {
     const formData = new FormData();
     formData.set("personId", "7");
     formData.set("type", "résidence");
-    formData.set("eventDate", "2020-06");
+    formData.set("eventDate", eventDate);
     formData.set("place", "Lyon");
     formData.set("visibility", "family");
 
@@ -53,7 +53,7 @@ describe("PersonEventsPage", () => {
       personId: 7,
       type: "résidence",
       label: null,
-      eventDate: "2020-06",
+      eventDate,
       description: null,
       place: "Lyon",
       latitude: null,
@@ -62,8 +62,8 @@ describe("PersonEventsPage", () => {
     });
   });
 
-  it.each(["1900", "1900-06"])(
-    "propose l’édition protégée sans perdre la date partielle %s",
+  it.each(["1900", "1900-06", "vers 1900-06", "entre 1900 et 1902"])(
+    "propose l’édition protégée sans perdre la date généalogique %s",
     async (eventDate) => {
     mocks.adminGetPerson.mockResolvedValue({
       id: 7,
@@ -102,34 +102,37 @@ describe("PersonEventsPage", () => {
     },
   );
 
-  it("transmet toutes les valeurs modifiées à adminUpdateEvent", async () => {
-    const formData = new FormData();
-    for (const [key, value] of Object.entries({
-      id: "7",
-      personId: "42",
-      type: "mariage",
-      label: "Noces d’or",
-      eventDate: "2020-06-15",
-      description: "Cérémonie familiale",
-      place: "Lyon",
-      latitude: "45.764",
-      longitude: "4.8357",
-      visibility: "private",
-    })) {
-      formData.set(key, value);
-    }
+  it.each(["après 2020-06-15", "entre 2020-06-15 et 2020-06-20"])(
+    "transmet la date modifiée %s à adminUpdateEvent",
+    async (eventDate) => {
+      const formData = new FormData();
+      for (const [key, value] of Object.entries({
+        id: "7",
+        personId: "42",
+        type: "mariage",
+        label: "Noces d’or",
+        eventDate,
+        description: "Cérémonie familiale",
+        place: "Lyon",
+        latitude: "45.764",
+        longitude: "4.8357",
+        visibility: "private",
+      })) {
+        formData.set(key, value);
+      }
 
-    await expect(updateEventAction(formData)).rejects.toThrow("NEXT_REDIRECT");
-    expect(mocks.adminUpdateEvent).toHaveBeenCalledWith(7, {
-      personId: 42,
-      type: "mariage",
-      label: "Noces d’or",
-      eventDate: "2020-06-15",
-      description: "Cérémonie familiale",
-      place: "Lyon",
-      latitude: 45.764,
-      longitude: 4.8357,
-      visibility: "private",
-    });
-  });
+      await expect(updateEventAction(formData)).rejects.toThrow("NEXT_REDIRECT");
+      expect(mocks.adminUpdateEvent).toHaveBeenCalledWith(7, {
+        personId: 42,
+        type: "mariage",
+        label: "Noces d’or",
+        eventDate,
+        description: "Cérémonie familiale",
+        place: "Lyon",
+        latitude: 45.764,
+        longitude: 4.8357,
+        visibility: "private",
+      });
+    },
+  );
 });

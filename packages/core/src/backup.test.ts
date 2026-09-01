@@ -3,7 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createHash } from "node:crypto";
 import { afterEach, describe, expect, it } from "vitest";
-import { adminSession, event, filiation, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
+import { eq } from "drizzle-orm";
+import { adminSession, event, filiation, genealogicalDate, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
 import { adminRestoreBackup, backupFileOps, createBackup, restoreBackup, validateBackup } from "./backup.js";
 import { createOperationCoordinator } from "./operation-coordinator.js";
@@ -42,6 +43,21 @@ function rewriteTables(archive: Buffer, mutate: (tables: Record<string, Array<Re
   entry.size = content.length;
   entry.sha256 = createHash("sha256").update(content).digest("hex");
   for (const name of Object.keys(envelope.manifest.tableCounts)) envelope.manifest.tableCounts[name] = tables[name].length;
+  envelope.manifest.totalBytes = envelope.entries.reduce((sum: number, candidate: { size: number }) => sum + candidate.size, 0);
+  return Buffer.from(JSON.stringify(envelope));
+}
+
+function asVersion11Archive(archive: Buffer): Buffer {
+  const envelope = JSON.parse(archive.toString("utf8"));
+  const tables = JSON.parse(Buffer.from(envelope.files["data/tables.json"], "base64").toString("utf8"));
+  delete tables.genealogical_date;
+  delete envelope.manifest.tableCounts.genealogical_date;
+  envelope.manifest.version = "1.1";
+  const content = Buffer.from(JSON.stringify(tables));
+  envelope.files["data/tables.json"] = content.toString("base64");
+  const entry = envelope.entries.find((candidate: { path: string }) => candidate.path === "data/tables.json");
+  entry.size = content.length;
+  entry.sha256 = createHash("sha256").update(content).digest("hex");
   envelope.manifest.totalBytes = envelope.entries.reduce((sum: number, candidate: { size: number }) => sum + candidate.size, 0);
   return Buffer.from(JSON.stringify(envelope));
 }
@@ -99,7 +115,7 @@ describe("complete backup and restore", () => {
     expect(text).not.toContain("secret-session");
     expect(text).not.toContain("secret-rate");
     const report = await validateBackup(archive);
-    expect(report).toMatchObject({ formatVersion: "1.1", mediaFiles: 1, valid: true });
+    expect(report).toMatchObject({ formatVersion: "1.2", mediaFiles: 1, valid: true });
 
     const result = await restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE" });
     expect(result.safetyBackupPath).toContain(safetyDir);
@@ -111,6 +127,29 @@ describe("complete backup and restore", () => {
     expect(await target.select().from(media)).toEqual(await source.select().from(media));
     expect(await readFile(join(targetUploads, "portrait.png"))).toEqual(Buffer.from([1, 2, 3, 4]));
     expect((await readdir(safetyDir)).length).toBe(1);
+  });
+
+  it("round-trips genealogical date metadata and replaces stale target metadata", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    await source.insert(person).values({ id: 1, firstName: "Source", lastName: "Date", birthDate: "vers 1815" });
+    await source.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 1, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    });
+    await target.insert(person).values({ id: 1, firstName: "Target", lastName: "Date", birthDate: "après 1900" });
+    await target.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 1, field: "birth_date", original: "après 1900",
+      qualification: "after", precision: "year", lowerBound: "1901-01-01", upperBound: null,
+    });
+
+    const archive = await createBackup(source, sourceUploads);
+    await restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE" });
+
+    expect(await target.select().from(genealogicalDate)).toEqual(await source.select().from(genealogicalDate));
   });
 
   it("rejects corruption, dangerous paths, missing media, insufficient space, and future versions before mutation", async () => {
@@ -139,10 +178,79 @@ describe("complete backup and restore", () => {
     const archive = await createBackup(db, uploads);
     const duplicatePerson = rewriteTables(archive, (tables) => tables.person.push({ ...tables.person[0] }));
     const danglingEvent = rewriteTables(archive, (tables) => { tables.event[0].personId = 999; });
+    const danglingDate = rewriteTables(archive, (tables) => tables.genealogical_date.push({
+      id: 1, ownerKind: "person", ownerId: 999, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    }));
+    const inconsistentDate = rewriteTables(archive, (tables) => tables.genealogical_date.push({
+      id: 1, ownerKind: "person", ownerId: 7, field: "birth_date", original: "vers 1815",
+      qualification: "exact", precision: "day", lowerBound: "1815-01-01", upperBound: "1815-01-01",
+    }));
 
     await expect(validateBackup(duplicatePerson)).rejects.toThrow(/logical database/i);
     await expect(validateBackup(danglingEvent)).rejects.toThrow(/logical database/i);
+    await expect(validateBackup(danglingDate)).rejects.toThrow(/logical database/i);
+    await expect(validateBackup(inconsistentDate)).rejects.toThrow(/logical database/i);
   });
+
+  it.each([
+    ["person", "person", 1, "birth_date"],
+    ["union", "union", 2, "start_date"],
+    ["event", "event", 3, "event_date"],
+  ] as const)(
+    "rejects a current archive missing %s date metadata before mutating the target",
+    async (_label, ownerKind, ownerId, field) => {
+      const source = await createTestDb();
+      const target = await createTestDb();
+      const sourceUploads = await tempDir();
+      const targetUploads = await tempDir();
+      const safetyDir = await tempDir();
+      await source.insert(person).values({
+        id: 1, firstName: "Source", lastName: "Person", birthDate: "1950-01-01",
+      });
+      await source.insert(unions).values({ id: 2, type: "mariage", startDate: "vers 1970" });
+      await source.insert(event).values({
+        id: 3, personId: 1, type: "résidence", eventDate: "après 1980",
+      });
+      await source.insert(genealogicalDate).values([
+        {
+          ownerKind: "person", ownerId: 1, field: "birth_date", original: "1950-01-01",
+          qualification: "legacy_unresolved", precision: "day", lowerBound: "1950-01-01", upperBound: "1950-01-01",
+        },
+        {
+          ownerKind: "union", ownerId: 2, field: "start_date", original: "vers 1970",
+          qualification: "about", precision: "year", lowerBound: "1969-01-01", upperBound: "1971-12-31",
+        },
+        {
+          ownerKind: "event", ownerId: 3, field: "event_date", original: "après 1980",
+          qualification: "after", precision: "year", lowerBound: "1981-01-01", upperBound: null,
+        },
+      ]);
+      await target.insert(person).values({
+        id: 9, firstName: "Unchanged", lastName: "Target", deathDate: "avant 1900",
+      });
+      await target.insert(genealogicalDate).values({
+        ownerKind: "person", ownerId: 9, field: "death_date", original: "avant 1900",
+        qualification: "before", precision: "year", lowerBound: null, upperBound: "1899-12-31",
+      });
+      const targetPersons = await target.select().from(person);
+      const targetDates = await target.select().from(genealogicalDate);
+      const archive = rewriteTables(await createBackup(source, sourceUploads), (tables) => {
+        tables.genealogical_date = tables.genealogical_date.filter((row) => !(
+          row.ownerKind === ownerKind && row.ownerId === ownerId && row.field === field
+        ));
+      });
+
+      await expect(validateBackup(archive)).rejects.toThrow(/genealogical date/i);
+      await expect(restoreBackup(target, targetUploads, archive, {
+        safetyDir,
+        confirm: "REPLACE",
+      })).rejects.toThrow(/genealogical date/i);
+      expect(await target.select().from(person)).toEqual(targetPersons);
+      expect(await target.select().from(genealogicalDate)).toEqual(targetDates);
+      expect(await readdir(safetyDir)).toEqual([]);
+    },
+  );
 
   it("restores the previous compatible minor version and rejects a future minor version", async () => {
     const source = await createTestDb();
@@ -151,13 +259,29 @@ describe("complete backup and restore", () => {
     const targetUploads = await tempDir();
     const safetyDir = await tempDir();
     await seedComplete(source, sourceUploads);
+    await source.update(person).set({ birthDate: "1950-01-01" }).where(eq(person.id, 7));
+    await source.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 7, field: "birth_date", original: "1950-01-01",
+      qualification: "legacy_unresolved", precision: "day", lowerBound: "1950-01-01", upperBound: "1950-01-01",
+    });
+    await target.insert(person).values({ id: 7, firstName: "Stale", lastName: "Target", birthDate: "après 1900" });
+    await target.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 7, field: "birth_date", original: "après 1900",
+      qualification: "after", precision: "year", lowerBound: "1901-01-01", upperBound: null,
+    });
     const current = JSON.parse((await createBackup(source, sourceUploads)).toString("utf8"));
-    expect(current.manifest.version).toBe("1.1");
+    expect(current.manifest.version).toBe("1.2");
 
-    const previous = Buffer.from(JSON.stringify({ ...current, manifest: { ...current.manifest, version: "1.0" } }));
-    const future = Buffer.from(JSON.stringify({ ...current, manifest: { ...current.manifest, version: "1.2" } }));
+    const previous = asVersion11Archive(Buffer.from(JSON.stringify(current)));
+    const future = Buffer.from(JSON.stringify({ ...current, manifest: { ...current.manifest, version: "1.3" } }));
     await restoreBackup(target, targetUploads, previous, { safetyDir, confirm: "REPLACE" });
     expect(await target.select().from(person)).toEqual(await source.select().from(person));
+    expect(await target.select().from(genealogicalDate)).toEqual([
+      expect.objectContaining({
+        ownerKind: "person", ownerId: 7, field: "birth_date", original: "1950-01-01",
+        qualification: "legacy_unresolved", precision: "day", lowerBound: "1950-01-01", upperBound: "1950-01-01",
+      }),
+    ]);
     await expect(validateBackup(future)).rejects.toThrow(/future/i);
   });
 
@@ -184,7 +308,16 @@ describe("complete backup and restore", () => {
     const targetUploads = await tempDir();
     const safetyDir = await tempDir();
     await seedComplete(source, sourceUploads);
-    await target.insert(person).values({ id: 99, firstName: "Old", lastName: "State" });
+    await source.update(person).set({ birthDate: "vers 1815" }).where(eq(person.id, 7));
+    await source.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 7, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    });
+    await target.insert(person).values({ id: 99, firstName: "Old", lastName: "State", birthDate: "après 1900" });
+    await target.insert(genealogicalDate).values({
+      ownerKind: "person", ownerId: 99, field: "birth_date", original: "après 1900",
+      qualification: "after", precision: "year", lowerBound: "1901-01-01", upperBound: null,
+    });
     await writeFile(join(targetUploads, "old.txt"), "old");
     const archive = await createBackup(source, sourceUploads);
 
@@ -197,6 +330,9 @@ describe("complete backup and restore", () => {
       coordinator,
     })).rejects.toThrow(/failpoint/);
     expect((await target.select().from(person)).map((row) => row.id)).toEqual([99]);
+    expect(await target.select().from(genealogicalDate)).toEqual([
+      expect.objectContaining({ ownerKind: "person", ownerId: 99, qualification: "after", original: "après 1900" }),
+    ]);
     expect(await readFile(join(targetUploads, "old.txt"), "utf8")).toBe("old");
     expect((await readdir(safetyDir)).length).toBe(1);
     await expect(coordinator.runExclusive(async () => "released")).resolves.toBe("released");

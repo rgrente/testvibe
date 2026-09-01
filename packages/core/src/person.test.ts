@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { Database } from "@testvibe/db";
+import { genealogicalDate, type Database } from "@testvibe/db";
 import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson, getPersonById, listPersons, updatePerson, deletePerson } from "./person.js";
 import { createEvent, listEventsByPerson } from "./event.js";
@@ -11,6 +11,18 @@ describe("Person CRUD", () => {
 
   beforeEach(async () => {
     db = await createTestDb();
+  });
+
+  it("persiste une date qualifiée et rejette une date grégorienne impossible sans écriture", async () => {
+    const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace", birthDate: "vers 1815" });
+    expect((await getPersonById(db, created.id)).birthDate).toBe("vers 1815");
+    expect(await db.select().from(genealogicalDate)).toEqual(expect.arrayContaining([expect.objectContaining({
+      ownerKind: "person", ownerId: created.id, field: "birth_date", original: "vers 1815",
+      qualification: "about", precision: "year", lowerBound: "1814-01-01", upperBound: "1816-12-31",
+    })]));
+    const before = await listPersons(db);
+    await expect(createPerson(db, { firstName: "X", lastName: "Y", birthDate: "1950-02-30" })).rejects.toBeInstanceOf(ValidationError);
+    expect(await listPersons(db)).toEqual(before);
   });
 
   it("crée une Person nominale et la relit par id", async () => {
@@ -40,6 +52,39 @@ describe("Person CRUD", () => {
     const updated = await updatePerson(db, created.id, { deathDate: "1852-11-27" });
     expect(updated.deathDate).toBe("1852-11-27");
     expect(updated.firstName).toBe("Ada"); // inchangé
+  });
+
+  it("conserve une qualification legacy tant que la date n'est pas explicitement validée", async () => {
+    const created = await createPerson(db, {
+      firstName: "Legacy",
+      lastName: "Person",
+      birthDate: "1950-01-01",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updatePerson(db, created.id, { firstName: "Renamed" });
+
+    expect(updated.birthDateQualification).toBe("legacy_unresolved");
+  });
+
+  it.each([
+    { field: "birthDate" as const, eventType: "naissance" as const },
+    { field: "deathDate" as const, eventType: "décès" as const },
+  ])("reclasse la date $field de la Person et de son événement après validation explicite", async ({ field, eventType }) => {
+    const date = "1950-01-01";
+    const created = await createPerson(db, {
+      firstName: "Legacy",
+      lastName: "Validated",
+      [field]: date,
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updatePerson(db, created.id, { [field]: date });
+    const biographicalEvent = (await listEventsByPerson(db, created.id)).find(({ type }) => type === eventType);
+
+    expect(field === "birthDate" ? updated.birthDateQualification : updated.deathDateQualification).toBe("exact");
+    expect(biographicalEvent?.dateQualification).toBe("exact");
+    expect(biographicalEvent?.datePrecision).toBe("day");
   });
 
   it("persiste puis efface un nom de naissance optionnel", async () => {
@@ -88,6 +133,18 @@ describe("Person CRUD", () => {
     const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
     await deletePerson(db, created.id);
     await expect(getPersonById(db, created.id)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("supprime atomiquement les métadonnées des événements cascadés", async () => {
+    const created = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+    });
+
+    await deletePerson(db, created.id);
+
+    expect(await db.select().from(genealogicalDate)).toEqual([]);
   });
 
   it("rejette la lecture d'une Person inexistante (NotFoundError)", async () => {

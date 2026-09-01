@@ -86,6 +86,18 @@ describe("upcomingFamilyAnniversaries", () => {
     expect(upcomingFamilyAnniversaries(facts, [alice, incomplete], "2026-09-01", 7)).toEqual([]);
   });
 
+  it("exclut une date complète legacy_unresolved des anniversaires à venir", () => {
+    const migrated = {
+      ...person(1, "Alice", "Alpha"),
+      birthDate: "1950-09-02",
+      birthDateQualification: "legacy_unresolved" as const,
+    };
+
+    const facts = projectFamilyFacts([migrated], [], []);
+
+    expect(upcomingFamilyAnniversaries(facts, [migrated], "2026-09-01", 2)).toEqual([]);
+  });
+
   it("gère le passage d'année et le 29 février", () => {
     const newYear = { ...person(1, "Alice", "Alpha"), birthDate: "2000-01-01" };
     const leapDay = { ...person(2, "Bob", "Beta"), birthDate: "2000-02-29" };

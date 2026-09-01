@@ -130,8 +130,10 @@ export function calculateFamilyStatistics(
   const lifeSpans: number[] = [];
 
   for (const person of persons) {
-    const birth = parseIsoDate(person.birthDate);
-    const death = parseIsoDate(person.deathDate);
+    const birth = person.birthDateQualification && person.birthDateQualification !== "exact"
+      ? null : parseIsoDate(person.birthDate);
+    const death = person.deathDateQualification && person.deathDateQualification !== "exact"
+      ? null : parseIsoDate(person.deathDate);
     if (birth && !person.deathDate && compareDateParts(birth, today) <= 0) {
       const age = completedYears(birth, today);
       const decade = Math.floor(age / 10) * 10;

@@ -5,6 +5,7 @@ import {
   db as defaultDb,
   event,
   filiation,
+  genealogicalDate,
   media,
   person,
   unionPartner,
@@ -15,12 +16,13 @@ import {
   genealogyOperationCoordinator,
   type OperationCoordinator,
 } from "./operation-coordinator.js";
+import { parseGenealogicalDate } from "./genealogical-date.js";
 
 const FORMAT = "testvibe-backup";
 const CURRENT_MAJOR = 1;
-const CURRENT_MINOR = 1;
+const CURRENT_MINOR = 2;
 const CURRENT_VERSION = `${CURRENT_MAJOR}.${CURRENT_MINOR}`;
-const TABLE_NAMES = ["person", "unions", "union_partner", "filiation", "event", "media"] as const;
+const TABLE_NAMES = ["person", "unions", "union_partner", "filiation", "event", "media", "genealogical_date"] as const;
 type TableName = (typeof TABLE_NAMES)[number];
 
 type BackupTables = {
@@ -30,7 +32,34 @@ type BackupTables = {
   filiation: Array<typeof filiation.$inferSelect>;
   event: Array<typeof event.$inferSelect>;
   media: Array<typeof media.$inferSelect>;
+  genealogical_date: Array<typeof genealogicalDate.$inferSelect>;
 };
+
+function legacyDateMetadata(tables: BackupTables): BackupTables["genealogical_date"] {
+  const values: Array<{ ownerKind: "person" | "union" | "event"; ownerId: number; field: string; original: string }> = [];
+  for (const row of tables.person) {
+    if (row.birthDate) values.push({ ownerKind: "person", ownerId: row.id, field: "birth_date", original: row.birthDate });
+    if (row.deathDate) values.push({ ownerKind: "person", ownerId: row.id, field: "death_date", original: row.deathDate });
+  }
+  for (const row of tables.unions) {
+    if (row.startDate) values.push({ ownerKind: "union", ownerId: row.id, field: "start_date", original: row.startDate });
+    if (row.endDate) values.push({ ownerKind: "union", ownerId: row.id, field: "end_date", original: row.endDate });
+  }
+  for (const row of tables.event) {
+    if (row.eventDate) values.push({ ownerKind: "event", ownerId: row.id, field: "event_date", original: row.eventDate });
+  }
+  return values.map((value, index) => {
+    const parsed = parseGenealogicalDate(value.original);
+    return {
+      id: index + 1,
+      ...value,
+      qualification: /^\d{4}-01-01$/.test(value.original) ? "legacy_unresolved" : parsed.qualification,
+      precision: parsed.precision,
+      lowerBound: parsed.lower,
+      upperBound: parsed.upper,
+    };
+  });
+}
 
 type ArchiveEntry = { path: string; size: number; sha256: string };
 type BackupEnvelope = {
@@ -68,15 +97,24 @@ function safeArchivePath(path: string): boolean {
 }
 
 async function readTables(db: Database): Promise<BackupTables> {
-  const [persons, unionRows, partners, filiations, events, mediaRows] = await Promise.all([
+  const [persons, unionRows, partners, filiations, events, mediaRows, dateRows] = await Promise.all([
     db.select().from(person),
     db.select().from(unions),
     db.select().from(unionPartner),
     db.select().from(filiation),
     db.select().from(event),
     db.select().from(media),
+    db.select().from(genealogicalDate),
   ]);
-  return { person: persons, unions: unionRows, union_partner: partners, filiation: filiations, event: events, media: mediaRows };
+  return {
+    person: persons,
+    unions: unionRows,
+    union_partner: partners,
+    filiation: filiations,
+    event: events,
+    media: mediaRows,
+    genealogical_date: dateRows,
+  };
 }
 
 function validateLogicalDatabase(tables: BackupTables): void {
@@ -139,6 +177,56 @@ function validateLogicalDatabase(tables: BackupTables): void {
       || !visibility(row.visibility)
     );
   })) throw new Error("Invalid logical database: invalid media.");
+
+  const dateIds = tables.genealogical_date.map((row) => row.id);
+  const dateKeys = tables.genealogical_date.map((row) => `${row.ownerKind}:${row.ownerId}:${row.field}`);
+  if (dateIds.some((id) => !validId(id)) || !unique(dateIds) || !unique(dateKeys)) {
+    throw new Error("Invalid logical database: invalid genealogical date identifier.");
+  }
+  const personById = new Map(tables.person.map((row) => [row.id, row]));
+  const unionById = new Map(tables.unions.map((row) => [row.id, row]));
+  const eventById = new Map(tables.event.map((row) => [row.id, row]));
+  const expectedDateKeys = [
+    ...tables.person.flatMap((row) => [
+      ...(row.birthDate ? [`person:${row.id}:birth_date`] : []),
+      ...(row.deathDate ? [`person:${row.id}:death_date`] : []),
+    ]),
+    ...tables.unions.flatMap((row) => [
+      ...(row.startDate ? [`union:${row.id}:start_date`] : []),
+      ...(row.endDate ? [`union:${row.id}:end_date`] : []),
+    ]),
+    ...tables.event.flatMap((row) => row.eventDate ? [`event:${row.id}:event_date`] : []),
+  ];
+  const archivedDateKeys = new Set(dateKeys);
+  if (expectedDateKeys.some((key) => !archivedDateKeys.has(key))) {
+    throw new Error("Invalid logical database: missing genealogical date metadata.");
+  }
+  try {
+    for (const row of tables.genealogical_date) {
+      const ownerValue = row.ownerKind === "person"
+        ? (row.field === "birth_date" ? personById.get(row.ownerId)?.birthDate
+          : row.field === "death_date" ? personById.get(row.ownerId)?.deathDate : undefined)
+        : row.ownerKind === "union"
+          ? (row.field === "start_date" ? unionById.get(row.ownerId)?.startDate
+            : row.field === "end_date" ? unionById.get(row.ownerId)?.endDate : undefined)
+          : row.ownerKind === "event" && row.field === "event_date"
+            ? eventById.get(row.ownerId)?.eventDate
+            : undefined;
+      if (ownerValue !== row.original) throw new Error("owner mismatch");
+      const parsed = parseGenealogicalDate(row.original);
+      const expectedQualification = /^\d{4}-01-01$/.test(row.original) && row.qualification === "legacy_unresolved"
+        ? "legacy_unresolved"
+        : parsed.qualification;
+      if (
+        row.qualification !== expectedQualification
+        || row.precision !== parsed.precision
+        || row.lowerBound !== parsed.lower
+        || row.upperBound !== parsed.upper
+      ) throw new Error("metadata mismatch");
+    }
+  } catch {
+    throw new Error("Invalid logical database: invalid genealogical date.");
+  }
 }
 
 async function createBackupUnlocked(db: Database, uploadDir: string, now: Date): Promise<Buffer> {
@@ -217,6 +305,10 @@ function decodeArchive(archive: Buffer): { envelope: BackupEnvelope; tables: Bac
   } catch {
     throw new Error("Invalid logical database.");
   }
+  if (minor < 2 && !Array.isArray(tables.genealogical_date)) {
+    tables.genealogical_date = legacyDateMetadata(tables);
+    envelope.manifest.tableCounts.genealogical_date = tables.genealogical_date.length;
+  }
   for (const name of TABLE_NAMES) {
     if (!Array.isArray(tables[name]) || tables[name].length !== envelope.manifest.tableCounts[name]) throw new Error(`Invalid table count: ${name}`);
   }
@@ -253,6 +345,7 @@ type RestoreOptions = {
 
 async function replaceTables(db: Database, tables: BackupTables): Promise<void> {
   await db.delete(media);
+  await db.delete(genealogicalDate);
   await db.delete(event);
   await db.delete(filiation);
   await db.delete(unionPartner);
@@ -264,6 +357,7 @@ async function replaceTables(db: Database, tables: BackupTables): Promise<void> 
   if (tables.filiation.length) await db.insert(filiation).values(tables.filiation);
   if (tables.event.length) await db.insert(event).values(tables.event);
   if (tables.media.length) await db.insert(media).values(tables.media);
+  if (tables.genealogical_date.length) await db.insert(genealogicalDate).values(tables.genealogical_date);
 }
 
 export async function restoreBackup(

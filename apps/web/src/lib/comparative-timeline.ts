@@ -1,4 +1,5 @@
 import type { ComparativeTimelineRow, FamilyFactCategory, Person } from "@testvibe/core";
+import { parseFamilyDate } from "./family-date";
 
 export interface TimelineConnection {
   parentId: number;
@@ -53,20 +54,14 @@ export interface ComparativeTimelineSummary {
 }
 
 function dateValue(value: string | null): number | null {
-  const match = value?.match(/^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/);
-  if (!match) {
-    return null;
-  }
-
-  const year = Number(match[1]);
-  const month = Number(match[2] ?? "01");
-  const day = Number(match[3] ?? "01");
+  const parsed = parseFamilyDate(value);
+  const bound = parsed?.lower ?? parsed?.upper;
+  if (!bound) return null;
+  const year = Number(bound.slice(0, 4));
+  const month = Number(bound.slice(5, 7));
+  const day = Number(bound.slice(8, 10));
   const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
   const monthLengths = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-  if (month < 1 || month > 12 || day < 1 || day > monthLengths[month - 1]) {
-    return null;
-  }
-
   const elapsedDays = monthLengths.slice(0, month - 1).reduce((total, length) => total + length, 0) + day - 1;
   return year + elapsedDays / (leapYear ? 366 : 365);
 }

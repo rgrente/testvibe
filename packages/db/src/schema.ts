@@ -136,3 +136,23 @@ export const loginRateLimit = sqliteTable("login_rate_limit", {
   failures: integer("failures").notNull(),
   windowStartedAt: text("window_started_at").notNull(),
 });
+
+/** Métadonnées communes aux dates Person, Union et Event, sans altérer leurs valeurs historiques. */
+export const genealogicalDate = sqliteTable("genealogical_date", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerKind: text("owner_kind", { enum: ["person", "union", "event"] }).notNull(),
+  ownerId: integer("owner_id").notNull(),
+  field: text("field").notNull(),
+  original: text("original").notNull(),
+  qualification: text("qualification", { enum: ["exact", "about", "before", "after", "between", "legacy_unresolved"] }).notNull(),
+  precision: text("precision", { enum: ["year", "month", "day"] }).notNull(),
+  lowerBound: text("lower_bound"),
+  upperBound: text("upper_bound"),
+}, (table) => [
+  uniqueIndex("genealogical_date_owner_field_unique").on(table.ownerKind, table.ownerId, table.field),
+  index("genealogical_date_sort_idx").on(table.lowerBound, table.upperBound, table.qualification, table.ownerId),
+  check("genealogical_date_owner_valid", sql`${table.ownerKind} in ('person', 'union', 'event')`),
+  check("genealogical_date_qualification_valid", sql`${table.qualification} in ('exact', 'about', 'before', 'after', 'between', 'legacy_unresolved')`),
+  check("genealogical_date_precision_valid", sql`${table.precision} in ('year', 'month', 'day')`),
+  check("genealogical_date_bounds_ordered", sql`${table.lowerBound} is null or ${table.upperBound} is null or ${table.lowerBound} <= ${table.upperBound}`),
+]);

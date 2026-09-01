@@ -9,10 +9,9 @@ import { NotFoundError, ValidationError } from "./errors.js";
 import { listPersons } from "./person.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { listCanonicalFamilyFacts } from "./projection.js";
-
-function isValidDate(value: string): boolean {
-  return !Number.isNaN(Date.parse(value));
-}
+import { compareGenealogicalDates, parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, loadGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
+import { runTransaction } from "./transaction.js";
 
 function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
@@ -22,9 +21,7 @@ function assertValidEventInput(input: EventInput): void {
   if (!validTypes.includes(input.type as (typeof validTypes)[number])) {
     throw new ValidationError(`type invalide : ${input.type}`);
   }
-  if (input.eventDate != null && !isValidDate(input.eventDate)) {
-    throw new ValidationError(`eventDate invalide : ${input.eventDate}`);
-  }
+  if (input.eventDate != null) parseGenealogicalDate(input.eventDate);
   assertValidCoordinates(input.latitude, input.longitude);
   if (input.latitude != null && !input.place?.trim()) {
     throw new ValidationError("place est requis lorsque des coordonnées sont renseignées.");
@@ -34,7 +31,7 @@ function assertValidEventInput(input: EventInput): void {
   }
 }
 
-function toEvent(row: typeof event.$inferSelect): Event {
+function toEvent(row: typeof event.$inferSelect, date?: GenealogicalDate): Event {
   return {
     id: row.id,
     personId: row.personId,
@@ -42,6 +39,10 @@ function toEvent(row: typeof event.$inferSelect): Event {
     type: row.type as Event["type"],
     label: row.label ?? null,
     eventDate: row.eventDate ?? null,
+    dateQualification: date?.qualification,
+    datePrecision: date?.precision,
+    dateLowerBound: date?.lower,
+    dateUpperBound: date?.upper,
     description: row.description ?? null,
     place: row.place ?? null,
     latitude: row.latitude ?? null,
@@ -50,7 +51,7 @@ function toEvent(row: typeof event.$inferSelect): Event {
   };
 }
 
-export async function createEvent(db: Database, input: EventInput): Promise<Event> {
+export async function createEventInTransaction(db: Database, input: EventInput): Promise<Event> {
   assertValidEventInput(input);
   const [row] = await db
     .insert(event)
@@ -67,7 +68,12 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
       visibility: input.visibility ?? null,
     })
     .returning();
-  return toEvent(row);
+  await persistGenealogicalDate(db, "event", row.id, "event_date", input.eventDate ?? null);
+  return getEventById(db, row.id);
+}
+
+export async function createEvent(db: Database, input: EventInput): Promise<Event> {
+  return runTransaction(db, (transactionalDb) => createEventInTransaction(transactionalDb, input));
 }
 
 export async function getEventById(db: Database, id: number): Promise<Event> {
@@ -75,23 +81,45 @@ export async function getEventById(db: Database, id: number): Promise<Event> {
   if (!row) {
     throw new NotFoundError("Event", id);
   }
-  return toEvent(row);
+  const date = (await loadGenealogicalDates(db, "event", id)).get("event_date");
+  return toEvent(row, date);
 }
 
 export async function listEventsByPerson(db: Database, personId: number): Promise<Event[]> {
   const rows = await db.select().from(event).where(eq(event.personId, personId));
+  const values = await Promise.all(rows.map(async (row) => toEvent(
+    row,
+    (await loadGenealogicalDates(db, "event", row.id)).get("event_date"),
+  )));
   // Sort chronologically (nulls last)
-  rows.sort((a, b) => {
-    const da = a.eventDate ? new Date(a.eventDate).getTime() : Infinity;
-    const db2 = b.eventDate ? new Date(b.eventDate).getTime() : Infinity;
-    return da - db2;
-  });
-  return rows.map(toEvent);
+  values.sort((a, b) => compareGenealogicalDates(
+    eventGenealogicalDate(a),
+    eventGenealogicalDate(b),
+    String(a.id), String(b.id),
+  ));
+  return values;
 }
 
 export async function listAllEvents(db: Database): Promise<Event[]> {
   const rows = await db.select().from(event);
-  return rows.map(toEvent);
+  return Promise.all(rows.map(async (row) => toEvent(
+    row,
+    (await loadGenealogicalDates(db, "event", row.id)).get("event_date"),
+  )));
+}
+
+function eventGenealogicalDate(value: Event): GenealogicalDate | null {
+  if (!value.eventDate) return null;
+  if (value.dateQualification && value.datePrecision) {
+    return {
+      original: value.eventDate,
+      qualification: value.dateQualification,
+      precision: value.datePrecision,
+      lower: value.dateLowerBound ?? null,
+      upper: value.dateUpperBound ?? null,
+    };
+  }
+  return parseGenealogicalDate(value.eventDate);
 }
 
 /**
@@ -113,6 +141,7 @@ export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineIt
         type: fact.category,
         label: fact.label,
         eventDate: fact.date,
+        dateQualification: fact.dateQualification,
         description: fact.description,
       },
       person,
@@ -120,7 +149,7 @@ export async function listFamilyTimeline(db: Database): Promise<FamilyTimelineIt
   }));
 }
 
-export async function updateEvent(
+async function updateEventInTransaction(
   db: Database,
   id: number,
   input: Partial<EventInput>,
@@ -155,12 +184,24 @@ export async function updateEvent(
     })
     .where(eq(event.id, id))
     .returning();
-  return toEvent(row);
+  if (input.eventDate !== undefined) {
+    await persistGenealogicalDate(db, "event", row.id, "event_date", merged.eventDate ?? null);
+  }
+  return getEventById(db, row.id);
+}
+
+export async function updateEvent(db: Database, id: number, input: Partial<EventInput>): Promise<Event> {
+  return runTransaction(db, (transactionalDb) => updateEventInTransaction(transactionalDb, id, input));
+}
+
+async function deleteEventInTransaction(db: Database, id: number): Promise<void> {
+  await getEventById(db, id);
+  await deleteGenealogicalDates(db, "event", id);
+  await db.delete(event).where(eq(event.id, id));
 }
 
 export async function deleteEvent(db: Database, id: number): Promise<void> {
-  await getEventById(db, id);
-  await db.delete(event).where(eq(event.id, id));
+  return runTransaction(db, (transactionalDb) => deleteEventInTransaction(transactionalDb, id));
 }
 
 /**

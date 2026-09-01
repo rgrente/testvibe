@@ -1,3 +1,5 @@
+import type { GenealogicalDatePrecision, GenealogicalDateQualification } from "./genealogical-date.js";
+
 /**
  * Types de domaine partagés par les entités Person, Union et Filiation.
  * Volontairement indépendants du schéma Drizzle (packages/db) pour
@@ -26,6 +28,10 @@ export interface FamilyFact {
   personIds: number[];
   date: string | null;
   eventDate: string | null;
+  dateQualification?: GenealogicalDateQualification | null;
+  datePrecision?: GenealogicalDatePrecision | null;
+  dateLowerBound?: string | null;
+  dateUpperBound?: string | null;
   label: string | null;
   description: string | null;
   place: string | null;
@@ -44,6 +50,14 @@ export interface Person {
   birthName: string | null;
   birthDate: string | null;
   deathDate: string | null;
+  birthDateQualification?: GenealogicalDateQualification | null;
+  birthDatePrecision?: GenealogicalDatePrecision | null;
+  birthDateLowerBound?: string | null;
+  birthDateUpperBound?: string | null;
+  deathDateQualification?: GenealogicalDateQualification | null;
+  deathDatePrecision?: GenealogicalDatePrecision | null;
+  deathDateLowerBound?: string | null;
+  deathDateUpperBound?: string | null;
   gender: string | null;
   livingStatus?: LivingStatus | null;
   visibility?: Visibility | null;
@@ -65,6 +79,14 @@ export interface Union {
   type: UnionType;
   startDate: string | null;
   endDate: string | null;
+  startDateQualification?: GenealogicalDateQualification | null;
+  startDatePrecision?: GenealogicalDatePrecision | null;
+  startDateLowerBound?: string | null;
+  startDateUpperBound?: string | null;
+  endDateQualification?: GenealogicalDateQualification | null;
+  endDatePrecision?: GenealogicalDatePrecision | null;
+  endDateLowerBound?: string | null;
+  endDateUpperBound?: string | null;
   place: string | null;
   latitude: number | null;
   longitude: number | null;
@@ -108,6 +130,10 @@ export interface Event {
   type: EventType;
   label: string | null;
   eventDate: string | null;
+  dateQualification?: GenealogicalDateQualification | null;
+  datePrecision?: GenealogicalDatePrecision | null;
+  dateLowerBound?: string | null;
+  dateUpperBound?: string | null;
   description: string | null;
   place: string | null;
   latitude: number | null;
@@ -132,6 +158,7 @@ export interface FamilyTimelineEvent {
   type: FamilyFactCategory;
   label: string | null;
   eventDate: string | null;
+  dateQualification?: GenealogicalDateQualification | null;
   description: string | null;
 }
 

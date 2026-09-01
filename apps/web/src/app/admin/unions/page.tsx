@@ -3,6 +3,7 @@ import {
   adminCreateUnion,
   adminDeleteUnion,
   adminListPersons,
+  formatGenealogicalDateInput,
 } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -16,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 // ─── Server Actions ──────────────────────────────────────────────────────────
 
-async function createUnionAction(formData: FormData) {
+export async function createUnionAction(formData: FormData) {
   "use server";
   await requireAdminMutation();
   const startDate = formData.get("startDate")?.toString().trim() || null;
@@ -97,7 +98,8 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
             <input
               id="startDate"
               name="startDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -112,7 +114,8 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
             <input
               id="endDate"
               name="endDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -153,7 +156,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
                     <span className="font-medium text-slate-900">{u.type === "mariage" ? "Mariage" : u.type === "pacs" ? "Pacs" : "Union libre"} #{u.id}</span>
                     <span className="ml-2 text-sm text-slate-500">
                       {partners}
-                      {u.startDate ? ` (depuis ${u.startDate})` : ""}
+                      {u.startDate ? ` (depuis ${formatGenealogicalDateInput(u.startDate)})` : ""}
                       {u.place ? ` — ${u.place}` : ""}
                     </span>
                   </div>

@@ -1,4 +1,4 @@
-import { adminListPersons, adminCreatePerson, adminDeletePerson } from "@testvibe/core";
+import { adminListPersons, adminCreatePerson, adminDeletePerson, formatGenealogicalDateInput } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // ─── Server Actions ──────────────────────────────────────────────────────────
 
-async function createPersonAction(formData: FormData) {
+export async function createPersonAction(formData: FormData) {
   "use server";
   await requireAdminMutation();
   const firstName = formData.get("firstName")?.toString().trim() ?? "";
@@ -112,7 +112,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             <input
               id="birthDate"
               name="birthDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -123,7 +124,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
             <input
               id="deathDate"
               name="deathDate"
-              type="date"
+              type="text"
+              placeholder="1950, 1950-03, vers/avant/après 1950, entre 1950 et 1952"
               className="w-full rounded-sm border border-slate-300 px-3 py-2 text-sm"
             />
           </div>
@@ -181,8 +183,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
                     {p.firstName} {p.lastName}
                   </span>
                   <span className="ml-2 text-sm text-slate-500">
-                    {p.birthDate ? `né·e ${p.birthDate}` : ""}
-                    {p.deathDate ? ` — décédé·e ${p.deathDate}` : ""}
+                    {p.birthDate ? `né·e ${formatGenealogicalDateInput(p.birthDate)}` : ""}
+                    {p.deathDate ? ` — décédé·e ${formatGenealogicalDateInput(p.deathDate)}` : ""}
                   </span>
                 </div>
                 <div className="flex gap-2">

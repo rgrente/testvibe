@@ -109,6 +109,21 @@ describe("importGedcom", () => {
     db = await createTestDb();
   });
 
+  it("préserve ABT, BEF, AFT et BET…AND et annule atomiquement une date invalide", async () => {
+    const qualified = `0 HEAD\n0 @I1@ INDI\n1 NAME A /Test/\n1 BIRT\n2 DATE ABT 1950\n1 DEAT\n2 DATE AFT MAR 2000\n1 EVEN\n2 TYPE Source\n2 DATE BET 1970 AND 1972\n0 @I2@ INDI\n1 NAME B /Test/\n1 BIRT\n2 DATE BEF 1940\n0 TRLR`;
+    await importGedcom(db, qualified);
+    expect((await listPersons(db)).map((person) => person.birthDate)).toEqual(["vers 1950", "avant 1940"]);
+    const exported = await exportGedcom(db);
+    expect(exported).toContain("2 DATE ABT 1950");
+    expect(exported).toContain("2 DATE BEF 1940");
+    expect(exported).toContain("2 DATE AFT MAR 2000");
+    expect(exported).toContain("2 DATE BET 1970 AND 1972");
+    const before = await genealogyState(db);
+    await expect(importGedcom(db, `0 HEAD\n0 @I3@ INDI\n1 NAME C /Test/\n1 BIRT\n2 DATE 30 FEB 1950\n0 TRLR`))
+      .rejects.toBeInstanceOf(ValidationError);
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
   it("importe un fichier GEDCOM multi-générations et crée les Person/Union/Filiation", async () => {
     await importGedcom(db, VALID_GEDCOM);
 

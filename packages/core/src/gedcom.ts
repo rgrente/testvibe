@@ -18,6 +18,7 @@ import { createEvent, updateEvent, deleteEvent, listAllEvents, listEventsByPerso
 import type { FiliationRole } from "./types.js";
 import { projectFamilyFacts } from "./projection.js";
 import { runTransaction } from "./transaction.js";
+import { fromGedcomDate, parseGenealogicalDate, toGedcomDate as formatGedcomDate } from "./genealogical-date.js";
 
 // ─── Types internes ───────────────────────────────────────────────────────────
 
@@ -95,40 +96,7 @@ function parseLine(raw: string): GedcomLine | null {
  */
 function parseGedcomDate(raw: string): string | null {
   if (!raw) return null;
-
-  const MONTHS: Record<string, string> = {
-    JAN: "01", FEB: "02", MAR: "03", APR: "04", MAY: "05", JUN: "06",
-    JUL: "07", AUG: "08", SEP: "09", OCT: "10", NOV: "11", DEC: "12",
-  };
-
-  // Format "DD MON YYYY"
-  const full = raw.match(/^(\d{1,2})\s+([A-Z]{3})\s+(\d{4})$/);
-  if (full) {
-    const month = MONTHS[full[2]];
-    if (!month) return null;
-    const day = full[1].padStart(2, "0");
-    return `${full[3]}-${month}-${day}`;
-  }
-
-  // Format "MON YYYY"
-  const monthYear = raw.match(/^([A-Z]{3})\s+(\d{4})$/);
-  if (monthYear) {
-    const month = MONTHS[monthYear[1]];
-    if (!month) return null;
-    return `${monthYear[2]}-${month}`;
-  }
-
-  // Format "YYYY" seul
-  const yearOnly = raw.match(/^(\d{4})$/);
-  if (yearOnly) {
-    return yearOnly[1];
-  }
-
-  // Format ISO direct
-  const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  if (iso) return raw;
-
-  return null;
+  return fromGedcomDate(raw).original;
 }
 
 /**
@@ -136,20 +104,7 @@ function parseGedcomDate(raw: string): string | null {
  */
 function toGedcomDate(isoDate: string | null): string | null {
   if (!isoDate) return null;
-
-  const MONTHS_REV: Record<string, string> = {
-    "01": "JAN", "02": "FEB", "03": "MAR", "04": "APR",
-    "05": "MAY", "06": "JUN", "07": "JUL", "08": "AUG",
-    "09": "SEP", "10": "OCT", "11": "NOV", "12": "DEC",
-  };
-
-  const m = isoDate.match(/^(\d{4})-(\d{2})(?:-(\d{2}))?$/);
-  if (!m) return isoDate;
-  const month = MONTHS_REV[m[2]];
-  if (!month) return isoDate;
-  if (!m[3]) return `${month} ${m[1]}`;
-  const day = parseInt(m[3], 10).toString();
-  return `${day} ${month} ${m[1]}`;
+  return formatGedcomDate(parseGenealogicalDate(isoDate));
 }
 
 /**
