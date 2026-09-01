@@ -26,6 +26,17 @@ function isoDate(year: number, month: number, day: number): string {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+function daysInMonth(year: number, month: number): number {
+  if (month === 2) return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 29 : 28;
+  return [4, 6, 9, 11].includes(month) ? 30 : 31;
+}
+
+function shiftBoundToYear(value: string, year: number): string {
+  const month = Number(value.slice(5, 7));
+  const day = Math.min(Number(value.slice(8, 10)), daysInMonth(year, month));
+  return isoDate(year, month, day);
+}
+
 function previousDay(value: string): string {
   const date = new Date(`${value}T00:00:00.000Z`);
   date.setUTCDate(date.getUTCDate() - 1);
@@ -45,7 +56,7 @@ function parseSimpleDate(value: string): ParsedSimpleDate {
   const month = Number(match[2] ?? 1);
   const day = Number(match[3] ?? 1);
   if (year < 1 || month < 1 || month > 12) throw new ValidationError(`Date généalogique invalide : ${value}`);
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const lastDay = daysInMonth(year, month);
   if (day < 1 || day > lastDay) throw new ValidationError(`Date généalogique invalide : ${value}`);
   const precision: GenealogicalDatePrecision = match[3] ? "day" : match[2] ? "month" : "year";
   return {
@@ -79,8 +90,8 @@ export function parseGenealogicalDate(original: string): GenealogicalDate {
     original,
     qualification: "about",
     precision: simple.precision,
-    lower: `${String(lowerYear).padStart(4, "0")}${simple.lower.slice(4)}`,
-    upper: `${String(upperYear).padStart(4, "0")}${simple.upper.slice(4)}`,
+    lower: shiftBoundToYear(simple.lower, lowerYear),
+    upper: shiftBoundToYear(simple.upper, upperYear),
   };
 }
 

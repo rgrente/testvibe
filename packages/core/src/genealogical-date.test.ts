@@ -25,6 +25,13 @@ describe("GenealogicalDate", () => {
     (value) => expect(() => parseGenealogicalDate(value)).toThrow(),
   );
 
+  it.each([
+    ["vers 2024-02-29", "2023-02-28", "2025-02-28"],
+    ["vers 2024-02", "2023-02-01", "2025-02-28"],
+  ])("conserve des bornes grégoriennes valides et inclusives pour %s", (original, lower, upper) => {
+    expect(parseGenealogicalDate(original)).toMatchObject({ lower, upper });
+  });
+
   it("affiche fidèlement les formes françaises", () => {
     expect(formatGenealogicalDate(parseGenealogicalDate("1950"))).toBe("1950");
     expect(formatGenealogicalDate(parseGenealogicalDate("1950-03"))).toBe("mars 1950");
