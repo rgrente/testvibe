@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.18.0](https://github.com/rgrente/testvibe/compare/v1.17.0...v1.18.0) (2026-09-01)
+
+
+### Features
+
+* **core:** add complete backup and restore ([#107](https://github.com/rgrente/testvibe/issues/107)) ([b158f09](https://github.com/rgrente/testvibe/commit/b158f096caa63612388fed8c3e5411967a7f9f11)), closes [#42](https://github.com/rgrente/testvibe/issues/42)
+
 # [1.17.0](https://github.com/rgrente/testvibe/compare/v1.16.0...v1.17.0) (2026-09-01)
 
 
