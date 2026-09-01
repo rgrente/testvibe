@@ -105,14 +105,25 @@ export function legacyUnresolvedDate(original: string): GenealogicalDate {
   return { original, qualification: "legacy_unresolved", precision: "day", lower: simple.lower, upper: simple.upper };
 }
 
-export function formatGenealogicalDate(value: GenealogicalDate | null, locale = "fr-FR"): string {
-  if (!value) return "Date inconnue";
-  if (value.qualification !== "exact") return value.original;
-  if (value.precision === "year") return value.original;
-  const date = new Date(`${value.lower}T00:00:00.000Z`);
-  return new Intl.DateTimeFormat(locale, value.precision === "month"
+function formatSimpleDate(value: string, locale: string): string {
+  const parsed = parseSimpleDate(value);
+  if (parsed.precision === "year") return value;
+  const date = new Date(`${parsed.lower}T00:00:00.000Z`);
+  return new Intl.DateTimeFormat(locale, parsed.precision === "month"
     ? { month: "long", year: "numeric", timeZone: "UTC" }
     : { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" }).format(date);
+}
+
+export function formatGenealogicalDate(value: GenealogicalDate | null, locale = "fr-FR"): string {
+  if (!value) return "Date inconnue";
+  if (value.qualification === "legacy_unresolved") return value.original;
+  if (value.qualification === "between") {
+    const match = /^entre (.+) et (.+)$/.exec(value.original)!;
+    return `entre ${formatSimpleDate(match[1], locale)} et ${formatSimpleDate(match[2], locale)}`;
+  }
+  const qualified = /^(vers|avant|après) (.+)$/.exec(value.original);
+  if (qualified) return `${qualified[1]} ${formatSimpleDate(qualified[2], locale)}`;
+  return formatSimpleDate(value.original, locale);
 }
 
 const QUALIFICATION_ORDER: Record<GenealogicalDateQualification, number> = {

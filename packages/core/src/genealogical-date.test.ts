@@ -55,10 +55,24 @@ describe("GenealogicalDate", () => {
     expect(() => parseGenealogicalDate(original)).toThrow(ValidationError);
   });
 
-  it("affiche fidèlement les formes françaises", () => {
-    expect(formatGenealogicalDate(parseGenealogicalDate("1950"))).toBe("1950");
-    expect(formatGenealogicalDate(parseGenealogicalDate("1950-03"))).toBe("mars 1950");
-    expect(formatGenealogicalDate(parseGenealogicalDate("vers 1950"))).toBe("vers 1950");
+  it.each([
+    ["1950", "1950"],
+    ["1950-03", "mars 1950"],
+    ["1950-03-14", "14 mars 1950"],
+    ["vers 1950", "vers 1950"],
+    ["vers 1950-03", "vers mars 1950"],
+    ["vers 1950-03-14", "vers 14 mars 1950"],
+    ["avant 1950", "avant 1950"],
+    ["avant 1950-03", "avant mars 1950"],
+    ["avant 1950-03-14", "avant 14 mars 1950"],
+    ["après 1950", "après 1950"],
+    ["après 1950-03", "après mars 1950"],
+    ["après 1950-03-14", "après 14 mars 1950"],
+    ["entre 1950 et 1952", "entre 1950 et 1952"],
+    ["entre 1950-03 et 1952-04", "entre mars 1950 et avril 1952"],
+    ["entre 1950-03-14 et 1952-04-15", "entre 14 mars 1950 et 15 avril 1952"],
+  ])("affiche fidèlement %s en français", (original, expected) => {
+    expect(formatGenealogicalDate(parseGenealogicalDate(original))).toBe(expected);
   });
 
   it("trie par borne basse, haute, qualification puis identifiant et place les inconnues en dernier", () => {
