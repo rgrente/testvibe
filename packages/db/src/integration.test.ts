@@ -395,11 +395,13 @@ describe("SQLite/libSQL integration", () => {
   it("migrates partial dates, marks ambiguous 01-01, supports retry and restores exact backup", async () => {
     const directory = await temporaryDirectory();
     const legacyMigrations = resolve(directory, "migrations-0009-dates");
+    const retryMigrations = resolve(directory, "migrations-0010-retry");
     const databasePath = resolve(directory, "qualified-dates.db");
     const backupPath = resolve(directory, "qualified-dates-backup");
     const uploadsPath = resolve(directory, "uploads");
     await mkdir(uploadsPath);
     await cp(migrationsFolder, legacyMigrations, { recursive: true });
+    await cp(migrationsFolder, retryMigrations, { recursive: true });
     await rm(resolve(legacyMigrations, "0010_fresh_maria_hill.sql"));
     await rm(resolve(legacyMigrations, "meta/0010_snapshot.json"));
     const journalPath = resolve(legacyMigrations, "meta/_journal.json");
@@ -414,10 +416,24 @@ describe("SQLite/libSQL integration", () => {
     const databaseBytesBefore = await readFile(databasePath);
     await backupMigrationState({ databasePath, uploadsPath, backupPath });
 
+    const retryMigrationPath = resolve(retryMigrations, "0010_fresh_maria_hill.sql");
+    const retryMigration = await readFile(retryMigrationPath, "utf8");
+    await writeFile(
+      retryMigrationPath,
+      `${retryMigration}\n--> statement-breakpoint\nINSERT INTO migration_retry_fault(value) VALUES ('controlled failure');\n`,
+    );
+
     const upgraded = createDb(`file:${databasePath}`);
     try {
-      await migrate(upgraded.db, { migrationsFolder });
-      await migrate(upgraded.db, { migrationsFolder });
+      await expect(migrate(upgraded.db, { migrationsFolder: retryMigrations })).rejects.toThrow(/migration_retry_fault/);
+      expect((await upgraded.client.execute("select birth_date, death_date from person order by id")).rows)
+        .toMatchObject([{ birth_date: "1950-01-01", death_date: "2000-03" }, { birth_date: "1940", death_date: null }]);
+      expect((await upgraded.client.execute("select name from sqlite_master where type = 'table' and name = 'genealogical_date'")).rows)
+        .toEqual([]);
+
+      await writeFile(retryMigrationPath, retryMigration);
+      await migrate(upgraded.db, { migrationsFolder: retryMigrations });
+      await migrate(upgraded.db, { migrationsFolder: retryMigrations });
       expect((await upgraded.client.execute("select birth_date, death_date from person order by id")).rows)
         .toMatchObject([{ birth_date: "1950-01-01", death_date: "2000-03" }, { birth_date: "1940", death_date: null }]);
       expect((await upgraded.client.execute("select original, qualification, precision, lower_bound, upper_bound from genealogical_date order by owner_id, field")).rows)
