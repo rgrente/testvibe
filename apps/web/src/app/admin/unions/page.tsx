@@ -3,6 +3,7 @@ import {
   adminCreateUnion,
   adminDeleteUnion,
   adminListPersons,
+  formatGenealogicalDateInput,
 } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -155,7 +156,7 @@ export default async function UnionsPage({ searchParams }: UnionsPageProps) {
                     <span className="font-medium text-slate-900">{u.type === "mariage" ? "Mariage" : u.type === "pacs" ? "Pacs" : "Union libre"} #{u.id}</span>
                     <span className="ml-2 text-sm text-slate-500">
                       {partners}
-                      {u.startDate ? ` (depuis ${u.startDate})` : ""}
+                      {u.startDate ? ` (depuis ${formatGenealogicalDateInput(u.startDate)})` : ""}
                       {u.place ? ` — ${u.place}` : ""}
                     </span>
                   </div>

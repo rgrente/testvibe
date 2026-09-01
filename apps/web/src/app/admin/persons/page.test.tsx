@@ -6,6 +6,7 @@ vi.mock("@testvibe/core", () => ({
   adminListPersons: vi.fn(async () => []),
   adminCreatePerson: vi.fn(),
   adminDeletePerson: vi.fn(),
+  formatGenealogicalDateInput: vi.fn((value: string) => value === "1815-03" ? "mars 1815" : value),
 }));
 vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
@@ -42,12 +43,12 @@ describe("PersonsPage", () => {
       firstName: "Ada",
       lastName: "Lovelace",
       birthName: null,
-      birthDate: "vers 1815",
+      birthDate: "1815-03",
       deathDate: "avant 1853",
       gender: null,
     }]);
     render(await PersonsPage({ searchParams: Promise.resolve({}) }));
-    expect(screen.getByText(/né·e vers 1815/)).toBeInTheDocument();
+    expect(screen.getByText(/né·e mars 1815/)).toBeInTheDocument();
 
     const formData = new FormData();
     formData.set("firstName", "Ada");

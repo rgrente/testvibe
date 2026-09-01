@@ -1,4 +1,4 @@
-import { adminListPersons, adminCreatePerson, adminDeletePerson } from "@testvibe/core";
+import { adminListPersons, adminCreatePerson, adminDeletePerson, formatGenealogicalDateInput } from "@testvibe/core";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -183,8 +183,8 @@ export default async function PersonsPage({ searchParams }: PersonsPageProps) {
                     {p.firstName} {p.lastName}
                   </span>
                   <span className="ml-2 text-sm text-slate-500">
-                    {p.birthDate ? `né·e ${p.birthDate}` : ""}
-                    {p.deathDate ? ` — décédé·e ${p.deathDate}` : ""}
+                    {p.birthDate ? `né·e ${formatGenealogicalDateInput(p.birthDate)}` : ""}
+                    {p.deathDate ? ` — décédé·e ${formatGenealogicalDateInput(p.deathDate)}` : ""}
                   </span>
                 </div>
                 <div className="flex gap-2">
