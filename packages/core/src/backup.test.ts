@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { adminSession, event, filiation, loginRateLimit, media, person, unionPartner, unions } from "@testvibe/db";
 import { createTestDb } from "./test-utils.js";
 import { adminRestoreBackup, backupFileOps, createBackup, restoreBackup, validateBackup } from "./backup.js";
+import { createOperationCoordinator } from "./operation-coordinator.js";
 
 const dirs: string[] = [];
 async function tempDir() {
@@ -46,6 +47,44 @@ function rewriteTables(archive: Buffer, mutate: (tables: Record<string, Array<Re
 }
 
 describe("complete backup and restore", () => {
+  it("waits for a coordinated genealogy mutation before reading database and media", async () => {
+    const db = await createTestDb();
+    const uploads = await tempDir();
+    const coordinator = createOperationCoordinator();
+    let mutationReady!: () => void;
+    const mutationStarted = new Promise<void>((resolve) => { mutationReady = resolve; });
+    let finishMutation!: () => void;
+    const mayFinish = new Promise<void>((resolve) => { finishMutation = resolve; });
+
+    const mutation = coordinator.runExclusive(async () => {
+      await db.insert(person).values({ id: 1, firstName: "Coherent", lastName: "Snapshot" });
+      await db.insert(media).values({
+        id: 1,
+        personId: 1,
+        filename: "coherent.txt",
+        originalName: "coherent.txt",
+        mimeType: "text/plain",
+        size: 8,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      });
+      mutationReady();
+      await mayFinish;
+      await writeFile(join(uploads, "coherent.txt"), "coherent");
+    });
+    await mutationStarted;
+
+    let backupFinished = false;
+    const backup = createBackup(db, uploads, new Date(), coordinator).then((archive) => {
+      backupFinished = true;
+      return archive;
+    });
+    await Promise.resolve();
+    expect(backupFinished).toBe(false);
+    finishMutation();
+    await mutation;
+    await expect(validateBackup(await backup)).resolves.toMatchObject({ mediaFiles: 1 });
+  });
+
   it("round-trips every genealogy table and media byte while excluding operational secrets", async () => {
     const source = await createTestDb();
     const target = await createTestDb();
@@ -136,7 +175,9 @@ describe("complete backup and restore", () => {
     }
   });
 
-  it("validation is write-free and a failed media switch rolls database and media back while retaining safety backup", async () => {
+  it.each(["after-staging", "after-current-media-moved", "after-media-switch"] as const)(
+    "validation is write-free and failure at %s rolls database and media back while retaining safety backup",
+    async (failpoint) => {
     const source = await createTestDb();
     const target = await createTestDb();
     const sourceUploads = await tempDir();
@@ -148,10 +189,17 @@ describe("complete backup and restore", () => {
     const archive = await createBackup(source, sourceUploads);
 
     await validateBackup(archive);
-    await expect(restoreBackup(target, targetUploads, archive, { safetyDir, confirm: "REPLACE", failpoint: "after-media-switch" })).rejects.toThrow(/failpoint/);
+    const coordinator = createOperationCoordinator();
+    await expect(restoreBackup(target, targetUploads, archive, {
+      safetyDir,
+      confirm: "REPLACE",
+      failpoint,
+      coordinator,
+    })).rejects.toThrow(/failpoint/);
     expect((await target.select().from(person)).map((row) => row.id)).toEqual([99]);
     expect(await readFile(join(targetUploads, "old.txt"), "utf8")).toBe("old");
     expect((await readdir(safetyDir)).length).toBe(1);
+    await expect(coordinator.runExclusive(async () => "released")).resolves.toBe("released");
   });
 
   it("restores the original media directory when installation fails after moving it aside", async () => {
@@ -174,5 +222,70 @@ describe("complete backup and restore", () => {
     expect((await target.select().from(person)).map((row) => row.id)).toEqual([99]);
     expect(await readFile(join(targetUploads, "old.txt"), "utf8")).toBe("old");
     expect((await readdir(safetyDir)).length).toBe(1);
+  });
+
+  it("keeps committed database and media together when rollback cleanup fails", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    await seedComplete(source, sourceUploads);
+    await target.insert(person).values({ id: 99, firstName: "Old", lastName: "State" });
+    await writeFile(join(targetUploads, "old.txt"), "old");
+
+    const archive = await createBackup(source, sourceUploads);
+    const result = await restoreBackup(target, targetUploads, archive, {
+      safetyDir,
+      confirm: "REPLACE",
+      failpoint: "rollback-cleanup-failure",
+    });
+
+    expect(result.cleanupPending).toBe(true);
+    expect(result.rollbackPath).toContain(".restore-rollback-");
+    expect((await target.select().from(person)).map((row) => row.id)).toEqual([7, 8]);
+    expect(await readFile(join(targetUploads, "portrait.png"))).toEqual(Buffer.from([1, 2, 3, 4]));
+    expect((await readdir(safetyDir)).length).toBe(1);
+  });
+
+  it("keeps mutations queued until restoration completes and releases the coordinator", async () => {
+    const source = await createTestDb();
+    const target = await createTestDb();
+    const sourceUploads = await tempDir();
+    const targetUploads = await tempDir();
+    const safetyDir = await tempDir();
+    const coordinator = createOperationCoordinator();
+    await seedComplete(source, sourceUploads);
+    await target.insert(person).values({ id: 99, firstName: "Old", lastName: "State" });
+    const archive = await createBackup(source, sourceUploads);
+    let staged!: () => void;
+    const stagingReached = new Promise<void>((resolve) => { staged = resolve; });
+    let continueRestore!: () => void;
+    const mayContinue = new Promise<void>((resolve) => { continueRestore = resolve; });
+
+    const restoration = restoreBackup(target, targetUploads, archive, {
+      safetyDir,
+      confirm: "REPLACE",
+      coordinator,
+      onPhase: async (phase) => {
+        if (phase === "after-staging") {
+          staged();
+          await mayContinue;
+        }
+      },
+    });
+    await stagingReached;
+    let mutationStarted = false;
+    const mutation = coordinator.runExclusive(async () => {
+      mutationStarted = true;
+      await target.insert(person).values({ id: 100, firstName: "After", lastName: "Restore" });
+    });
+    await Promise.resolve();
+    expect(mutationStarted).toBe(false);
+    continueRestore();
+    await restoration;
+    await mutation;
+    expect(mutationStarted).toBe(true);
+    expect((await target.select().from(person)).map((row) => row.id)).toEqual([7, 8, 100]);
   });
 });

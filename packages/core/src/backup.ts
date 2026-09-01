@@ -11,6 +11,10 @@ import {
   unions,
   type Database,
 } from "@testvibe/db";
+import {
+  genealogyOperationCoordinator,
+  type OperationCoordinator,
+} from "./operation-coordinator.js";
 
 const FORMAT = "testvibe-backup";
 const CURRENT_MAJOR = 1;
@@ -137,7 +141,7 @@ function validateLogicalDatabase(tables: BackupTables): void {
   })) throw new Error("Invalid logical database: invalid media.");
 }
 
-export async function createBackup(db: Database, uploadDir: string, now = new Date()): Promise<Buffer> {
+async function createBackupUnlocked(db: Database, uploadDir: string, now: Date): Promise<Buffer> {
   const tables = await readTables(db);
   const files: Record<string, string> = {};
   const entries: ArchiveEntry[] = [];
@@ -166,6 +170,15 @@ export async function createBackup(db: Database, uploadDir: string, now = new Da
     files,
   };
   return Buffer.from(JSON.stringify(envelope));
+}
+
+export async function createBackup(
+  db: Database,
+  uploadDir: string,
+  now = new Date(),
+  coordinator: OperationCoordinator = genealogyOperationCoordinator,
+): Promise<Buffer> {
+  return coordinator.runExclusive(() => createBackupUnlocked(db, uploadDir, now));
 }
 
 function decodeArchive(archive: Buffer): { envelope: BackupEnvelope; tables: BackupTables } {
@@ -233,7 +246,9 @@ type RestoreOptions = {
   safetyDir: string;
   confirm: string;
   availableBytes?: number;
-  failpoint?: "after-staging" | "after-current-media-moved" | "after-media-switch";
+  failpoint?: "after-staging" | "after-current-media-moved" | "after-media-switch" | "rollback-cleanup-failure";
+  coordinator?: OperationCoordinator;
+  onPhase?: (phase: "after-staging" | "after-current-media-moved" | "after-media-switch") => Promise<void>;
 };
 
 async function replaceTables(db: Database, tables: BackupTables): Promise<void> {
@@ -256,46 +271,63 @@ export async function restoreBackup(
   uploadDir: string,
   archive: Buffer,
   options: RestoreOptions,
-): Promise<{ safetyBackupPath: string; report: BackupValidationReport }> {
+): Promise<{
+  safetyBackupPath: string;
+  report: BackupValidationReport;
+  cleanupPending: boolean;
+  rollbackPath?: string;
+}> {
   if (options.confirm !== "REPLACE") throw new Error("Strong replacement confirmation is required.");
-  const report = await validateBackup(archive, { availableBytes: options.availableBytes });
-  const { envelope, tables } = decodeArchive(archive);
-  await mkdir(uploadDir, { recursive: true });
-  await mkdir(options.safetyDir, { recursive: true });
-  const safety = await createBackup(db, uploadDir);
-  const safetyBackupPath = join(options.safetyDir, `testvibe-safety-${Date.now()}-${randomUUID()}.json`);
-  await writeFile(safetyBackupPath, safety, { flag: "wx" });
+  const coordinator = options.coordinator ?? genealogyOperationCoordinator;
+  return coordinator.runExclusive(async () => {
+    const report = await validateBackup(archive, { availableBytes: options.availableBytes });
+    const { envelope, tables } = decodeArchive(archive);
+    await mkdir(uploadDir, { recursive: true });
+    await mkdir(options.safetyDir, { recursive: true });
+    const safety = await createBackupUnlocked(db, uploadDir, new Date());
+    const safetyBackupPath = join(options.safetyDir, `testvibe-safety-${Date.now()}-${randomUUID()}.json`);
+    await writeFile(safetyBackupPath, safety, { flag: "wx" });
 
-  const parent = dirname(uploadDir);
-  const stagingDir = join(parent, `.restore-staging-${randomUUID()}`);
-  const rollbackDir = join(parent, `.restore-rollback-${randomUUID()}`);
-  await mkdir(stagingDir);
-  let currentMediaMoved = false;
-  let newMediaInstalled = false;
-  try {
-    for (const row of tables.media) {
-      await writeFile(join(stagingDir, row.filename), Buffer.from(envelope.files[`media/${row.filename}`], "base64"), { flag: "wx" });
+    const parent = dirname(uploadDir);
+    const stagingDir = join(parent, `.restore-staging-${randomUUID()}`);
+    const rollbackDir = join(parent, `.restore-rollback-${randomUUID()}`);
+    await mkdir(stagingDir);
+    let currentMediaMoved = false;
+    let newMediaInstalled = false;
+    try {
+      for (const row of tables.media) {
+        await writeFile(join(stagingDir, row.filename), Buffer.from(envelope.files[`media/${row.filename}`], "base64"), { flag: "wx" });
+      }
+      await options.onPhase?.("after-staging");
+      if (options.failpoint === "after-staging") throw new Error("Restore failpoint after-staging.");
+      await db.transaction(async (tx) => {
+        await replaceTables(tx as unknown as Database, tables);
+        await rename(uploadDir, rollbackDir);
+        currentMediaMoved = true;
+        await options.onPhase?.("after-current-media-moved");
+        if (options.failpoint === "after-current-media-moved") throw new Error("Restore failpoint after-current-media-moved.");
+        await rename(stagingDir, uploadDir);
+        newMediaInstalled = true;
+        await options.onPhase?.("after-media-switch");
+        if (options.failpoint === "after-media-switch") throw new Error("Restore failpoint after-media-switch.");
+      });
+    } catch (error) {
+      if (currentMediaMoved) {
+        if (newMediaInstalled) await rm(uploadDir, { recursive: true, force: true });
+        await rename(rollbackDir, uploadDir);
+      }
+      await rm(stagingDir, { recursive: true, force: true });
+      throw error;
     }
-    if (options.failpoint === "after-staging") throw new Error("Restore failpoint after-staging.");
-    await db.transaction(async (tx) => {
-      await replaceTables(tx as unknown as Database, tables);
-      await rename(uploadDir, rollbackDir);
-      currentMediaMoved = true;
-      if (options.failpoint === "after-current-media-moved") throw new Error("Restore failpoint after-current-media-moved.");
-      await rename(stagingDir, uploadDir);
-      newMediaInstalled = true;
-      if (options.failpoint === "after-media-switch") throw new Error("Restore failpoint after-media-switch.");
-    });
-    await rm(rollbackDir, { recursive: true, force: true });
-    return { safetyBackupPath, report };
-  } catch (error) {
-    if (currentMediaMoved) {
-      if (newMediaInstalled) await rm(uploadDir, { recursive: true, force: true });
-      await rename(rollbackDir, uploadDir);
+
+    try {
+      if (options.failpoint === "rollback-cleanup-failure") throw new Error("Restore failpoint rollback-cleanup-failure.");
+      await rm(rollbackDir, { recursive: true, force: true });
+      return { safetyBackupPath, report, cleanupPending: false };
+    } catch {
+      return { safetyBackupPath, report, cleanupPending: true, rollbackPath: rollbackDir };
     }
-    await rm(stagingDir, { recursive: true, force: true });
-    throw error;
-  }
+  });
 }
 
 type AdminRestoreOptions = {

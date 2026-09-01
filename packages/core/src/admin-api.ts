@@ -58,11 +58,12 @@ import {
   deleteMedia,
 } from "./media.js";
 import { importGedcom, exportGedcom } from "./gedcom.js";
+import { runExclusiveGenealogyOperation } from "./operation-coordinator.js";
 
 // ─── Person ──────────────────────────────────────────────────────────────────
 
 export async function adminCreatePerson(input: PersonInput): Promise<Person> {
-  return createPerson(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createPerson(defaultDb, input));
 }
 
 export async function adminGetPerson(id: number): Promise<Person> {
@@ -77,17 +78,17 @@ export async function adminUpdatePerson(
   id: number,
   input: Partial<PersonInput>,
 ): Promise<Person> {
-  return updatePerson(defaultDb, id, input);
+  return runExclusiveGenealogyOperation(() => updatePerson(defaultDb, id, input));
 }
 
 export async function adminDeletePerson(id: number): Promise<void> {
-  return deletePerson(defaultDb, id);
+  return runExclusiveGenealogyOperation(() => deletePerson(defaultDb, id));
 }
 
 // ─── Union ────────────────────────────────────────────────────────────────────
 
 export async function adminCreateUnion(input: UnionInput): Promise<Union> {
-  return createUnion(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createUnion(defaultDb, input));
 }
 
 export async function adminGetUnion(id: number): Promise<Union> {
@@ -99,21 +100,21 @@ export async function adminListUnions(): Promise<Union[]> {
 }
 
 export async function adminUpdateUnion(id: number, input: Partial<UnionInput>): Promise<Union> {
-  return updateUnion(defaultDb, id, input);
+  return runExclusiveGenealogyOperation(() => updateUnion(defaultDb, id, input));
 }
 
 export async function adminDeleteUnion(id: number): Promise<void> {
-  return deleteUnion(defaultDb, id);
+  return runExclusiveGenealogyOperation(() => deleteUnion(defaultDb, id));
 }
 
 // ─── Filiation ────────────────────────────────────────────────────────────────
 
 export async function adminCreateFiliation(input: FiliationInput): Promise<Filiation> {
-  return createFiliation(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createFiliation(defaultDb, input));
 }
 
 export async function adminCreateFiliations(input: FiliationBatchInput): Promise<Filiation[]> {
-  return createFiliations(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createFiliations(defaultDb, input));
 }
 
 export async function adminGetFiliation(id: number): Promise<Filiation> {
@@ -128,11 +129,11 @@ export async function adminUpdateFiliation(
   id: number,
   input: Partial<FiliationInput>,
 ): Promise<Filiation> {
-  return updateFiliation(defaultDb, id, input);
+  return runExclusiveGenealogyOperation(() => updateFiliation(defaultDb, id, input));
 }
 
 export async function adminDeleteFiliation(id: number): Promise<void> {
-  return deleteFiliation(defaultDb, id);
+  return runExclusiveGenealogyOperation(() => deleteFiliation(defaultDb, id));
 }
 
 // ─── GEDCOM ───────────────────────────────────────────────────────────────────
@@ -145,7 +146,7 @@ export async function adminDeleteFiliation(id: number): Promise<void> {
  * @throws ValidationError si le fichier est malformé ou invalide.
  */
 export async function adminImportGedcom(gedcomText: string): Promise<void> {
-  return importGedcom(defaultDb, gedcomText);
+  return runExclusiveGenealogyOperation(() => importGedcom(defaultDb, gedcomText));
 }
 
 /**
@@ -160,7 +161,7 @@ export async function adminExportGedcom(): Promise<string> {
 // ─── Event ────────────────────────────────────────────────────────────────────
 
 export async function adminCreateEvent(input: EventInput): Promise<Event> {
-  return createEvent(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createEvent(defaultDb, input));
 }
 
 export async function adminGetEvent(id: number): Promise<Event> {
@@ -176,17 +177,17 @@ export async function adminListAllEvents(): Promise<Event[]> {
 }
 
 export async function adminUpdateEvent(id: number, input: Partial<EventInput>): Promise<Event> {
-  return updateEvent(defaultDb, id, input);
+  return runExclusiveGenealogyOperation(() => updateEvent(defaultDb, id, input));
 }
 
 export async function adminDeleteEvent(id: number): Promise<void> {
-  return deleteEvent(defaultDb, id);
+  return runExclusiveGenealogyOperation(() => deleteEvent(defaultDb, id));
 }
 
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 export async function adminCreateMedia(input: MediaInput): Promise<Media> {
-  return createMedia(defaultDb, input);
+  return runExclusiveGenealogyOperation(() => createMedia(defaultDb, input));
 }
 
 export async function adminGetMedia(id: number): Promise<Media> {
@@ -206,5 +207,5 @@ export async function adminListMediaByEvent(eventId: number): Promise<Media[]> {
 }
 
 export async function adminDeleteMedia(id: number): Promise<void> {
-  return deleteMedia(defaultDb, id);
+  return runExclusiveGenealogyOperation(() => deleteMedia(defaultDb, id));
 }
