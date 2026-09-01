@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("./FamilyTreeCanvas", () => ({
   FamilyTreeCanvas: ({ profile, tree }: { profile: string; tree: { nodes: unknown[] } }) => <div data-testid={`canvas-${profile}`}>{tree.nodes.length}</div>,
@@ -95,5 +96,37 @@ describe("FamilyTreeViews", () => {
     expect(screen.getByTestId("canvas-desktop")).toHaveTextContent("2");
     expect(screen.getByRole("button", { name: "Afficher tout l’arbre" })).toHaveAttribute("aria-pressed", "false");
     expect(screen.getByRole("link", { name: "Ajouter une personne" })).toHaveAttribute("href", "/admin/persons");
+  });
+
+  it("compacte la toolbar desktop sur une ligne tout en conservant cibles, sélection et ordre clavier", async () => {
+    const user = userEvent.setup();
+    render(<FamilyTreeViews tree={tree} />);
+
+    const toolbar = screen.getByRole("toolbar", { name: "Profondeur de l’arbre" });
+    const depthTwo = screen.getByRole("button", { name: "Afficher 2 générations" });
+    const depthThree = screen.getByRole("button", { name: "Afficher 3 générations" });
+    const depthFour = screen.getByRole("button", { name: "Afficher 4 générations" });
+    const depthAll = screen.getByRole("button", { name: "Afficher tout l’arbre" });
+    const addPerson = screen.getByRole("link", { name: "Ajouter une personne" });
+
+    expect(toolbar).toHaveClass("w-full", "min-w-0", "flex-nowrap", "md:flex");
+    expect(Array.from(toolbar.querySelectorAll("button, a"))).toEqual([
+      depthTwo,
+      depthThree,
+      depthFour,
+      depthAll,
+      addPerson,
+    ]);
+    for (const control of [depthTwo, depthThree, depthFour, depthAll, addPerson]) {
+      expect(control).toHaveClass("min-h-11", "min-w-11", "focus-visible:outline-2");
+      expect(control.querySelector("span")).toHaveClass("h-7");
+    }
+
+    expect(depthThree).toHaveAttribute("aria-pressed", "true");
+    depthTwo.focus();
+    await user.tab();
+    expect(depthThree).toHaveFocus();
+    await user.tab();
+    expect(depthFour).toHaveFocus();
   });
 });
