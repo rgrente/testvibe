@@ -48,8 +48,45 @@ describe("AppShell", () => {
 
     const mobileNavigation = screen.getByRole("navigation", { name: "Navigation mobile" });
     for (const link of Array.from(mobileNavigation.querySelectorAll("a"))) {
-      expect(link).toHaveClass("min-h-11", "text-base", "focus-visible:outline-2");
+      expect(link).toHaveClass("min-h-11", "focus-visible:outline-2");
     }
+  });
+
+  it("garde les cinq routes publiques dans le viewport mobile et révèle l’édition via Plus", async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+
+    const mobileNavigation = screen.getByRole("navigation", { name: "Navigation mobile" });
+    expect(Array.from(mobileNavigation.querySelectorAll(":scope > a")).map((link) => link.getAttribute("href"))).toEqual([
+      "/",
+      "/timeline",
+      "/ce-jour-la",
+      "/carte",
+      "/statistiques",
+    ]);
+    expect(mobileNavigation).toHaveClass("grid", "grid-cols-6", "overflow-x-hidden");
+    expect(mobileNavigation.querySelector('a[href="/admin/persons"]')).toBeNull();
+
+    const moreButton = screen.getByRole("button", { name: "Plus" });
+    expect(moreButton).toHaveAttribute("aria-expanded", "false");
+    await user.click(moreButton);
+
+    expect(moreButton).toHaveAttribute("aria-expanded", "true");
+    expect(mobileNavigation.querySelector('a[href="/admin"]')).toHaveTextContent("Mode édition");
+  });
+
+  it("place le focus dans le menu Plus et le rend au déclencheur à la fermeture", async () => {
+    const user = userEvent.setup();
+    render(<AppShell />);
+
+    const mobileNavigation = screen.getByRole("navigation", { name: "Navigation mobile" });
+    const moreButton = screen.getByRole("button", { name: "Plus" });
+    await user.click(moreButton);
+    expect(mobileNavigation.querySelector('a[href="/admin"]')).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(mobileNavigation.querySelector('a[href="/admin"]')).not.toBeInTheDocument();
+    expect(moreButton).toHaveFocus();
   });
 
   it("suit l’ordre visuel au clavier et active les liens avec Entrée", async () => {

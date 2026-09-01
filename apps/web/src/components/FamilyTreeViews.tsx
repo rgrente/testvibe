@@ -60,13 +60,19 @@ export function FamilyTreeViews({ tree, initialView = "tree", fanPersonRoute, ro
         </SharedToolbar>
       </div>
       {view === "tree" ? (
-        <SharedToolbar label="Profondeur de l’arbre" className="mb-3 hidden md:flex">
-          <span key="depth-label" className="family-tree-mono mr-1 font-mono text-[9.5px] tracking-[0.09em] text-slate-500">GÉNÉRATIONS</span>
+        <SharedToolbar label="Profondeur de l’arbre" compact className="mb-3 hidden w-full min-w-0 flex-nowrap md:flex">
+          <span key="depth-label" className="family-tree-mono flex shrink-0 items-center font-mono text-[9.5px] tracking-[0.09em] text-slate-500">GÉNÉRATIONS</span>
           {([2, 3, 4] as const).map((depth) => (
-            <button key={depth} type="button" aria-label={`Afficher ${depth} générations`} aria-pressed={generationDepth === depth} onClick={() => setGenerationDepth(depth)} className={`min-h-11 min-w-11 rounded-md font-mono text-xs focus-visible:outline-2 focus-visible:outline-blue-600 ${generationDepth === depth ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>{depth}</button>
+            <button key={depth} type="button" aria-label={`Afficher ${depth} générations`} aria-pressed={generationDepth === depth} onClick={() => setGenerationDepth(depth)} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md font-mono text-xs focus-visible:outline-2 focus-visible:outline-blue-600">
+              <span className={`inline-flex h-7 min-w-7 items-center justify-center rounded ${generationDepth === depth ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>{depth}</span>
+            </button>
           ))}
-          <button key="depth-all" type="button" aria-label="Afficher tout l’arbre" aria-pressed={generationDepth === null} onClick={() => setGenerationDepth(null)} className={`min-h-11 rounded-md px-3 font-mono text-xs focus-visible:outline-2 focus-visible:outline-blue-600 ${generationDepth === null ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Tout</button>
-          <Link key="add-person" href="/admin/persons" aria-label="Ajouter une personne" className="ml-auto flex min-h-11 items-center rounded-md bg-blue-600 px-4 text-sm font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">+ Personne</Link>
+          <button key="depth-all" type="button" aria-label="Afficher tout l’arbre" aria-pressed={generationDepth === null} onClick={() => setGenerationDepth(null)} className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md font-mono text-xs focus-visible:outline-2 focus-visible:outline-blue-600">
+            <span className={`inline-flex h-7 items-center rounded px-2 ${generationDepth === null ? "bg-slate-900 text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Tout</span>
+          </button>
+          <Link key="add-person" href="/admin/persons" aria-label="Ajouter une personne" className="ml-auto flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-md text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">
+            <span className="inline-flex h-7 items-center rounded bg-blue-600 px-2 text-white">+ Personne</span>
+          </Link>
         </SharedToolbar>
       ) : null}
       {view === "tree" ? (

@@ -154,11 +154,6 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         </div>
       )}
 
-      <p className="page-container mt-8 text-right text-xs text-slate-400">
-        <Link href="/admin" className="hover:text-slate-600">
-          Mode édition
-        </Link>
-      </p>
     </main>
   );
 }
