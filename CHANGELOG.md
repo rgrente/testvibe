@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.17.0](https://github.com/rgrente/testvibe/compare/v1.16.0...v1.17.0) (2026-09-01)
+
+
+### Features
+
+* **web:** compact tree controls and add mobile edit access ([#108](https://github.com/rgrente/testvibe/issues/108)) ([6489e55](https://github.com/rgrente/testvibe/commit/6489e552a80b1d7664c57d50fa56f1096d30fa39)), closes [#106](https://github.com/rgrente/testvibe/issues/106)
+
 # [1.16.0](https://github.com/rgrente/testvibe/compare/v1.15.1...v1.16.0) (2026-09-01)
 
 
