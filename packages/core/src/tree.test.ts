@@ -147,7 +147,7 @@ describe("getFamilyTree", () => {
     expect(generationById.has(unrelated.id)).toBe(false);
   });
 
-  it("inclut les frères et sœurs via tous les types de filiation, sans duplication", async () => {
+  it("inclut les frères et sœurs via tous les types de filiation", async () => {
     const grandParent = await createPerson(db, { firstName: "Grand", lastName: "Parent" });
     const parent = await createPerson(db, { firstName: "Parent", lastName: "Commun" });
     const otherParent = await createPerson(db, { firstName: "Autre", lastName: "Parent" });
@@ -160,7 +160,7 @@ describe("getFamilyTree", () => {
     await createFiliation(db, { parentId: parent.id, childId: root.id, role: "biologique" });
     await createFiliation(db, { parentId: otherParent.id, childId: root.id, role: "biologique" });
     await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "adopte" });
-    await createFiliation(db, { parentId: parent.id, childId: adoptedSibling.id, role: "beau-parent" });
+
     await createFiliation(db, { parentId: otherParent.id, childId: adoptedSibling.id, role: "biologique" });
     await createFiliation(db, { parentId: parent.id, childId: stepSibling.id, role: "beau-parent" });
     await createFiliation(db, { parentId: root.id, childId: child.id, role: "biologique" });
@@ -179,7 +179,6 @@ describe("getFamilyTree", () => {
     expect(tree.rootId).toBe(root.id);
     expect(tree.edges).toEqual(expect.arrayContaining([
       expect.objectContaining({ parentId: parent.id, childId: adoptedSibling.id, role: "adopte" }),
-      expect.objectContaining({ parentId: parent.id, childId: adoptedSibling.id, role: "beau-parent" }),
     ]));
   });
 

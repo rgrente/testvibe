@@ -1,15 +1,43 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Database } from "@testvibe/db";
-import { createTestDb } from "./test-utils.js";
+import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createUnion, getUnionById, listUnions, updateUnion, deleteUnion } from "./union.js";
 import { NotFoundError, ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 describe("Union CRUD", () => {
   let db: Database;
 
   beforeEach(async () => {
     db = await createTestDb();
+  });
+
+  it.each([
+    ["union", "AFTER INSERT ON unions"],
+    ["partenaires", "BEFORE INSERT ON union_partner"],
+  ])("annule exactement la création après l'étape %s", async (_step, triggerBoundary) => {
+    const a = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_union_create ${triggerBoundary}
+      BEGIN SELECT RAISE(FAIL, 'échec union'); END`));
+    await expect(createUnion(db, { personIds: [a.id] })).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
+  it.each([
+    ["union", "AFTER UPDATE ON unions"],
+    ["suppression des partenaires", "AFTER DELETE ON union_partner"],
+    ["ajout des partenaires", "BEFORE INSERT ON union_partner"],
+  ])("annule exactement la mise à jour après l'étape %s", async (_step, triggerBoundary) => {
+    const a = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    const b = await createPerson(db, { firstName: "William", lastName: "King" });
+    const created = await createUnion(db, { type: "libre", personIds: [a.id] });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_union_update ${triggerBoundary}
+      BEGIN SELECT RAISE(FAIL, 'échec union'); END`));
+    await expect(updateUnion(db, created.id, { type: "mariage", personIds: [b.id] })).rejects.toThrow();
+    expect(await genealogyState(db)).toEqual(before);
   });
 
   it("crée une Union nominale liant deux Person et la relit par id", async () => {

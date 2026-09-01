@@ -27,3 +27,4 @@ export const db = defaultInstance.db;
 
 export * from "./schema.js";
 export * from "./migration-backup.js";
+export * from "./genealogy-audit.js";

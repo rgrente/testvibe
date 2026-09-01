@@ -8,14 +8,15 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import type { Database } from "@testvibe/db";
-import { createTestDb } from "./test-utils.js";
+import { createTestDb, genealogyState } from "./test-utils.js";
 import { importGedcom, exportGedcom } from "./gedcom.js";
-import { listPersons } from "./person.js";
+import { createPerson, listPersons } from "./person.js";
 import { listUnions } from "./union.js";
 import { listFiliations } from "./filiation.js";
 import { listAllEvents, listFamilyTimeline } from "./event.js";
 import { anniversariesForDate } from "./anniversary.js";
 import { ValidationError } from "./errors.js";
+import { sql } from "drizzle-orm";
 
 // ─── Fixture GEDCOM multi-générations ────────────────────────────────────────
 //
@@ -89,6 +90,16 @@ NO LEVEL NUMBERS HERE
 0 TRLR
 `;
 
+function genealogyGedcom(edges: Array<[string, string]>): string {
+  const people = ["I1", "I2", "I3"].map((xref) =>
+    `0 @${xref}@ INDI\n1 NAME ${xref} /TEST/`,
+  );
+  const families = edges.map(([parent, child], index) =>
+    `0 @F${index + 1}@ FAM\n1 HUSB @${parent}@\n1 CHIL @${child}@`,
+  );
+  return ["0 HEAD", ...people, ...families, "0 TRLR", ""].join("\n");
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe("importGedcom", () => {
@@ -149,6 +160,38 @@ describe("importGedcom", () => {
     expect(unions).toHaveLength(0);
     const filiations = await listFiliations(db);
     expect(filiations).toHaveLength(0);
+  });
+
+  it.each([
+    ["auto-filiation", genealogyGedcom([["I1", "I1"]])],
+    ["doublon de paire", genealogyGedcom([["I1", "I2"], ["I1", "I2"]])],
+    ["cycle direct", genealogyGedcom([["I1", "I2"], ["I2", "I1"]])],
+    ["cycle indirect", genealogyGedcom([["I1", "I2"], ["I2", "I3"], ["I3", "I1"]])],
+    ["référence absente", genealogyGedcom([["I9", "I1"]])],
+  ])("rejette %s sans modifier l'état initial", async (_name, gedcom) => {
+    await createPerson(db, { firstName: "Existing", lastName: "Record" });
+    const before = await genealogyState(db);
+    await expect(importGedcom(db, gedcom)).rejects.toBeInstanceOf(ValidationError);
+    expect(await genealogyState(db)).toEqual(before);
+  });
+
+  it.each([
+    ["personne", "BEFORE INSERT ON person"],
+    ["lieu d'événement", "BEFORE UPDATE ON event WHEN NEW.type = 'naissance'"],
+    ["événement individuel", "BEFORE INSERT ON event WHEN NEW.type = 'libre'"],
+    ["union", "BEFORE INSERT ON unions"],
+    ["partenaires", "BEFORE INSERT ON union_partner"],
+    ["événement familial", "BEFORE INSERT ON event WHEN NEW.type = 'mariage'"],
+    ["filiation", "BEFORE INSERT ON filiation"],
+  ])("annule exactement l'import à l'étape %s", async (_step, triggerBoundary) => {
+    await createPerson(db, { firstName: "Existing", lastName: "Record" });
+    const before = await genealogyState(db);
+    await db.run(sql.raw(`CREATE TRIGGER fail_gedcom_step ${triggerBoundary}
+      BEGIN SELECT RAISE(FAIL, 'échec GEDCOM injecté'); END`));
+
+    await expect(importGedcom(db, VALID_GEDCOM)).rejects.toThrow();
+
+    expect(await genealogyState(db)).toEqual(before);
   });
 
   it("preserve le libellé d'un EVEN porté par 2 TYPE, et retombe sur 1 EVEN sinon", async () => {
