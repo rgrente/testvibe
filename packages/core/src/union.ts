@@ -9,7 +9,7 @@ import { NotFoundError, ValidationError } from "./errors.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { runTransaction } from "./transaction.js";
 import { parseGenealogicalDate } from "./genealogical-date.js";
-import { deleteGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
+import { deleteGenealogicalDates, loadGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 async function assertPersonsExist(db: Database, personIds: number[]): Promise<void> {
   for (const id of personIds) {
@@ -54,11 +54,22 @@ async function loadUnion(db: Database, id: number): Promise<Union> {
     .select()
     .from(unionPartner)
     .where(eq(unionPartner.unionId, id));
+  const dates = await loadGenealogicalDates(db, "union", id);
+  const start = dates.get("start_date");
+  const end = dates.get("end_date");
   return {
     id: row.id,
     type: row.type,
     startDate: row.startDate,
     endDate: row.endDate,
+    startDateQualification: start?.qualification,
+    startDatePrecision: start?.precision,
+    startDateLowerBound: start?.lower,
+    startDateUpperBound: start?.upper,
+    endDateQualification: end?.qualification,
+    endDatePrecision: end?.precision,
+    endDateLowerBound: end?.lower,
+    endDateUpperBound: end?.upper,
     place: row.place,
     latitude: row.latitude,
     longitude: row.longitude,
@@ -129,8 +140,12 @@ export async function updateUnion(
       longitude: merged.longitude ?? null,
     })
     .where(eq(unions.id, id));
-    await persistGenealogicalDate(transactionalDb, "union", id, "start_date", merged.startDate ?? null);
-    await persistGenealogicalDate(transactionalDb, "union", id, "end_date", merged.endDate ?? null);
+    if (input.startDate !== undefined) {
+      await persistGenealogicalDate(transactionalDb, "union", id, "start_date", merged.startDate ?? null);
+    }
+    if (input.endDate !== undefined) {
+      await persistGenealogicalDate(transactionalDb, "union", id, "end_date", merged.endDate ?? null);
+    }
 
   if (input.personIds !== undefined) {
       await transactionalDb.delete(unionPartner).where(eq(unionPartner.unionId, id));

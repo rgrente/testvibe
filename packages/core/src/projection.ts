@@ -10,7 +10,7 @@ import type {
   Person,
   Union,
 } from "./types.js";
-import { compareGenealogicalDates, formatGenealogicalDate, parseGenealogicalDate } from "./genealogical-date.js";
+import { compareGenealogicalDates, formatGenealogicalDate, parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
 
 const FAMILY_DATE = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?$/;
 
@@ -75,11 +75,22 @@ function logicalKey(fact: FamilyFact): string {
 }
 
 function compareFacts(left: FamilyFact, right: FamilyFact): number {
-  const parse = (value: string | null) => {
-    try { return value ? parseGenealogicalDate(value) : null; } catch { return null; }
-  };
-  return compareGenealogicalDates(parse(left.date), parse(right.date), left.identity, right.identity)
+  return compareGenealogicalDates(factDate(left), factDate(right), left.identity, right.identity)
     || left.category.localeCompare(right.category, "fr");
+}
+
+function factDate(fact: FamilyFact): GenealogicalDate | null {
+  if (!fact.date) return null;
+  if (fact.dateQualification && fact.datePrecision) {
+    return {
+      original: fact.date,
+      qualification: fact.dateQualification,
+      precision: fact.datePrecision,
+      lower: fact.dateLowerBound ?? null,
+      upper: fact.dateUpperBound ?? null,
+    };
+  }
+  try { return parseGenealogicalDate(fact.date); } catch { return null; }
 }
 
 function singletonFact(person: Person, type: "naissance" | "décès", events: Event[]): FamilyFact | null {
@@ -88,6 +99,9 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     .sort((left, right) => left.id - right.id);
   const date = type === "naissance" ? person.birthDate : person.deathDate;
   const dateQualification = type === "naissance" ? person.birthDateQualification : person.deathDateQualification;
+  const datePrecision = type === "naissance" ? person.birthDatePrecision : person.deathDatePrecision;
+  const dateLowerBound = type === "naissance" ? person.birthDateLowerBound : person.deathDateLowerBound;
+  const dateUpperBound = type === "naissance" ? person.birthDateUpperBound : person.deathDateUpperBound;
   const enrichment = matches[0];
   if (!date && !enrichment) return null;
   return {
@@ -100,6 +114,9 @@ function singletonFact(person: Person, type: "naissance" | "décès", events: Ev
     date: date ?? enrichment.eventDate,
     eventDate: date ?? enrichment.eventDate,
     dateQualification,
+    datePrecision,
+    dateLowerBound,
+    dateUpperBound,
     label: enrichment?.label ?? null,
     description: enrichment?.description ?? null,
     place: enrichment?.place ?? null,
@@ -122,6 +139,10 @@ function unionFact(item: Union): FamilyFact {
     personIds: [...item.personIds].sort((left, right) => left - right),
     date: item.startDate,
     eventDate: item.startDate,
+    dateQualification: item.startDateQualification,
+    datePrecision: item.startDatePrecision,
+    dateLowerBound: item.startDateLowerBound,
+    dateUpperBound: item.startDateUpperBound,
     label: null,
     description: null,
     place: item.place,
@@ -144,6 +165,10 @@ function eventFact(item: Event): FamilyFact {
     personIds: [item.personId],
     date: item.eventDate,
     eventDate: item.eventDate,
+    dateQualification: item.dateQualification,
+    datePrecision: item.datePrecision,
+    dateLowerBound: item.dateLowerBound,
+    dateUpperBound: item.dateUpperBound,
     label: category === "résidence" ? null : item.label,
     description: item.description,
     place: item.place,

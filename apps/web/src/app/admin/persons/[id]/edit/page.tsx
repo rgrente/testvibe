@@ -12,6 +12,28 @@ interface EditPersonPageProps {
   searchParams: Promise<{ error?: string }>;
 }
 
+export async function submitPersonUpdate(id: number, formData: FormData) {
+  "use server";
+  await requireAdminMutation();
+  const firstName = formData.get("firstName")?.toString().trim();
+  const lastName = formData.get("lastName")?.toString().trim();
+  const birthName = formData.get("birthName")?.toString().trim() || null;
+  const birthDate = formData.get("birthDate")?.toString().trim() || null;
+  const deathDate = formData.get("deathDate")?.toString().trim() || null;
+  const gender = formData.get("gender")?.toString().trim() || null;
+  const livingStatus = formData.get("livingStatus")?.toString() as "living" | "deceased" | undefined;
+  const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
+
+  if (!firstName || !lastName) redirect(`/admin/persons/${id}/edit?error=champs_requis`);
+  try {
+    await adminUpdatePerson(id, { firstName, lastName, birthName, birthDate, deathDate, gender, livingStatus, visibility });
+  } catch {
+    redirect(`/admin/persons/${id}/edit?error=validation`);
+  }
+  revalidatePath("/admin/persons");
+  redirect("/admin/persons");
+}
+
 export default async function EditPersonPage({ params, searchParams }: EditPersonPageProps) {
   const { id: idStr } = await params;
   const { error } = await searchParams;
@@ -29,27 +51,9 @@ export default async function EditPersonPage({ params, searchParams }: EditPerso
   async function updatePersonAction(formData: FormData) {
     "use server";
     await requireAdminMutation();
-    const firstName = formData.get("firstName")?.toString().trim();
-    const lastName = formData.get("lastName")?.toString().trim();
-    const birthName = formData.get("birthName")?.toString().trim() || null;
-    const birthDate = formData.get("birthDate")?.toString().trim() || null;
-    const deathDate = formData.get("deathDate")?.toString().trim() || null;
-    const gender = formData.get("gender")?.toString().trim() || null;
-    const livingStatus = formData.get("livingStatus")?.toString() as "living" | "deceased" | undefined;
-    const visibility = formData.get("visibility")?.toString() as "public" | "family" | "private" | undefined;
-
-    if (!firstName || !lastName) {
-      redirect(`/admin/persons/${id}/edit?error=champs_requis`);
-    }
-
-    try {
-      await adminUpdatePerson(id, { firstName, lastName, birthName, birthDate, deathDate, gender, livingStatus, visibility });
-    } catch {
-      redirect(`/admin/persons/${id}/edit?error=validation`);
-    }
-    revalidatePath("/admin/persons");
-    redirect("/admin/persons");
+    return submitPersonUpdate(id, formData);
   }
+
 
   return (
     <main className="mx-auto max-w-xl px-4 py-8">

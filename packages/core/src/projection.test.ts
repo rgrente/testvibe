@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { genealogicalDate } from "@testvibe/db";
+import { and, eq } from "drizzle-orm";
 import { createTestDb } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createEvent, listFamilyTimeline } from "./event.js";
@@ -175,6 +177,31 @@ describe("formatFamilyDate", () => {
 });
 
 describe("projection cohérente des consommateurs", () => {
+  it("trie avec les métadonnées migrées et exclut un mariage legacy des calculs", async () => {
+    const db = await createTestDb();
+    const alice = await createPerson(db, { firstName: "Alice", lastName: "Martin" });
+    const legacy = await createUnion(db, {
+      type: "mariage",
+      personIds: [alice.id],
+      startDate: "1950-09-02",
+    });
+    const exact = await createUnion(db, {
+      type: "mariage",
+      personIds: [alice.id],
+      startDate: "1950-09-02",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" }).where(and(
+      eq(genealogicalDate.ownerKind, "union"),
+      eq(genealogicalDate.ownerId, legacy.id),
+    ));
+
+    const facts = await listCanonicalFamilyFacts(db);
+
+    expect(facts.map((fact) => fact.identity)).toEqual([`union:${exact.id}`, `union:${legacy.id}`]);
+    expect(upcomingFamilyAnniversaries(facts, [alice], "2026-09-01", 2).map((item) => item.key))
+      .toEqual([`union:${exact.id}`]);
+  });
+
   it("expose les mêmes identités sans double comptage dans fiche, timelines et statistiques", async () => {
     const db = await createTestDb();
     const alice = await createPerson(db, {

@@ -11,7 +11,7 @@ vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/session", () => ({ requireAdminMutation: vi.fn() }));
 
-import PersonsPage from "./page";
+import PersonsPage, { createPersonAction } from "./page";
 
 describe("PersonsPage", () => {
   it("propose public par défaut tout en conservant les choix family et private", async () => {
@@ -33,5 +33,33 @@ describe("PersonsPage", () => {
       "placeholder",
       expect.stringContaining("entre 1950 et 1952"),
     );
+  });
+
+  it("soumet et relit une personne avec des dates qualifiées", async () => {
+    const core = await import("@testvibe/core");
+    vi.mocked(core.adminListPersons).mockResolvedValueOnce([{
+      id: 1,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthName: null,
+      birthDate: "vers 1815",
+      deathDate: "avant 1853",
+      gender: null,
+    }]);
+    render(await PersonsPage({ searchParams: Promise.resolve({}) }));
+    expect(screen.getByText(/né·e vers 1815/)).toBeInTheDocument();
+
+    const formData = new FormData();
+    formData.set("firstName", "Ada");
+    formData.set("lastName", "Lovelace");
+    formData.set("birthDate", "vers 1815");
+    formData.set("deathDate", "avant 1853");
+    formData.set("livingStatus", "deceased");
+    formData.set("visibility", "private");
+    await createPersonAction(formData);
+    expect(core.adminCreatePerson).toHaveBeenCalledWith(expect.objectContaining({
+      birthDate: "vers 1815",
+      deathDate: "avant 1853",
+    }));
   });
 });

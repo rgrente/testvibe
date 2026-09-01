@@ -1,8 +1,26 @@
 import { and, eq } from "drizzle-orm";
 import { genealogicalDate, type Database } from "@testvibe/db";
-import { parseGenealogicalDate } from "./genealogical-date.js";
+import { parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
 
 export type GenealogicalDateOwner = "person" | "union" | "event";
+
+export async function loadGenealogicalDates(
+  db: Database,
+  ownerKind: GenealogicalDateOwner,
+  ownerId: number,
+): Promise<Map<string, GenealogicalDate>> {
+  const rows = await db.select().from(genealogicalDate).where(and(
+    eq(genealogicalDate.ownerKind, ownerKind),
+    eq(genealogicalDate.ownerId, ownerId),
+  ));
+  return new Map(rows.map((row) => [row.field, {
+    original: row.original,
+    qualification: row.qualification,
+    precision: row.precision,
+    lower: row.lowerBound,
+    upper: row.upperBound,
+  }]));
+}
 
 export async function persistGenealogicalDate(
   db: Database,

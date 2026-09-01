@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import type { Database } from "@testvibe/db";
+import { genealogicalDate, type Database } from "@testvibe/db";
 import { createTestDb, genealogyState } from "./test-utils.js";
 import { createPerson } from "./person.js";
 import { createUnion, getUnionById, listUnions, updateUnion, deleteUnion } from "./union.js";
@@ -19,6 +19,25 @@ describe("Union CRUD", () => {
     expect((await getUnionById(db, created.id)).startDate).toBe("entre 1950 et 1952");
     await expect(updateUnion(db, created.id, { startDate: "entre 1952 et 1950" })).rejects.toBeInstanceOf(ValidationError);
     expect((await getUnionById(db, created.id)).startDate).toBe("entre 1950 et 1952");
+  });
+
+  it("relit les bornes migrées et les conserve lors d'une modification sans date", async () => {
+    const person = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
+    const created = await createUnion(db, {
+      type: "mariage",
+      personIds: [person.id],
+      startDate: "1950-01-01",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updateUnion(db, created.id, { place: "Paris" });
+
+    expect(updated).toMatchObject({
+      startDateQualification: "legacy_unresolved",
+      startDatePrecision: "day",
+      startDateLowerBound: "1950-01-01",
+      startDateUpperBound: "1950-01-01",
+    });
   });
 
   it.each([

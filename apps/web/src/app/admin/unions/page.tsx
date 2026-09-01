@@ -16,7 +16,7 @@ export const dynamic = "force-dynamic";
 
 // ─── Server Actions ──────────────────────────────────────────────────────────
 
-async function createUnionAction(formData: FormData) {
+export async function createUnionAction(formData: FormData) {
   "use server";
   await requireAdminMutation();
   const startDate = formData.get("startDate")?.toString().trim() || null;

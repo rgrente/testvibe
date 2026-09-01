@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 // ─── Server Actions ──────────────────────────────────────────────────────────
 
-async function createPersonAction(formData: FormData) {
+export async function createPersonAction(formData: FormData) {
   "use server";
   await requireAdminMutation();
   const firstName = formData.get("firstName")?.toString().trim() ?? "";

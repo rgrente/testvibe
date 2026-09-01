@@ -103,6 +103,7 @@ export function upcomingFamilyAnniversaries(
       key: fact.identity,
       type: fact.category,
       date: fact.date,
+      dateQualification: fact.dateQualification,
       persons: fact.personIds.flatMap((id) => peopleById.get(id) ?? []),
     }));
   const start = new Date(Date.UTC(from.year, from.month - 1, from.day));
@@ -116,7 +117,13 @@ export function upcomingFamilyAnniversaries(
       sources.map((source) => ({
         key: source.key,
         person: source.persons[0] ?? { id: 0, firstName: "", lastName: "", birthName: null, birthDate: null, deathDate: null, gender: null },
-        event: { type: source.type, eventDate: source.date, label: null, description: null },
+        event: {
+          type: source.type,
+          eventDate: source.date,
+          dateQualification: source.dateQualification,
+          label: null,
+          description: null,
+        },
       })),
       occurrenceDate,
     ).map((item) => item.key));

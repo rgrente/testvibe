@@ -4,7 +4,7 @@
  */
 import { describe, it, expect, beforeEach } from "vitest";
 import { createTestDb } from "./test-utils.js";
-import type { Database } from "@testvibe/db";
+import { genealogicalDate, type Database } from "@testvibe/db";
 import { createPerson } from "./person.js";
 import {
   createEvent,
@@ -301,6 +301,25 @@ describe("updateEvent", () => {
     const updated = await updateEvent(db, ev.id, { description: "Voyage en Espagne" });
     expect(updated.description).toBe("Voyage en Espagne");
     expect(updated.label).toBe("Voyage"); // inchangé
+  });
+
+  it("relit les bornes migrées et les conserve lors d'une modification sans date", async () => {
+    const person = await createPerson(db, { firstName: "Legacy", lastName: "Event" });
+    const created = await createEvent(db, {
+      personId: person.id,
+      type: "libre",
+      eventDate: "1950-01-01",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updateEvent(db, created.id, { description: "Renamed" });
+
+    expect(updated).toMatchObject({
+      dateQualification: "legacy_unresolved",
+      datePrecision: "day",
+      dateLowerBound: "1950-01-01",
+      dateUpperBound: "1950-01-01",
+    });
   });
 });
 

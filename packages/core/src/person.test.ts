@@ -54,6 +54,19 @@ describe("Person CRUD", () => {
     expect(updated.firstName).toBe("Ada"); // inchangé
   });
 
+  it("conserve une qualification legacy tant que la date n'est pas explicitement validée", async () => {
+    const created = await createPerson(db, {
+      firstName: "Legacy",
+      lastName: "Person",
+      birthDate: "1950-01-01",
+    });
+    await db.update(genealogicalDate).set({ qualification: "legacy_unresolved" });
+
+    const updated = await updatePerson(db, created.id, { firstName: "Renamed" });
+
+    expect(updated.birthDateQualification).toBe("legacy_unresolved");
+  });
+
   it("persiste puis efface un nom de naissance optionnel", async () => {
     const created = await createPerson(db, {
       firstName: "Simone",
@@ -100,6 +113,18 @@ describe("Person CRUD", () => {
     const created = await createPerson(db, { firstName: "Ada", lastName: "Lovelace" });
     await deletePerson(db, created.id);
     await expect(getPersonById(db, created.id)).rejects.toBeInstanceOf(NotFoundError);
+  });
+
+  it("supprime atomiquement les métadonnées des événements cascadés", async () => {
+    const created = await createPerson(db, {
+      firstName: "Ada",
+      lastName: "Lovelace",
+      birthDate: "1815-12-10",
+    });
+
+    await deletePerson(db, created.id);
+
+    expect(await db.select().from(genealogicalDate)).toEqual([]);
   });
 
   it("rejette la lecture d'une Person inexistante (NotFoundError)", async () => {

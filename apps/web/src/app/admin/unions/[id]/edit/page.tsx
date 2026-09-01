@@ -15,6 +15,32 @@ interface EditUnionPageProps {
   searchParams: Promise<{ error?: string }>;
 }
 
+export async function submitUnionUpdate(id: number, existingPersonIds: number[], formData: FormData) {
+  "use server";
+  await requireAdminMutation();
+  const startDate = formData.get("startDate")?.toString().trim() || null;
+  const endDate = formData.get("endDate")?.toString().trim() || null;
+  const type = formData.get("type")?.toString() as UnionType;
+  const place = formData.get("place")?.toString().trim() || null;
+  const latitudeRaw = formData.get("latitude")?.toString().trim();
+  const longitudeRaw = formData.get("longitude")?.toString().trim();
+  const latitude = latitudeRaw ? Number(latitudeRaw) : null;
+  const longitude = longitudeRaw ? Number(longitudeRaw) : null;
+  const personIds = formData.getAll("personIds").map(Number).filter((pid) => !Number.isNaN(pid) && pid > 0);
+  const distinctPersonCount = new Set(personIds).size;
+  const hasValidPartners = existingPersonIds.length === 2
+    ? personIds.length === 2 && distinctPersonCount === 2
+    : personIds.length > 0 && distinctPersonCount === personIds.length;
+  if (!hasValidPartners) redirect(`/admin/unions/${id}/edit?error=personnes_requises`);
+  try {
+    await adminUpdateUnion(id, { type, startDate, endDate, place, latitude, longitude, personIds });
+  } catch {
+    redirect(`/admin/unions/${id}/edit?error=validation`);
+  }
+  revalidatePath("/admin/unions");
+  redirect("/admin/unions");
+}
+
 export default async function EditUnionPage({ params, searchParams }: EditUnionPageProps) {
   const { id: idStr } = await params;
   const { error } = await searchParams;
@@ -34,34 +60,9 @@ export default async function EditUnionPage({ params, searchParams }: EditUnionP
   async function updateUnionAction(formData: FormData) {
     "use server";
     await requireAdminMutation();
-    const startDate = formData.get("startDate")?.toString().trim() || null;
-    const endDate = formData.get("endDate")?.toString().trim() || null;
-    const type = formData.get("type")?.toString() as UnionType;
-    const place = formData.get("place")?.toString().trim() || null;
-    const latitudeRaw = formData.get("latitude")?.toString().trim();
-    const longitudeRaw = formData.get("longitude")?.toString().trim();
-    const latitude = latitudeRaw ? Number(latitudeRaw) : null;
-    const longitude = longitudeRaw ? Number(longitudeRaw) : null;
-    const personIdsRaw = formData.getAll("personIds").map((v) => Number(v));
-    const personIds = personIdsRaw.filter((pid) => !Number.isNaN(pid) && pid > 0);
-
-    const distinctPersonCount = new Set(personIds).size;
-    const hasValidPartners = union.personIds.length === 2
-      ? personIds.length === 2 && distinctPersonCount === 2
-      : personIds.length > 0 && distinctPersonCount === personIds.length;
-
-    if (!hasValidPartners) {
-      redirect(`/admin/unions/${id}/edit?error=personnes_requises`);
-    }
-
-    try {
-      await adminUpdateUnion(id, { type, startDate, endDate, place, latitude, longitude, personIds });
-    } catch {
-      redirect(`/admin/unions/${id}/edit?error=validation`);
-    }
-    revalidatePath("/admin/unions");
-    redirect("/admin/unions");
+    return submitUnionUpdate(id, union.personIds, formData);
   }
+
 
   return (
     <main className="mx-auto max-w-xl px-4 py-8">

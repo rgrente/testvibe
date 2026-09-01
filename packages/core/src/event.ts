@@ -9,8 +9,8 @@ import { NotFoundError, ValidationError } from "./errors.js";
 import { listPersons } from "./person.js";
 import { normalizePlace, assertValidCoordinates } from "./geo.js";
 import { listCanonicalFamilyFacts } from "./projection.js";
-import { compareGenealogicalDates, parseGenealogicalDate } from "./genealogical-date.js";
-import { deleteGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
+import { compareGenealogicalDates, parseGenealogicalDate, type GenealogicalDate } from "./genealogical-date.js";
+import { deleteGenealogicalDates, loadGenealogicalDates, persistGenealogicalDate } from "./genealogical-date-store.js";
 
 function assertValidEventInput(input: EventInput): void {
   if (!input.personId || input.personId <= 0) {
@@ -30,7 +30,7 @@ function assertValidEventInput(input: EventInput): void {
   }
 }
 
-function toEvent(row: typeof event.$inferSelect): Event {
+function toEvent(row: typeof event.$inferSelect, date?: GenealogicalDate): Event {
   return {
     id: row.id,
     personId: row.personId,
@@ -38,6 +38,10 @@ function toEvent(row: typeof event.$inferSelect): Event {
     type: row.type as Event["type"],
     label: row.label ?? null,
     eventDate: row.eventDate ?? null,
+    dateQualification: date?.qualification,
+    datePrecision: date?.precision,
+    dateLowerBound: date?.lower,
+    dateUpperBound: date?.upper,
     description: row.description ?? null,
     place: row.place ?? null,
     latitude: row.latitude ?? null,
@@ -64,7 +68,7 @@ export async function createEvent(db: Database, input: EventInput): Promise<Even
     })
     .returning();
   await persistGenealogicalDate(db, "event", row.id, "event_date", input.eventDate ?? null);
-  return toEvent(row);
+  return getEventById(db, row.id);
 }
 
 export async function getEventById(db: Database, id: number): Promise<Event> {
@@ -72,23 +76,45 @@ export async function getEventById(db: Database, id: number): Promise<Event> {
   if (!row) {
     throw new NotFoundError("Event", id);
   }
-  return toEvent(row);
+  const date = (await loadGenealogicalDates(db, "event", id)).get("event_date");
+  return toEvent(row, date);
 }
 
 export async function listEventsByPerson(db: Database, personId: number): Promise<Event[]> {
   const rows = await db.select().from(event).where(eq(event.personId, personId));
+  const values = await Promise.all(rows.map(async (row) => toEvent(
+    row,
+    (await loadGenealogicalDates(db, "event", row.id)).get("event_date"),
+  )));
   // Sort chronologically (nulls last)
-  rows.sort((a, b) => compareGenealogicalDates(
-    a.eventDate ? parseGenealogicalDate(a.eventDate) : null,
-    b.eventDate ? parseGenealogicalDate(b.eventDate) : null,
+  values.sort((a, b) => compareGenealogicalDates(
+    eventGenealogicalDate(a),
+    eventGenealogicalDate(b),
     String(a.id), String(b.id),
   ));
-  return rows.map(toEvent);
+  return values;
 }
 
 export async function listAllEvents(db: Database): Promise<Event[]> {
   const rows = await db.select().from(event);
-  return rows.map(toEvent);
+  return Promise.all(rows.map(async (row) => toEvent(
+    row,
+    (await loadGenealogicalDates(db, "event", row.id)).get("event_date"),
+  )));
+}
+
+function eventGenealogicalDate(value: Event): GenealogicalDate | null {
+  if (!value.eventDate) return null;
+  if (value.dateQualification && value.datePrecision) {
+    return {
+      original: value.eventDate,
+      qualification: value.dateQualification,
+      precision: value.datePrecision,
+      lower: value.dateLowerBound ?? null,
+      upper: value.dateUpperBound ?? null,
+    };
+  }
+  return parseGenealogicalDate(value.eventDate);
 }
 
 /**
@@ -153,8 +179,10 @@ export async function updateEvent(
     })
     .where(eq(event.id, id))
     .returning();
-  await persistGenealogicalDate(db, "event", row.id, "event_date", merged.eventDate ?? null);
-  return toEvent(row);
+  if (input.eventDate !== undefined) {
+    await persistGenealogicalDate(db, "event", row.id, "event_date", merged.eventDate ?? null);
+  }
+  return getEventById(db, row.id);
 }
 
 export async function deleteEvent(db: Database, id: number): Promise<void> {
