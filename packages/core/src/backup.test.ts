@@ -193,6 +193,65 @@ describe("complete backup and restore", () => {
     await expect(validateBackup(inconsistentDate)).rejects.toThrow(/logical database/i);
   });
 
+  it.each([
+    ["person", "person", 1, "birth_date"],
+    ["union", "union", 2, "start_date"],
+    ["event", "event", 3, "event_date"],
+  ] as const)(
+    "rejects a current archive missing %s date metadata before mutating the target",
+    async (_label, ownerKind, ownerId, field) => {
+      const source = await createTestDb();
+      const target = await createTestDb();
+      const sourceUploads = await tempDir();
+      const targetUploads = await tempDir();
+      const safetyDir = await tempDir();
+      await source.insert(person).values({
+        id: 1, firstName: "Source", lastName: "Person", birthDate: "1950-01-01",
+      });
+      await source.insert(unions).values({ id: 2, type: "mariage", startDate: "vers 1970" });
+      await source.insert(event).values({
+        id: 3, personId: 1, type: "résidence", eventDate: "après 1980",
+      });
+      await source.insert(genealogicalDate).values([
+        {
+          ownerKind: "person", ownerId: 1, field: "birth_date", original: "1950-01-01",
+          qualification: "legacy_unresolved", precision: "day", lowerBound: "1950-01-01", upperBound: "1950-01-01",
+        },
+        {
+          ownerKind: "union", ownerId: 2, field: "start_date", original: "vers 1970",
+          qualification: "about", precision: "year", lowerBound: "1969-01-01", upperBound: "1971-12-31",
+        },
+        {
+          ownerKind: "event", ownerId: 3, field: "event_date", original: "après 1980",
+          qualification: "after", precision: "year", lowerBound: "1981-01-01", upperBound: null,
+        },
+      ]);
+      await target.insert(person).values({
+        id: 9, firstName: "Unchanged", lastName: "Target", deathDate: "avant 1900",
+      });
+      await target.insert(genealogicalDate).values({
+        ownerKind: "person", ownerId: 9, field: "death_date", original: "avant 1900",
+        qualification: "before", precision: "year", lowerBound: null, upperBound: "1899-12-31",
+      });
+      const targetPersons = await target.select().from(person);
+      const targetDates = await target.select().from(genealogicalDate);
+      const archive = rewriteTables(await createBackup(source, sourceUploads), (tables) => {
+        tables.genealogical_date = tables.genealogical_date.filter((row) => !(
+          row.ownerKind === ownerKind && row.ownerId === ownerId && row.field === field
+        ));
+      });
+
+      await expect(validateBackup(archive)).rejects.toThrow(/genealogical date/i);
+      await expect(restoreBackup(target, targetUploads, archive, {
+        safetyDir,
+        confirm: "REPLACE",
+      })).rejects.toThrow(/genealogical date/i);
+      expect(await target.select().from(person)).toEqual(targetPersons);
+      expect(await target.select().from(genealogicalDate)).toEqual(targetDates);
+      expect(await readdir(safetyDir)).toEqual([]);
+    },
+  );
+
   it("restores the previous compatible minor version and rejects a future minor version", async () => {
     const source = await createTestDb();
     const target = await createTestDb();

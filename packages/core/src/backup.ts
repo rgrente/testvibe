@@ -186,6 +186,21 @@ function validateLogicalDatabase(tables: BackupTables): void {
   const personById = new Map(tables.person.map((row) => [row.id, row]));
   const unionById = new Map(tables.unions.map((row) => [row.id, row]));
   const eventById = new Map(tables.event.map((row) => [row.id, row]));
+  const expectedDateKeys = [
+    ...tables.person.flatMap((row) => [
+      ...(row.birthDate ? [`person:${row.id}:birth_date`] : []),
+      ...(row.deathDate ? [`person:${row.id}:death_date`] : []),
+    ]),
+    ...tables.unions.flatMap((row) => [
+      ...(row.startDate ? [`union:${row.id}:start_date`] : []),
+      ...(row.endDate ? [`union:${row.id}:end_date`] : []),
+    ]),
+    ...tables.event.flatMap((row) => row.eventDate ? [`event:${row.id}:event_date`] : []),
+  ];
+  const archivedDateKeys = new Set(dateKeys);
+  if (expectedDateKeys.some((key) => !archivedDateKeys.has(key))) {
+    throw new Error("Invalid logical database: missing genealogical date metadata.");
+  }
   try {
     for (const row of tables.genealogical_date) {
       const ownerValue = row.ownerKind === "person"
