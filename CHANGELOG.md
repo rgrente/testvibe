@@ -1,5 +1,12 @@
 # Changelog
 
+# [1.16.0](https://github.com/rgrente/testvibe/compare/v1.15.1...v1.16.0) (2026-09-01)
+
+
+### Features
+
+* atomicité et intégrité généalogique ([#103](https://github.com/rgrente/testvibe/issues/103)) ([2a56145](https://github.com/rgrente/testvibe/commit/2a5614540aa68d22976d978de333a3fa586ebbb7)), closes [#95](https://github.com/rgrente/testvibe/issues/95)
+
 ## [1.15.1](https://github.com/rgrente/testvibe/compare/v1.15.0...v1.15.1) (2026-08-31)
 
 
